@@ -26,10 +26,16 @@ export RAD_CFG_PATH="$OR_BUILD/hm_cfg_files"
 
 # H3D reader + message library lookup at runtime.
 export RAD_H3D_PATH="$OR_BUILD/extlib/h3d/lib/linux64"
-export LD_LIBRARY_PATH="$OR_BUILD/extlib/hm_reader/linux64/:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$OR_BUILD/extlib/hm_reader/linux64/:${LD_LIBRARY_PATH:-}"
 
 # OpenRadioss stacks aggressively; the Intel/OpenMP runtimes need headroom.
 export OMP_STACKSIZE=400m
+
+# The two oracle binaries themselves.  Names come from
+# $OR_SRC/INSTALL.md:110-111 and from build_oracle.sh (the cmake TARGET names
+# are only `starter`/`engine` -- see the trap notes in build_oracle.sh).
+export OR_STARTER="$OR_ROOT/bin/starter_linux64_gf"
+export OR_ENGINE="$OR_ROOT/bin/engine_linux64_gf"
 
 # Put the built starter/engine at the front of PATH.
 export PATH="$OR_ROOT/bin:$PATH"
