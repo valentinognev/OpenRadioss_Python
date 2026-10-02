@@ -53,7 +53,9 @@ i.e. ``$OR_SRC`` = /home/valentin/Projects/OpenRadioss/OpenCourant):
 import json
 import os
 import pathlib
+import re
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -123,14 +125,21 @@ def test_oracle_binaries_exist():
 
 
 @pytest.mark.parametrize(
-    "binary,banner",
+    "binary,banner,platform",
     [
-        (STARTER, "OpenRadioss Starter"),
-        (ENGINE, "OpenRadios Engine"),  # upstream spelling, execargcheck.F:727
+        # starter: PREXECINFO prints CPUNAM from the tracked machine.inc
+        # (starter/share/spe_inc/machine.inc:39,44 -> 'linux64' /
+        #  'Linux 64 bits, GNU compiler'), not the generated BNAME.
+        (STARTER, "OpenRadioss Starter", "Platform release : linux64"),
+        # engine: PREXECINFO prints the generated BNAME
+        # (engine/source/engine/execargcheck.F:729), which or_build_info.py
+        # writes from -arch=${arch} (starter|engine CMakeLists.txt:210-217,
+        # Compiling_tools/script/or_build_info.py:40-47).
+        (ENGINE, "OpenRadios Engine", "Platform release : linux64_gf"),
     ],
     ids=["starter", "engine"],
 )
-def test_oracle_binary_runs(binary, banner, tmp_path):
+def test_oracle_binary_runs(binary, banner, platform, tmp_path):
     _require_oracle()
     proc = subprocess.run(
         [str(binary), "-v"],
@@ -143,8 +152,14 @@ def test_oracle_binary_runs(binary, banner, tmp_path):
     out = proc.stdout + proc.stderr
     assert proc.returncode == 0, f"{binary.name} -v exited {proc.returncode}:\n{out}"
     assert banner in out, f"{binary.name} -v printed no version banner:\n{out}"
-    assert "Platform release : linux64_gf" in out, (
-        f"{binary.name} -v did not report the linux64_gf platform:\n{out}"
+    assert platform in out, (
+        f"{binary.name} -v did not report the expected platform:\n{out}"
+    )
+    # PREXECINFO calls HM_BUILD_ID from libhm_reader on the starter path
+    # (starter/source/starter/execargcheck.F:1200-1221), so reaching this point
+    # also proves LD_LIBRARY_PATH and RAD_H3D_PATH are right.
+    assert "Reader :" in out or binary is ENGINE, (
+        f"{binary.name} -v did not reach the hm_reader version query:\n{out}"
     )
 
 
@@ -195,6 +210,77 @@ def test_provenance_names_the_extlib_source():
             assert entry.get("reason"), (
                 f"provenance: solvers.{name} is not built, so it needs a reason"
             )
+
+
+def test_provenance_declares_every_extlib_shim():
+    """A stale extlib must be impossible to mistake for a pristine one.
+
+    $OR_SRC/EXTLIB_VERSION.json pins the extlib the source expects; the oracle is
+    built against whatever extlib is actually reachable.  When those differ, the
+    provenance file must carry a non-empty ``extlib_shims`` section, one entry
+    per adapted symbol, each naming its upstream caller(s) with file:line, the
+    file in the mirror that provides it, and what is therefore untrustworthy.
+    """
+    data = json.loads(PROVENANCE.read_text())
+
+    version_file = OR_SRC / "EXTLIB_VERSION.json"
+    assert version_file.is_file(), f"cannot read {version_file}"
+    wanted = int(json.loads(version_file.read_text())["version"])
+
+    recorded = int(data["extlib"]["harvested_version"])
+    shims = data.get("extlib_shims")
+
+    if recorded >= wanted:
+        # A current extlib needs no adapter; then there must be none to declare.
+        assert not shims, (
+            f"extlib_shims declared but the recorded extlib is v{recorded} "
+            f">= the required v{wanted}"
+        )
+        return
+
+    assert shims, (
+        f"extlib on record is v{recorded} but the source requires v{wanted}: "
+        "provenance must carry a non-empty extlib_shims section"
+    )
+    symbols = set()
+    for shim in shims:
+        for key in (
+            "symbol",
+            "upstream_callers",
+            "provided_by",
+            "trust_statement",
+            "kind",
+        ):
+            assert shim.get(key), f"shim entry missing {key}: {shim!r}"
+        assert shim["symbol"] not in symbols, f"duplicate shim {shim['symbol']}"
+        symbols.add(shim["symbol"])
+        assert shim["upstream_callers"], f"{shim['symbol']}: no caller citation"
+        for caller in shim["upstream_callers"]:
+            # must be a real path:line citation, not prose
+            assert re.search(r"\.[FcChH]\w*:\d+", caller), (
+                f"{shim['symbol']}: caller citation is not path:line -> {caller!r}"
+            )
+        assert Path(shim["provided_by"]).name, f"{shim['symbol']}: bad provided_by"
+
+    # The three symbols the link failed on must be covered by name.
+    for needed in (
+        "cpp_get_include_file_by_index",
+        "cpp_is_part_with_elements_",
+        "cpp_sale_mesh_create_",
+    ):
+        assert needed in symbols, f"no shim recorded for {needed}"
+
+
+def test_provenance_states_which_parity_evidence_is_admissible():
+    data = json.loads(PROVENANCE.read_text())
+    admissible = data.get("admissible_parity_evidence")
+    assert admissible, "provenance must record admissible_parity_evidence"
+    for channel, verdict in admissible.items():
+        assert verdict in ("yes", "no"), f"{channel}: verdict must be yes/no, got {verdict!r}"
+        if verdict == "no":
+            assert data.get("inadmissible_parity_evidence_reasons", {}).get(
+                channel
+            ), f"{channel}: marked inadmissible but no reason recorded"
 
 
 def test_upstream_source_is_untouched():

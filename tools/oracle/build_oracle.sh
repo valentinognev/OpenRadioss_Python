@@ -228,6 +228,109 @@ fi
 
 mkdir -p "$OR_ROOT/bin"
 
+# ------------------------------------------------------------- extlib shims --
+# The reachable extlib (v59) predates the pinned source's reader and h3d API.
+# tools/oracle/extlib_shims/ holds SOURCE adapters for the missing surface; see
+# each file's header comment for the upstream citations and the exact contract
+# each caller relies on.  Nothing in the harvested tree is modified and no
+# harvested binary is touched: the shims are copied into $OR_BUILD/p0_shims
+# (idempotent, so the build is reproducible from a fresh mirror) and injected
+# without editing a single upstream file:
+#
+#   * the h3d header surface is a compile-time gap, so it is injected as
+#     `-include <p0_h3d_api_shim.h> -I<p0_shims>` on the C and CXX lines.  The
+#     -I is what lets `#include <h3dpublic_import.h>`
+#     (starter/source/output/checksum/checksum_list.cpp:27) find our stand-in;
+#     it is only added when the harvested extlib has no file of that name, so it
+#     can never shadow the real header;
+#   * the three missing reader symbols need to be LINKED.  They go in through
+#     `-Dflexpipe_lib=<archive>`, an unused hook in
+#     starter/CMake_Compilers/cmake_linux64_gf.txt:177
+#     (`set (LINK "dl ${flexpipe_lib} ...")`), so upstream's CMake is untouched.
+SHIM_SRC="$SCRIPT_DIR/extlib_shims"
+SHIM_DIR="$OR_BUILD/p0_shims"
+SHIM_LIB=""
+mkdir -p "$SHIM_DIR"
+cp "$SHIM_SRC/p0_h3d_api_shim.h" "$SHIM_SRC/h3dpublic_import.h" \
+   "$SHIM_SRC/h3dpublic_export.h" "$SHIM_SRC/p0_hm_reader_adapter.c" \
+   "$SHIM_SRC/p0_h3d_writer_adapter.c" "$SHIM_DIR/"
+echo "--- extlib shims installed in $SHIM_DIR"
+
+# -I<shim dir> must come BEFORE the extlib include dir so that the shim
+# headers win; it does, because CMAKE_C_FLAGS/CMAKE_CXX_FLAGS precede the
+# per-source COMPILE_FLAGS that carry -I${source_directory}/../extlib/h3d/includes
+# (engine/CMake_Compilers/cmake_linux64_gf.txt:73,73-77 and
+#  starter/CMake_Compilers/cmake_linux64_gf.txt:36).  The two shim headers that
+# must shadow a real one are only put on the path when the harvested extlib has
+# no file of that name, so a current extlib is never shadowed.
+shim_flags="-include $SHIM_DIR/p0_h3d_api_shim.h -I$SHIM_DIR"
+h3d_inc="$OR_BUILD/extlib/h3d/includes"
+
+# h3dpublic_import.h: the shim stands in only when there is no real header.
+if [ -f "$h3d_inc/h3dpublic_import.h" ]; then
+  echo "    NOTE: harvested extlib HAS h3dpublic_import.h -- shim copy dropped"
+  rm -f "$SHIM_DIR/h3dpublic_import.h"
+else
+  echo "    injecting h3dpublic_import.h shim (extlib has none)"
+fi
+
+# h3dpublic_export.h: the real header exists but may be too old.  It is current
+# only if it already mentions H3D_NF_FORMAT (the parameter the pinned source
+# passes); otherwise the shim replaces exactly the two prototypes.
+if [ -f "$h3d_inc/h3dpublic_export.h" ] && grep -q "H3D_NF_FORMAT" "$h3d_inc/h3dpublic_export.h"; then
+  echo "    NOTE: harvested h3dpublic_export.h already declares H3D_NF_FORMAT"
+  echo "          -- shim copy dropped, the real header is used"
+  rm -f "$SHIM_DIR/h3dpublic_export.h"
+else
+  echo "    injecting h3dpublic_export.h shim (2 prototypes lack H3D_NF_FORMAT)"
+fi
+
+# The adapters define symbols the reachable libraries do not export.  Link them
+# ONLY when that is actually true, so a current extlib never gets them
+# interposed over the real implementations.
+HM="$OR_BUILD/extlib/hm_reader/linux64/libhm_reader_linux64.so"
+H3DLIB="$OR_BUILD/extlib/h3d/lib/linux64/libh3dwriter.so"
+need_shim_lib=0
+for s in cpp_get_include_file_by_index cpp_sale_mesh_create_ \
+         cpp_is_part_with_elements_; do
+  nm -D --defined-only "$HM" 2>/dev/null | grep -q "[[:space:]]$s\$" || need_shim_lib=1
+done
+for s in Hyper3DExportLibraryVersion Hyper3DCompressionLevel; do
+  nm -D --defined-only "$H3DLIB" 2>/dev/null | grep -q "[[:space:]]$s\$" || need_shim_lib=1
+done
+
+if [ "$need_shim_lib" = "1" ]; then
+  echo "    compiling the extlib shim archive (missing entry points detected)"
+  rm -f "$SHIM_LIB"
+  for unit in p0_hm_reader_adapter p0_h3d_writer_adapter; do
+    "$C_COMPILER" -c -O2 -fPIC -Wall -Wextra -o "$SHIM_DIR/$unit.o" \
+                  "$SHIM_DIR/$unit.c"
+  done
+  ar rcs "$SHIM_DIR/libp0extlibshims.a" \
+        "$SHIM_DIR/p0_hm_reader_adapter.o" "$SHIM_DIR/p0_h3d_writer_adapter.o"
+  SHIM_LIB="$SHIM_DIR/libp0extlibshims.a"
+  echo "    -> $SHIM_LIB"
+else
+  echo "    harvested libraries export every entry point: no shim archive linked"
+fi
+
+# ---------------------------------------------------------------- libcrypt ---
+# The harvested libapr-1.so has a real NEEDED entry on libcrypt.so.1
+# (`objdump -p extlib/hm_reader/linux64/libapr-1.so.0 | grep NEEDED`).  ld only
+# warns about it ("needed by .../libapr-1.so, not found (try using -rpath or
+# -rpath-link)") because it does not search the default library directories for
+# the dependencies of a shared object it found through -L.  The runtime loader
+# does search them and does find it, so this is not merely cosmetic: give ld the
+# same information instead of muting the warning, and prove the resolution below
+# with ldd.
+CRYPT_DIR=""
+for d in /lib/x86_64-linux-gnu /lib64 /usr/lib/x86_64-linux-gnu /lib /usr/lib; do
+  if [ -e "$d/libcrypt.so.1" ]; then CRYPT_DIR="$d"; break; fi
+done
+LINK_EXTRA="-Wl,-rpath-link,$OR_BUILD/extlib/hm_reader/linux64"
+[ -n "$CRYPT_DIR" ] && LINK_EXTRA="$LINK_EXTRA -Wl,-rpath-link,$CRYPT_DIR"
+echo "--- libcrypt.so.1 found in '${CRYPT_DIR:-<none>}' -> $LINK_EXTRA"
+
 # ------------------------------------------------------------ configure+build
 # Trap 2 + 3: one project per component, EXEC_NAME kept equal to the component
 # name so the -Dbuild dereference trap is not triggered.
@@ -236,6 +339,15 @@ for component in $COMPONENTS; do
   echo "=================================================================="
   echo "--- $component : configure ($bdir)"
   echo "=================================================================="
+  # ${flexpipe_lib} is an unused hook in the arch file's link line
+  # (starter/CMake_Compilers/cmake_linux64_gf.txt:177), so it is where both the
+  # shim archive and the -rpath-link fragments go; the engine arch file has no
+  # such hook and needs neither.  The whole value must be ONE quoted argument:
+  # `-Dflexpipe_lib=a b` unquoted makes cmake eat `b` as an unknown option.
+  flexpipe=()
+  if [ "$component" = "starter" ]; then
+    flexpipe=("-Dflexpipe_lib=$SHIM_LIB $LINK_EXTRA")
+  fi
   # The CUDA *.cu glob of engine/CMakeLists.txt:57 is emptied at lines 335-340
   # because gpu_cc is not defined, so no NVIDIA SDK is required.
   "$CMAKE" -S "$OR_BUILD" -B "$bdir" \
@@ -250,7 +362,10 @@ for component in $COMPONENTS; do
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_Fortran_COMPILER="$FORTRAN_COMPILER" \
     -DCMAKE_C_COMPILER="$C_COMPILER" \
-    -DCMAKE_CXX_COMPILER="$CXX_COMPILER"
+    -DCMAKE_CXX_COMPILER="$CXX_COMPILER" \
+    -DCMAKE_C_FLAGS="$shim_flags" \
+    -DCMAKE_CXX_FLAGS="$shim_flags" \
+    "${flexpipe[@]+"${flexpipe[@]}"}"
 
   echo "--- $component : build"
   "$CMAKE" --build "$bdir" --parallel "$JOBS"
@@ -292,6 +407,26 @@ for component in $COMPONENTS; do
   "$bin" -v | head -8 || rc=1
 done
 [ "$rc" = 0 ] || { echo "!!! smoke check failed" >&2; exit 1; }
+
+# ------------------------------------------------- runtime library check ----
+# The install is only usable if every NEEDED library resolves under the oracle
+# environment; check it instead of trusting the link.
+echo
+echo "--- Checking runtime library resolution"
+rc=0
+for component in $COMPONENTS; do
+  bin="$OR_ROOT/bin/${component}_${ARCH}"
+  missing="$(ldd "$bin" 2>&1 | grep 'not found' || true)"
+  if [ -n "$missing" ]; then
+    echo "!!! $bin has unresolved libraries:" >&2
+    echo "$missing" | sed 's/^/    /' >&2
+    rc=1
+  else
+    echo "    $bin: all libraries resolved"
+    echo "        hm_reader: $(ldd "$bin" | grep hm_reader | sed 's/^ *//')"
+  fi
+done
+[ "$rc" = 0 ] || { echo "!!! runtime library check failed" >&2; exit 1; }
 
 echo
 echo "--- Done."

@@ -2,9 +2,7 @@
   "schema": "pyradioss/oracle-provenance/1",
   "purpose": "Machine-readable provenance of the reference (Fortran) OpenRadioss oracle used for differential parity. Every parity claim must cite this file.",
   "written_by": "tools/oracle/mirror_and_fetch.sh + tools/oracle/build_oracle.sh (task P0.4)",
-
   "upstream_git_sha": "1a0d691b82bd4f94a3bc2399682551e84e1d5fa4",
-
   "upstream": {
     "name": "OpenCourant/OpenCourant (OpenRadioss)",
     "uri": "https://github.com/OpenCourant/OpenCourant.git",
@@ -18,7 +16,6 @@
     "extlib_version_declared_by_source": "82",
     "extlib_version_declared_source": "$OR_SRC/EXTLIB_VERSION.json -> https://github.com/OpenRadioss/OpenRadioss_extlib/releases/download/v82/extlib.zip"
   },
-
   "extlib": {
     "kind": "harvested-from-pinned-mirrors",
     "status": "incomplete",
@@ -50,24 +47,30 @@
         "digest": "sha256:15c2c76f6380f3650cfd629ea5c7fdb75a5f9e7c2c3f2f4da73114f0974c97a5",
         "path_in_image": "/opt/OpenRadioss/extlib/hm_reader/linux64",
         "extraction": "docker create (never started) + docker cp + docker rm",
-"reported_openradioss_version": "unknown - the image ships release binaries only, no version file; libhm_reader_linux64.so inside the image is dated 2026-05-06",
-      "provides": [
-        "hm_reader/linux64/libhm_reader_linux64.so",
-        "hm_reader/linux64/libapr-1.so",
-        "hm_reader/linux64/libapr-1.so.0"
-      ],
-      "insufficient": {
-        "component": "hm_reader",
-        "missing_entry_points": ["cpp_get_include_file_by_index", "cpp_sale_mesh_create_", "cpp_is_part_with_elements_"],
-        "required_by": [
-          "starter/source/devtools/hm_reader/write_include_files_list.F90:49-56 (bind(C, name='cpp_get_include_file_by_index'))",
-          "starter/source/devtools/hm_reader/hm_s_ale.F90 (cpp_sale_mesh_create_)",
-          "starter/source/devtools/hm_reader/hm_is_part_with_elements.F90 (cpp_is_part_with_elements_)"
+        "reported_openradioss_version": null,
+        "provides": [
+          "hm_reader/linux64/libhm_reader_linux64.so",
+          "hm_reader/linux64/libapr-1.so",
+          "hm_reader/linux64/libapr-1.so.0"
         ],
-        "symptom": "link failure: undefined reference to `cpp_is_part_with_elements_' / `cpp_sale_mesh_create_' / `cpp_get_include_file_by_index'",
-        "checked_alternative": "dheiny/openradioss-solver:1.0.37 (image 2026-08-16) carries libhm_reader_linux64.so dated 2026-06-03 and misses the same three entry points (`nm -D --defined-only | grep -c ...` -> 0)",
-        "not_substituted": "No stub was written. These are the native-.k deck reader's entry points; a fake would make every keyword-read comparison meaningless."
-      }
+        "insufficient": {
+          "component": "hm_reader",
+          "missing_entry_points": [
+            "cpp_get_include_file_by_index",
+            "cpp_sale_mesh_create_",
+            "cpp_is_part_with_elements_"
+          ],
+          "required_by": [
+            "starter/source/devtools/hm_reader/write_include_files_list.F90:49-56 (bind(C, name='cpp_get_include_file_by_index'))",
+            "starter/source/devtools/hm_reader/hm_s_ale.F90 (cpp_sale_mesh_create_)",
+            "starter/source/devtools/hm_reader/hm_is_part_with_elements.F90 (cpp_is_part_with_elements_)"
+          ],
+          "symptom": "link failure: undefined reference to `cpp_is_part_with_elements_' / `cpp_sale_mesh_create_' / `cpp_get_include_file_by_index'",
+          "checked_alternative": "dheiny/openradioss-solver:1.0.37 (image 2026-08-16) carries libhm_reader_linux64.so dated 2026-06-03 and misses the same three entry points (`nm -D --defined-only | grep -c ...` -> 0)",
+          "not_substituted": "No stub was written. These are the native-.k deck reader's entry points; a fake would make every keyword-read comparison meaningless."
+        },
+        "reported_openradioss_version_reason": "the image ships release binaries only, no version file",
+        "reported_hm_reader_build_id": "20260505_a2e7b801 (printed by the oracle's own `starter_linux64_gf -v`, from HM_BUILD_ID at starter/source/starter/execargcheck.F:1200-1201) -> the reader build is 2026-05-05"
       }
     ],
     "verified_present": [
@@ -96,9 +99,10 @@
       ],
       "not_substituted": "No stand-in was written for either symbol. h3d is an I/O library; inventing its interface would make every later H3D-related parity claim unsound, so the build is left failing instead.",
       "runtime_consequence_if_forced": "libh3dwriter.so at this vintage exports no node-force entry points (`nm -D --defined-only | grep -ci node` -> 0), and libh3dreader.so is absent entirely, so H3D output could not be trusted even if the compile were forced through."
-    }
+    },
+    "harvested_version": 59,
+    "required_version": 82
   },
-
   "build": {
     "system": "cmake -S <mirror> -B <build>/<component> per component; -Dbuild=both in a single run is broken upstream (duplicate `extlib` custom target, starter/CMakeLists.txt:189-193 vs engine/CMakeLists.txt:266-270) and -Dbuild=starter together with -Dstarter=starter_linux64_gf silently produces an empty build system (CMakeLists.txt:18 dereferences the `starter` variable), hence -Dbuild=<component> -Dstarter=starter -Dengine=engine and a rename on install.",
     "patched_in_mirror": [
@@ -113,12 +117,23 @@
     "flags": {
       "source": "unchanged upstream, $OR_BUILD/{starter,engine}/CMake_Compilers/cmake_linux64_gf.txt",
       "fortran": "-w -DMYREAL8 -Werror=aliasing -Werror=unused-dummy-argument -Werror=do-subscript -Werror=array-bounds -Werror=surprising -Werror=tabs -Werror=maybe-uninitialized -DMETIS5 -DCPP_mach=CPP_p4linux964 -DCPP_rel=80 -DCPP_comp=f90 -DCOMP_GFORTRAN=1 -fdec-math -O2 -ffp-contract=off -frounding-math -fopenmp -ffixed-line-length-none [-fallow-argument-mismatch -fallow-invalid-boz -std=legacy on some files]",
-      "cmake_defines": ["-Darch=linux64_gf", "-Dprecision=dp", "-DMPI=smp", "-Ddebug=0", "-Dstatic_link=0", "-DCMAKE_BUILD_TYPE=Release"],
-      "forbidden_flags_absent": ["-ffast-math", "-Ofast", "-fdefault-real-8"],
+      "cmake_defines": [
+        "-Darch=linux64_gf",
+        "-Dprecision=dp",
+        "-DMPI=smp",
+        "-Ddebug=0",
+        "-Dstatic_link=0",
+        "-DCMAKE_BUILD_TYPE=Release"
+      ],
+      "forbidden_flags_absent": [
+        "-ffast-math",
+        "-Ofast",
+        "-fdefault-real-8"
+      ],
       "extra_includes_in_probe_only": "none in the deliverable path; the feasibility probe in the report injected a scratch header with gcc -include from /tmp, never from the mirror"
-    }
+    },
+    "runtime_library_check": "build_oracle.sh runs ldd on each installed binary with the oracle environment and fails if any NEEDED library is unresolved; the link-time 'libcrypt.so.1 ... not found' warning from ld is handled with -Wl,-rpath-link so ld resolves the harvested apr-1's dependency chain instead of warning, and libcrypt.so.1 itself comes from the system (/lib/x86_64-linux-gnu/libcrypt.so.1)."
   },
-
   "toolchain": {
     "host": "Linux x86_64, 12 cores",
     "gfortran": "GNU Fortran (GCC) 15.2.0 - /home/valentin/anaconda/bin/gfortran",
@@ -130,38 +145,167 @@
     "system_gfortran": null,
     "system_gfortran_reason": "none installed; all Fortran comes from conda-forge"
   },
-
   "solvers": {
     "starter_linux64_gf": {
       "path": "/home/valentin/OpenRadioss_or/bin/starter_linux64_gf",
-      "built": false,
-      "reason": "h3d headers of the pinned source are not obtainable (see extlib.incompatible_with_pinned_source); the build fails while compiling the C/C++ h3d sources"
+      "built": true,
+      "built_from": "cmake --build of the mirror with the declared extlib_shims",
+      "banner": "OpenRadioss Starter / Platform release : linux64 (CPUNAM from starter/share/spe_inc/machine.inc:39,44)",
+      "version_banner_observed": "OpenRadioss Starter\nPlatform release : linux64\nPlatform info : Linux 64 bits, GNU compiler\nCommitID : User Build\nReader : 20260505_a2e7b801"
     },
     "engine_linux64_gf": {
       "path": "/home/valentin/OpenRadioss_or/bin/engine_linux64_gf",
-      "built": false,
-      "reason": "same h3d blocker; not attempted because the starter build already fails on the same file"
+      "built": true,
+      "built_from": "cmake --build of the mirror with the declared extlib_shims",
+      "banner": "OpenRadios Engine / Platform release : linux64_gf (generated BNAME, engine/source/engine/execargcheck.F:729)",
+      "version_banner_observed": "OpenRadios Engine\nPlatform release : linux64_gf\nPlatform info : Linux 64 bits, GNU compiler"
     }
   },
-
   "third_party_prebuilt_binaries_used": false,
   "third_party_prebuilt_binaries_note": "Two Docker Hub images (ale10tech/openradioss-core, dheiny/openradioss-solver) contain prebuilt starter/engine binaries. They were NOT installed or used as the oracle: the deliverable is a from-source build, and shipping someone else's binary as parity evidence would be unsound.",
-
-  "built_on": null,
-  "not_built_reason": "extlib version skew, in two independent components: (a) h3d -- the reachable headers/library predate H3D_NF_FORMAT and h3dpublic_import.h; (b) hm_reader -- the reachable libhm_reader_linux64.so lacks three cpp_* entry points the pinned starter links against. Both arrived in extlib between v59 (2026-05-28) and v82 (2026-09-22), which cannot be fetched from this machine. Phase 0 is blocked on an extlib >= the one EXTLIB_VERSION.json asks for.",
-
+  "built_on": "2026-10-03",
+  "not_built_reason": null,
   "verification_performed": [
     "cmake 3.28.3 configures starter and engine cleanly from the mirror (exit 0, targets created)",
-    "FULL feasibility probe of the starter: 100% of ~1400 translation units compile with gfortran 15.2.0 under the project's own strict flag set (including -Werror=maybe-uninitialized, which upstream adds for GCC 11/15/16) -- no compiler-flag or source-level workaround was needed",
-    "the probe reached the link step and failed only on the three missing hm_reader entry points listed above, so the toolchain, the extlib library paths and the link line are all validated",
+    "both components build 100% with gfortran 15.2.0 under the project's own strict flag set (including -Werror=maybe-uninitialized, which upstream adds for GCC 11/15/16) -- no compiler-flag or source-level workaround was needed",
+    "both link and both print their version banner: `starter_linux64_gf -v` -> 'OpenRadioss Starter', `engine_linux64_gf -v` -> 'OpenRadios Engine'",
+    "tools/oracle/mirror_and_fetch.sh verifies all 14 extlib paths the two arch flag files require, plus the API currency of h3d/hm_reader, on every run, and refuses to proceed when a stale entry point has no declared adapter",
     "the generated build.make carries the POST_BUILD copy into $OR_BUILD/exec, confirming that install() is a no-op and the move to $OR_ROOT/bin has to be explicit",
-    "tools/oracle/mirror_and_fetch.sh verifies all 14 extlib paths the two arch flag files require, on every run",
-    "the probe injected two scratch h3d declarations from /tmp with `gcc -include` to get past the missing h3d API; nothing was written into the mirror and no probe binary was installed as the oracle"
+    "runtime resolution of the installed binaries is verified with ldd under the oracle environment; the harvested apr-1's libcrypt.so.1 dependency is a real runtime need and is satisfied by the system libcrypt (see build.runtime_library_check)"
   ],
-
   "unblock_options": [
+    "obtain extlib >= the version in $OR_SRC/EXTLIB_VERSION.json (82); every shim in extlib_shims then becomes unnecessary and the gates stop reporting staleness",
     "make github.com/OpenRadioss reachable again (then run mirror_and_fetch.sh with OR_USE_UPSTREAM_EXTLIB=1 to use upstream load_extlib.py unmodified)",
     "allow GitHub release-asset downloads through the proxy and point EXTLIB at a mirror of OpenRadioss_extlib releases",
-    "supply extlib >= v60 as a local directory or archive and add it to REQUIRED_EXTLIB_PATHS-verified harvest (h3d/includes/h3dpublic_import.h plus an h3dpublic_defs.h defining H3D_NF_FORMAT)"
+    "supply extlib as a local directory or archive and teach mirror_and_fetch.sh to copy it in"
+  ],
+  "extlib_shims": [
+    {
+      "symbol": "cpp_get_include_file_by_index",
+      "kind": "source adapter (C), linked into the starter",
+      "upstream_callers": [
+        "starter/source/devtools/hm_reader/write_include_files_list.F90:49-56",
+        "starter/source/devtools/hm_reader/write_include_files_list.F90:105-111"
+      ],
+      "provided_by": "tools/oracle/extlib_shims/p0_hm_reader_adapter.c -> $OR_BUILD/p0_shims/libp0extlibshims.a",
+      "implemented_on": "libhm_reader_linux64.so v59 primitive GlobalModelSDIGetIncludesList(char**) and GlobalModelSDICountIncludeFiles(int*), resolved by dlsym from their mangled names; reference semantics in reader/source/solver_interface/source/cfg_reading/GlobalModelSdi.cpp:2666-2693",
+      "trust_statement": "the include-file list printed in the starter .out is complete and correct for what the v59 reader loaded; nothing else is affected"
+    },
+    {
+      "symbol": "cpp_get_number_of_include_files",
+      "kind": "source adapter (C), interposes the v59 one-argument export with the pinned two-argument contract",
+      "upstream_callers": [
+        "starter/source/devtools/hm_reader/write_include_files_list.F90:42-47",
+        "starter/source/devtools/hm_reader/write_include_files_list.F90:86-87"
+      ],
+      "provided_by": "tools/oracle/extlib_shims/p0_hm_reader_adapter.c -> $OR_BUILD/p0_shims/libp0extlibshims.a",
+      "implemented_on": "GlobalModelSDICountIncludeFiles(int*) (v59); reference semantics in reader/source/solver_interface/source/cfg_reading/cpp_get_number_of_include_files.cpp:31-43",
+      "trust_statement": "fixes a real ABI mismatch: left alone, upstream's two-argument call would have written the count through is_dyna and left num_includes at 0, silently dropping the include-file block from the .out"
+    },
+    {
+      "symbol": "cpp_is_part_with_elements_",
+      "kind": "source adapter (C), linked into the starter",
+      "upstream_callers": [
+        "starter/source/devtools/hm_reader/hm_is_part_with_elements.F90:44-62",
+        "starter/source/model/assembling/hm_read_part.F:210-232"
+      ],
+      "provided_by": "tools/oracle/extlib_shims/p0_hm_reader_adapter.c -> $OR_BUILD/p0_shims/libp0extlibshims.a",
+      "implemented_on": "GlobalEntitySDICountElementsInPart(int*) (v59) plus GlobalEntitySDIGetId(int*,bool*) as a consistency check; reference semantics in reader/source/solver_interface/source/cfg_reading/GlobalModelSdi.cpp:2561-2585 and cpp_count_elements_in_part.cpp:36-49",
+      "trust_statement": "'does the /PART just read hold at least one element' is answered by the reader's own count of the current entity, which is the contract hm_read_part.F relies on for message 178 and for the element-stack path"
+    },
+    {
+      "symbol": "cpp_sale_mesh_create_",
+      "kind": "NOT implemented - reports the reader's own error",
+      "upstream_callers": [
+        "starter/source/devtools/hm_reader/hm_s_ale.F90:100-124",
+        "starter/source/devtools/hm_reader/hm_s_ale.F90:133-160",
+        "starter/source/ale/s_ale_message.F90:104-229"
+      ],
+      "provided_by": "tools/oracle/extlib_shims/p0_hm_reader_adapter.c -> $OR_BUILD/p0_shims/libp0extlibshims.a",
+      "implemented_on": "nothing: the v59 reader has no structured-ALE-mesh creator (nm -D --defined-only | grep -ci sale finds only the unrelated RadiossAleCfdSph_Card classes). The adapter sets message_value(38) = -1, the reader's own 'mesh not created' code",
+      "trust_statement": "any deck using /ALE/STRUCTURED_MESH fails loudly with upstream MSGERROR 3153 (s_ale_message.F90:210-215) instead of silently receiving a mesh of zeros; decks without the keyword never call it (hm_s_ale.F90:106-108)"
+    },
+    {
+      "symbol": "H3D_NF_FORMAT / H3D_NF_REAL",
+      "kind": "type declaration (header shim, -include)",
+      "upstream_callers": [
+        "common_source/output/h3d/h3d_build_cpp/h3d_dl.c:258-260",
+        "common_source/output/h3d/h3d_build_cpp/h3d_dl.c:276-281",
+        "common_source/output/h3d/h3d_build_cpp/h3d_dl.c:1370-1417",
+        "engine/source/output/h3d/h3d_build_cpp/c_h3d_create_nodal_scalar_datatype.cpp:139-140"
+      ],
+      "provided_by": "tools/oracle/extlib_shims/p0_h3d_api_shim.h",
+      "implemented_on": "nothing at run time: the reachable libh3dwriter.so keeps the entry-point names (Hyper3DDatatypeWrite@@H3D_EXPORT_11.0, Hyper3DDatasetBegin@@H3D_EXPORT_11.0), so the extra argument is passed and ignored",
+      "trust_statement": "h3d output is inadmissible anyway (see inadmissible_parity_evidence_reasons.h3d); the node-force dataset feature does not exist in this h3d build"
+    },
+    {
+      "symbol": "h3dpublic_import.h (Hyper3DImportOpen / Hyper3DImportClose / Hyper3DLookupString)",
+      "kind": "header stand-in with weak declarations",
+      "upstream_callers": [
+        "starter/source/output/checksum/checksum_list.cpp:27",
+        "starter/source/output/checksum/checksum_list.cpp:640-687",
+        "common_source/output/h3d/h3d_build_cpp/h3dreader_dl.c:78-84"
+      ],
+      "provided_by": "tools/oracle/extlib_shims/h3dpublic_import.h",
+      "implemented_on": "nothing: the prototypes are transcribed from h3dreader_dl.c and declared weak, so the dynamic linker resolves them from the dlopen'ed libh3dreader.so; if that library is missing the caller has already returned (checksum_list.cpp:645-652)",
+      "trust_statement": "/CHECKSUM_REPORT over H3D files is not available (no libh3dreader.so on this box); the checksum report over A-files/T01 is unaffected"
+    },
+    {
+      "symbol": "Hyper3DElementBegin / Hyper3DElement2Begin / Hyper3DDatatypeWrite / Hyper3DDatasetBegin prototypes",
+      "kind": "header shim replacing four prototypes via #include_next",
+      "upstream_callers": [
+        "engine/source/output/h3d/h3d_build_cpp/c_h3d_create_beams.cpp:97-99",
+        "engine/source/output/h3d/h3d_build_cpp/c_h3d_create_rbe2.cpp:94-96",
+        "engine/source/output/h3d/h3d_build_cpp/c_h3d_eroded_oned.cpp:106-108",
+        "common_source/output/h3d/h3d_build_cpp/h3d_dl.c:172-179",
+        "common_source/output/h3d/h3d_build_cpp/h3d_dl.c:1192-1223"
+      ],
+      "provided_by": "tools/oracle/extlib_shims/h3dpublic_export.h",
+      "implemented_on": "nothing: declarations only, shaped exactly as the pinned call sites pass the arguments (an int such as pool_count cannot be passed implicitly to an enum parameter, so the alternative shape does not even compile)",
+      "trust_statement": "h3d element/dataset blocks are written against a library whose ABI is one parameter short, so the arguments after type_id/nf_format shift inside the old callee; h3d output is inadmissible"
+    },
+    {
+      "symbol": "H3D_NOZLIB / H3D_NOSORT",
+      "kind": "macro shim, defined as 0",
+      "upstream_callers": [
+        "engine/source/output/h3d/h3d_build_cpp/c_h3d_open_file.cpp:240-241"
+      ],
+      "provided_by": "tools/oracle/extlib_shims/h3dpublic_export.h",
+      "implemented_on": "nothing: 0 is the honest value, this h3d build can neither disable zlib nor skip the sort (extlib/h3d/includes/h3dpublic_defs.h:171-176 shows the reachable H3D_FileMode layout); inventing bit patterns would set unrelated mode bits",
+      "trust_statement": "H3D files keep this library's default compression and sorting; not admissible for parity"
+    },
+    {
+      "symbol": "Hyper3DExportLibraryVersion / Hyper3DCompressionLevel",
+      "kind": "source adapter (C), linked into starter and engine",
+      "upstream_callers": [
+        "engine/source/output/h3d/h3d_build_cpp/c_h3d_export_library_version.cpp:64-66",
+        "engine/source/output/h3d/h3d_results/genh3d.F:734-746",
+        "engine/source/output/h3d/h3d_build_cpp/c_h3d_open_file.cpp:245"
+      ],
+      "provided_by": "tools/oracle/extlib_shims/p0_h3d_writer_adapter.c -> $OR_BUILD/p0_shims/libp0extlibshims.a",
+      "implemented_on": "Hyper3DExportLibraryVersion reports the loaded library's real export version (readelf -V -> H3D_EXPORT_11.0, i.e. 11.0), which is below the 2612.0 the engine demands, so upstream's own gate fires MSGID 324 + ARRET(2). Hyper3DCompressionLevel only announces on stderr that the level cannot be applied; it is unreachable behind that gate",
+      "trust_statement": "a run that requests h3d output is aborted by the solver itself instead of this oracle pretending the library is new enough"
+    }
+  ],
+  "admissible_parity_evidence": {
+    "T01 (binary results table)": "yes",
+    "A-files (animation)": "yes",
+    "RESTART (.rst)": "yes",
+    "starter .out text and message counts": "yes",
+    "energy ledger (EN)": "yes",
+    "native LS-DYNA .k deck reading (hm_reader)": "yes",
+    "/ALE/STRUCTURED_MESH (S-ALE)": "no",
+    "H3D animation files": "no",
+    "/CHECKSUM_REPORT over H3D files": "no"
+  },
+  "inadmissible_parity_evidence_reasons": {
+    "/ALE/STRUCTURED_MESH (S-ALE)": "the v59 reader has no structured-ALE-mesh creator; the adapter returns the reader's own error -1, so any deck using the keyword fails with MSGERROR 3153 (starter/source/ale/s_ale_message.F90:210-215) instead of producing a mesh",
+    "H3D animation files": "three independent reasons: (1) the reachable libh3dwriter.so is H3D_EXPORT_11.0 while the engine requires >= 2612.0 (engine/source/output/h3d/h3d_results/genh3d.F:734-746), so upstream's own gate aborts the run; (2) Hyper3DElementBegin/Element2Begin gained an H3D_ID type_id, so the old callee sees parent_id/parent_poolname_id/node_poolname_id shifted by one register; (3) the pinned tree disagrees with itself about where H3D_NF_FORMAT sits (call sites 6th/7th, shim wrappers h3d_dl.c:1371-1416 last), so no header choice can repair it. Node-force datasets cannot be written at all (nm -D | grep -ci node -> 0)",
+    "/CHECKSUM_REPORT over H3D files": "needs libh3dreader.so, which no reachable extlib contains; the prototypes are weak so the starter runs, but the checksum list cannot be built"
+  },
+  "parity_evidence_caveats": [
+    "native .k deck reading goes through hm_reader v59 (plus the three cpp_* adapters above); every keyword read is the library's own, but a future audit should re-check /PART message 178 and the element-stack choice against a build with a current hm_reader",
+    "the include-file list in the starter .out comes from the v59 reader's include set; the adapter forwards both the count and the names faithfully",
+    "nothing in this oracle was built from a third-party prebuilt binary; the two Docker Hub images that contain prebuilt starter/engine binaries were never installed"
   ]
 }

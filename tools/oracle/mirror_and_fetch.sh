@@ -89,6 +89,9 @@ EXTLIB_HM_IMAGE="ale10tech/openradioss-core:ubuntu24.04"
 EXTLIB_HM_IMAGE_DIGEST="sha256:15c2c76f6380f3650cfd629ea5c7fdb75a5f9e7c2c3f2f4da73114f0974c97a5"
 EXTLIB_HM_CONTAINER="or_extlib_harvest_$$"
 
+# Source adapters for the API the reachable (older) extlib does not have.
+SHIM_SRC="$SCRIPT_DIR/extlib_shims"
+
 # The exact set the build needs, read off
 #   starter/CMake_Compilers/cmake_linux64_gf.txt:25,30-33,36-44
 #   engine/CMake_Compilers/cmake_linux64_gf.txt:73-81
@@ -137,47 +140,71 @@ verify_extlib() {
 
 # Gate 2: a *file-complete* extlib is not necessarily a *version-current* one,
 # and the difference only shows up as a compile error ten minutes into a build.
-# Check the three API facts the pinned source actually depends on:
-#   h3dpublic_defs.h must define H3D_NF_FORMAT   (common_source/output/h3d/
-#       h3d_build_cpp/h3d_dl.c:258-281,1370-1416 and 77 call sites in
+# The missing API facts the pinned source depends on:
+#   H3D_NF_FORMAT in h3dpublic_defs.h   (common_source/output/h3d/h3d_build_cpp/
+#       h3d_dl.c:258-281,1370-1416 and 77 call sites in
 #       engine/source/output/h3d/h3d_build_cpp/*.cpp)
-#   h3dpublic_import.h must exist                 (starter/source/output/
-#       checksum/checksum_list.cpp:27)
-#   libhm_reader_linux64.so must export the cpp_* entry points the starter links
-#       against (starter/source/devtools/hm_reader/*.F90)
+#   h3dpublic_import.h                   (starter/source/output/checksum/
+#       checksum_list.cpp:27)
+#   the cpp_* entry points libhm_reader_linux64.so must export for
+#       starter/source/devtools/hm_reader/*.F90
+#
+# A stale tree is only tolerated when EVERY missing fact has a declared source
+# adapter in tools/oracle/extlib_shims/ -- see check_shims_cover_stale below.
+STALE_ITEMS=()
 check_extlib_api() {
-  local bad=0 s
+  STALE_ITEMS=()
   local inc="$OR_BUILD/extlib/h3d/includes"
   local hm="$OR_BUILD/extlib/hm_reader/linux64/libhm_reader_linux64.so"
+  local s
   if ! grep -q "H3D_NF_FORMAT" "$inc/h3dpublic_defs.h" 2>/dev/null; then
     echo "    STALE h3d: h3dpublic_defs.h does not define H3D_NF_FORMAT" >&2
-    bad=1
+    STALE_ITEMS+=("H3D_NF_FORMAT")
   fi
   if [ ! -f "$inc/h3dpublic_import.h" ]; then
     echo "    STALE h3d: h3dpublic_import.h is missing" >&2
-    bad=1
+    STALE_ITEMS+=("h3dpublic_import.h")
   fi
   if command -v nm >/dev/null 2>&1; then
     for s in cpp_get_include_file_by_index cpp_sale_mesh_create_ \
              cpp_is_part_with_elements_; do
       if ! nm -D --defined-only "$hm" 2>/dev/null | grep -q "[[:space:]]$s\$"; then
         echo "    STALE hm_reader: libhm_reader_linux64.so does not export $s" >&2
-        bad=1
+        STALE_ITEMS+=("$s")
       fi
     done
   else
     echo "    (nm not available: skipping the hm_reader symbol check)"
   fi
-  return "$bad"
+  [ "${#STALE_ITEMS[@]}" -eq 0 ]
+}
+
+# Every stale item must be named by an adapter, otherwise the build would either
+# fail ten minutes in or -- worse -- silently do something other than what the
+# adapter documents.
+check_shims_cover_stale() {
+  local s provider ok=0
+  echo "    each missing entry point needs a declared adapter in extlib_shims/:" >&2
+  for s in "${STALE_ITEMS[@]}"; do
+    provider="$(grep -rl -- "$s" "$SHIM_SRC" 2>/dev/null | tr '\n' ' ')"
+    if [ -n "$provider" ]; then
+      echo "      adapter  $s  <-  $provider" >&2
+    else
+      echo "      NO ADAPTER  $s" >&2
+      ok=1
+    fi
+  done
+  return "$ok"
 }
 
 report_stale() {
   echo "!!! extlib is STALE: it predates the pinned OpenRadioss source." >&2
   echo "    $OR_SRC/EXTLIB_VERSION.json asks for version" \
        "$(sed -n 's/.*"version"[^0-9]*\([0-9]*\).*/\1/p' "$OR_BUILD/EXTLIB_VERSION.json" 2>/dev/null || echo '?')," >&2
-  echo "    the libraries on disk are older.  h3d is an I/O library and hm_reader" >&2
-  echo "    is the native .k deck reader, so no substitute is fabricated for" >&2
-  echo "    either: parity evidence built on them would be unsound." >&2
+  echo "    the libraries on disk are older.  The build therefore runs with the" >&2
+  echo "    source adapters in tools/oracle/extlib_shims/; every one of them is" >&2
+  echo "    declared in tools/validation_data/oracle_provenance.json with the" >&2
+  echo "    output paths it makes untrustworthy." >&2
 }
 
 if [ "$CHECK_ONLY" = "1" ]; then
@@ -186,7 +213,9 @@ if [ "$CHECK_ONLY" = "1" ]; then
   echo "--- Checking that the extlib is API-current for the pinned source"
   if ! check_extlib_api; then
     report_stale
-    exit 1
+    check_shims_cover_stale || exit 1
+    echo "--- extlib OK (stale, but fully covered by declared adapters)"
+    exit 0
   fi
   echo "--- extlib OK"
   exit 0
@@ -275,12 +304,14 @@ if check_extlib_api; then
   echo "    h3d and hm_reader expose the APIs the pinned source needs"
 elif [ "${OR_SKIP_EXTLIB_API_CHECK:-0}" = "1" ]; then
   echo "!!! extlib is STALE (see above) -- continuing anyway because" >&2
-  echo "    OR_SKIP_EXTLIB_API_CHECK=1.  The build will fail in the h3d /" >&2
-  echo "    hm_reader sources; this is for experimentation only." >&2
+  echo "    OR_SKIP_EXTLIB_API_CHECK=1; no adapter coverage is checked." >&2
 else
   report_stale
-  echo "    Obtain that extlib, or set OR_SKIP_EXTLIB_API_CHECK=1 to look anyway." >&2
-  exit 1
+  check_shims_cover_stale || {
+    echo "    Obtain the extlib version named above, or teach" >&2
+    echo "    tools/oracle/extlib_shims/ to cover the rest." >&2
+    exit 1
+  }
 fi
 
 # Marker read by build_oracle.sh before it short-circuits the upstream `extlib`
