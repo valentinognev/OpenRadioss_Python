@@ -1,0 +1,40 @@
+# Linux x86-64 gfortran architecture flags for the OpenRadioss reference build.
+# The upstream tree omits a top-level CMake_Compilers/cmake_linux64_gf.txt, so
+# this file declares the toolchain the oracle is compiled and linked with.
+foreach (pair "Fortran;gfortran" "C;gcc" "CXX;g++" "CPP;g++")
+   list (GET pair 0 _lang)
+   list (GET pair 1 _cc)
+  if (NOT CMAKE_${_lang}_COMPILER)
+    set (CMAKE_${_lang}_COMPILER ${_cc})
+  endif ()
+endforeach ()
+set ( cppmach "-DCPP_mach=CPP_p4linux964" )
+set ( cpprel  "-DCPP_rel=80" )
+# -fopenmp must reach the link line as well; omitting it there leaves the
+# GOMP_* runtime undefined at link time.
+set ( OPENMP "-fopenmp" )
+# -fno-second-underscore: the Fortran sources carry trailing-underscore names.
+# -ffp-contract=off / -frounding-math keep the oracle's energy ledger exact.
+# No fast-math relaxation and no forced 8-byte reals: precision is chosen by the
+# component CMakeLists through share/r4 vs share/r8, and the oracle's own energy
+# ledger must never be allowed to disagree with the numbers it prints.
+set ( opt_flag "-O2 -march=native -fno-second-underscore -ffp-contract=off -frounding-math ${OPENMP}" )
+set ( precision_flag "-DMYREAL8" )
+if (precision STREQUAL "sp")
+  set (precision_flag "-DMYREAL4")
+endif ()
+set (CMAKE_Fortran_FLAGS_RELEASE "${opt_flag} ${precision_flag} ${cppmach} ${cpprel} -DCPP_comp=f90 -DCOMP_GFORTRAN=1 -fdec-math -ffixed-line-length-none ${ADF}" )
+set (CMAKE_C_FLAGS_RELEASE "-w ${opt_flag} ${precision_flag} ${cppmach} ${cpprel}" )
+set (CMAKE_CXX_FLAGS_RELEASE "-w ${opt_flag} ${precision_flag} ${cppmach} ${cpprel} -std=c++14" )
+set ( CMAKE_EXE_LINKER_FLAGS "-rdynamic -no-pie -O2 ${OPENMP}" )
+if ( static_link STREQUAL "1" )
+set(LINK "dl -static-libgfortran -static-libstdc++ -static-libgcc -fopenmp")
+else()
+set(LINK "dl -fopenmp")
+endif()
+string(STRIP ${LINK} LINK)
+
+# NOTE: starter/CMakeLists.txt and engine/CMakeLists.txt resolve the arch file
+# from their OWN CMake_Compilers/ directory, where upstream already ships
+# cmake_linux64_gf.txt. Those remain authoritative for the actual build; this
+# file is the top-level declaration of the same toolchain.
