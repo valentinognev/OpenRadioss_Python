@@ -8,9 +8,11 @@ the decision status.
 **Status: no maintainer decision recorded.** Task 0.0 does not choose; see
 [Decision](#decision).
 
-All upstream citations are repo-relative to the read-only upstream checkout
-`/home/valentin/Projects/OpenRadioss/OpenCourant` (never written to). Line
-ranges are the ones actually read while writing this file.
+All upstream citations name a path relative to
+`/home/valentin/Projects/OpenRadioss` (so the read-only upstream checkout is
+`OpenCourant/...`, never written to). Line ranges are the ones actually read
+while writing this file; `git log` on this document's first commit is the
+arbiter if a range is ever disputed.
 
 ## The contradiction
 
@@ -18,7 +20,7 @@ ranges are the ones actually read while writing this file.
 | --- | --- |
 | `LICENSE:1-3` | `MIT License` / `Copyright (c) 2026 Minh Quang Pham` |
 | `README.md:290-294` | `GPL-3.0 (see [LICENSE](LICENSE)) — inherited from files derived from OpenRadioss, © Altair Engineering Inc.` |
-| `pyproject.toml:9` | `license = { file = "LICENSE" }` — points at the MIT file |
+| `pyproject.toml:10` | `license = { file = "LICENSE" }` — points at the MIT file |
 | upstream `OpenCourant/LICENSE.md:1-3` | `GNU AFFERO GENERAL PUBLIC LICENSE` / `Version 3, 19 November 2007` |
 | upstream source headers, e.g. `OpenCourant/engine/source/engine/resol.F:1-7` | `GNU Affero General Public License … either version 3 of the License, or (at your option) any later version.` |
 
@@ -78,9 +80,10 @@ Two further terms matter for a port:
   Corresponding Source. pyradioss ships an optional tkinter GUI, so option 1
   below brings §13 into scope for anyone serving the port over a network.
 
-`OpenCourant/LICENSE.md:630-644` is the FSF's own recommended per-file notice
-("attach them to the start of each source file"), which is the pattern option 1
-would follow for the ported modules.
+`OpenCourant/LICENSE.md:625-628` is the FSF's own recommended per-file notice
+("attach them to the start of each source file", lines 625-626), and
+`OpenCourant/LICENSE.md:630-644` is the notice itself as a template — the
+pattern option 1 would follow for the ported modules.
 
 ## The four lawful resolutions
 
@@ -134,7 +137,7 @@ nothing can be assumed about the outcome — the repository cannot depend on it.
 
 **No decision recorded as of 2026-10-02.** The maintainer has not answered.
 Per the Task 0.0 brief, this task ends at *recommendation* and does not choose:
-`pyproject.toml:9` and `README.md:290-294` are deliberately left untouched, so
+`pyproject.toml:10` and `README.md:290-294` are deliberately left untouched, so
 neither artefact silently adopts any option on the maintainer's behalf.
 
 **Recommendation: Option 1 — relicense the port to AGPL-3.0-or-later**,

@@ -18,7 +18,14 @@ repaired.
 `test_licensing_record_is_present_and_complete` always passes: the record of
 the contradiction and of the four lawful resolutions
 (`docs/LICENSING.md`) must not be deletable while the xfail marker hides the
-underlying problem.
+underlying problem. It pins the four real `### Option N` *headings* (not the
+bare words "Option N", which also occur in the Decision rationale) and
+requires each of the four option sections to carry a non-empty body.
+
+Whoever finally applies option 1 must install the COMPLETE AGPL text as
+`LICENSE`, not a stub: the consistency gate matches the canonical title
+"GNU AFFERO GENERAL PUBLIC LICENSE", which the full text spells out and a
+one-line reference would not.
 
 Path note: the brief reads `Path("LICENSE")` / `Path("pyproject.toml")`
 relative to the CWD; this file resolves them from `__file__` instead so the
@@ -27,6 +34,7 @@ gate cannot be evaded by running pytest from a subdirectory.
 
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 
@@ -58,19 +66,39 @@ def test_declared_licence_is_consistent() -> None:
     if isinstance(declared, dict):  # legacy table form: license = {file = "LICENSE"}
         licence_file = REPO_ROOT / declared["file"]
         assert licence_file.is_file(), f"pyproject points at a missing {licence_file}"
-        assert "AGPL" in licence_file.read_text(encoding="utf-8"), (
-            f"{declared['file']} is not an AGPL text"
+        assert "GNU AFFERO GENERAL PUBLIC LICENSE" in licence_file.read_text(
+            encoding="utf-8"
+        ), (
+            f"{declared['file']} does not carry the full AGPL text "
+            "(expected the canonical title 'GNU AFFERO GENERAL PUBLIC LICENSE')"
         )
     else:  # PEP 639 SPDX string form: license = "AGPL-3.0-or-later"
         assert declared == "AGPL-3.0-or-later", f"pyproject declares {declared!r}"
     assert "AGPL-3.0-or-later" in readme, "README.md does not declare AGPL-3.0-or-later"
 
 
+OPTION_HEADINGS = (
+    "### Option 1 — Relicense the port to AGPL-3.0-or-later",
+    "### Option 2 — Keep the existing files' derived status and relicense only the new program",
+    "### Option 3 — Replace the copied expressions",
+    "### Option 4 — Obtain a commercial or dual-licence grant from Siemens",
+)
+MIN_OPTION_BODY_WORDS = 20
+
+
 def test_licensing_record_is_present_and_complete() -> None:
     assert LICENSING_DOC.is_file(), "docs/LICENSING.md is missing"
     doc = LICENSING_DOC.read_text(encoding="utf-8")
-    for option in ("Option 1", "Option 2", "Option 3", "Option 4"):
-        assert option in doc, f"docs/LICENSING.md does not name {option}"
+    sections = re.split(r"^#{2,3} ", doc, flags=re.MULTILINE)
+    for heading in OPTION_HEADINGS:
+        assert f"\n{heading}\n" in f"\n{doc}", f"docs/LICENSING.md lacks heading {heading!r}"
+        body = next(
+            s for s in sections if s.startswith(heading[len("### ") :] + "\n")
+        )
+        assert len(body.split()) >= MIN_OPTION_BODY_WORDS, (
+            f"section {heading!r} has an empty/trivial body — the record must "
+            "not be deletable while the xfail marker hides the contradiction"
+        )
     for citation in (
         "OpenCourant/LICENSE.md",
         "engine/source/engine/resol.F",
@@ -78,5 +106,10 @@ def test_licensing_record_is_present_and_complete() -> None:
         "Siemens",
     ):
         assert citation in doc, f"docs/LICENSING.md does not cite {citation}"
-    assert "## Decision" in doc, "docs/LICENSING.md has no Decision section"
-    assert "no decision" in doc.lower(), "docs/LICENSING.md records no decision status"
+    assert "\n## Decision\n" in f"\n{doc}", "docs/LICENSING.md has no Decision section"
+    decision = doc.split("\n## Decision\n", 1)[1].lower()
+    status = ("no decision recorded", "decision recorded", "decided on")
+    assert any(s in decision for s in status), (
+        "the Decision section records no status keyword; expected one of "
+        + ", ".join(repr(s) for s in status)
+    )
