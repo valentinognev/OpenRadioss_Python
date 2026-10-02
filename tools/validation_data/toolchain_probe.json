@@ -1,0 +1,11 @@
+{
+  "cmake": "/home/valentin/anaconda/bin/cmake",
+  "cmake_version": "cmake version 4.4.3",
+  "docker": "/usr/bin/docker",
+  "gfortran": "/home/valentin/anaconda/bin/gfortran",
+  "gfortran_version": "15.2.0",
+  "make": "/home/valentin/anaconda/bin/make",
+  "network_ok": false,
+  "openmp_ok": true,
+  "python3": "/home/valentin/anaconda/bin/python"
+}
