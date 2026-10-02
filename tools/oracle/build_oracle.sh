@@ -123,6 +123,13 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$JOBS" ] || JOBS="$(nproc 2>/dev/null || echo 4)"
 
+# "both" is a request for two components, not a component name.
+case "$WHICH" in
+  both)   COMPONENTS="starter engine" ;;
+  starter|engine) COMPONENTS="$WHICH" ;;
+  *) echo "build_oracle.sh: -build must be starter|engine|both" >&2; exit 2 ;;
+esac
+
 echo "cmake    : $CMAKE ($("$CMAKE" --version | head -1))"
 echo "Fortran  : $FORTRAN_COMPILER ($("$FORTRAN_COMPILER" --version | head -1))"
 echo "C / C++  : $C_COMPILER / $CXX_COMPILER"
@@ -152,6 +159,65 @@ EOF
   exit 1
 fi
 
+# The extlib gates (all required paths present AND API-current for the pinned
+# source) live in mirror_and_fetch.sh; reuse them instead of duplicating them,
+# so the build refuses a stale extlib in seconds instead of failing ten minutes
+# into the C/C++ h3d sources or at the link step.
+if [ "${OR_SKIP_EXTLIB_API_CHECK:-0}" != "1" ]; then
+  echo "--- Gate: extlib completeness and API currency"
+  OR_SRC="${OR_SRC:-$OR_BUILD}" "$SCRIPT_DIR/mirror_and_fetch.sh" --check-only || exit 1
+fi
+
+# ------------------------------------------------------ extlib short-circuit --
+# starter/CMakeLists.txt:189-193 (engine/CMakeLists.txt:266-270) declares
+#     add_custom_target(extlib ALL COMMAND ${PYTHON_EXEC} .../load_extlib.py)
+# A custom target with ALL is rebuilt on EVERY build, so the build dies at 0%
+# with "Download failed" even when a complete extlib is already on disk.  The
+# only honest way out without network access is to make that command a no-op
+# when -- and only when -- mirror_and_fetch.sh harvested the tree.
+#
+# The patch is therefore:
+#   * applied here, reproducibly, on every run (idempotent),
+#   * gated on the marker file extlib/P0_HARVESTED, which only the harvest
+#     step writes, so an upstream-downloaded extlib is never short-circuited,
+#   * limited to the MIRROR ($OR_BUILD) -- $OR_SRC is never touched,
+#   * announced on stdout, and
+#   * recorded in tools/validation_data/oracle_provenance.json.
+LOAD_EXTLIB="$OR_BUILD/Compiling_tools/script/load_extlib.py"
+if [ -f "$OR_BUILD/extlib/P0_HARVESTED" ]; then
+  echo "--- Short-circuiting the extlib download target (pre-harvested extlib)"
+  echo "    patch: $LOAD_EXTLIB (mirror copy only, see provenance json)"
+  python3 - "$LOAD_EXTLIB" <<'PY'
+import sys
+path = sys.argv[1]
+src = open(path).read()
+anchor = '   source_root =  os.path.dirname(os.path.abspath(__file__))+"/../.."'
+patch = (
+    anchor + "\n"
+    "   # --- pyradioss P0.4 short-circuit -------------------------------------\n"
+    "   # extlib was harvested by tools/oracle/mirror_and_fetch.sh from pinned\n"
+    "   # sources (see tools/validation_data/oracle_provenance.json); the\n"
+    "   # upstream download URL is unreachable from this machine.  Without this\n"
+    "   # guard the `extlib` custom target re-downloads at every build and the\n"
+    "   # build dies at 0%.  Gated on the marker file so a genuine upstream\n"
+    "   # extlib is never skipped.\n"
+    "   if os.path.isdir(source_root+\"/extlib/hm_reader\") and \\\n"
+    "      os.path.isfile(source_root+\"/extlib/P0_HARVESTED\"):\n"
+    "      print(\"extlib pre-harvested (tools/oracle/mirror_and_fetch.sh); \"\n"
+    "            \"skipping download\")\n"
+    "      exit(0)\n"
+    "   # --- end pyradioss P0.4 short-circuit ---------------------------------"
+)
+if "pyradioss P0.4 short-circuit" in src:
+    print("    already patched")
+elif anchor not in src:
+    sys.exit("load_extlib.py: anchor line not found; refusing to guess")
+else:
+    open(path, "w").write(src.replace(anchor, patch, 1))
+    print("    patched")
+PY
+fi
+
 if [ "$CLEAN" = "1" ] && [ -d "$BUILD_ROOT" ]; then
   echo "--- Removing $BUILD_ROOT"
   rm -rf "$BUILD_ROOT"
@@ -165,11 +231,7 @@ mkdir -p "$OR_ROOT/bin"
 # ------------------------------------------------------------ configure+build
 # Trap 2 + 3: one project per component, EXEC_NAME kept equal to the component
 # name so the -Dbuild dereference trap is not triggered.
-for component in $WHICH; do
-  case "$component" in
-    starter|engine) : ;;
-    *) echo "build_oracle.sh: -build must be starter|engine|both" >&2; exit 2 ;;
-  esac
+for component in $COMPONENTS; do
   bdir="$BUILD_ROOT/$component"
   echo "=================================================================="
   echo "--- $component : configure ($bdir)"
@@ -199,7 +261,7 @@ done
 # their target names; move them to $OR_ROOT/bin under the documented names.
 echo
 echo "--- Installing into $OR_ROOT/bin"
-for component in $WHICH; do
+for component in $COMPONENTS; do
   src="$OR_BUILD/exec/$component"
   dst="$OR_ROOT/bin/${component}_${ARCH}"
   if [ ! -f "$src" ]; then
@@ -224,7 +286,7 @@ export RAD_H3D_PATH="$OR_BUILD/extlib/h3d/lib/linux64"
 export LD_LIBRARY_PATH="$OR_BUILD/extlib/hm_reader/linux64/:${LD_LIBRARY_PATH:-}"
 export OMP_STACKSIZE=400m
 rc=0
-for component in $WHICH; do
+for component in $COMPONENTS; do
   bin="$OR_ROOT/bin/${component}_${ARCH}"
   echo "--- $bin -v"
   "$bin" -v | head -8 || rc=1

@@ -1,0 +1,167 @@
+{
+  "schema": "pyradioss/oracle-provenance/1",
+  "purpose": "Machine-readable provenance of the reference (Fortran) OpenRadioss oracle used for differential parity. Every parity claim must cite this file.",
+  "written_by": "tools/oracle/mirror_and_fetch.sh + tools/oracle/build_oracle.sh (task P0.4)",
+
+  "upstream_git_sha": "1a0d691b82bd4f94a3bc2399682551e84e1d5fa4",
+
+  "upstream": {
+    "name": "OpenCourant/OpenCourant (OpenRadioss)",
+    "uri": "https://github.com/OpenCourant/OpenCourant.git",
+    "read_only_path": "/home/valentin/Projects/OpenRadioss/OpenCourant",
+    "git_sha": "1a0d691b82bd4f94a3bc2399682551e84e1d5fa4",
+    "git_sha_short": "1a0d691b8",
+    "git_commit_date": "2026-09-26",
+    "git_subject": "Add three-surface RHT solid USER01 material and verification tools",
+    "mirror_path": "/home/valentin/OpenRadioss_or/source",
+    "mirror_method": "git archive --format=tar HEAD | tar -x  (no .git in the mirror, $OR_SRC never written)",
+    "extlib_version_declared_by_source": "82",
+    "extlib_version_declared_source": "$OR_SRC/EXTLIB_VERSION.json -> https://github.com/OpenRadioss/OpenRadioss_extlib/releases/download/v82/extlib.zip"
+  },
+
+  "extlib": {
+    "kind": "harvested-from-pinned-mirrors",
+    "status": "incomplete",
+    "reason_upstream_url_unreachable": "EXTLIB_VERSION.json still points at the pre-move OpenRadioss organisation. From this machine every repository under github.com/OpenRadioss answers 404 (including OpenRadioss/OpenRadioss itself; `gh api orgs/OpenRadioss/repos` returns []), while github.com and unrelated release-asset downloads answer 200/404-with-404-for-all-assets: a known-good asset (psf/numpy v2.4.6) also 404s, so GitHub release-asset downloads are blocked generally, not just for that organisation. No URL, in any organisation, can serve extlib.zip.",
+    "sources": [
+      {
+        "kind": "git",
+        "role": "third-party libraries (the genuine upstream artefacts, mirrored)",
+        "uri": "https://github.com/xupeiwust/OpenRadioss_extlib.git",
+        "commit": "145c7b61031266d7d69543cca6133bd4dd9e32b7",
+        "reported_version": "59",
+        "reported_delivery_date": "2026-05-28",
+        "upstream_of_mirror": "https://github.com/OpenRadioss/OpenRadioss_extlib (unreachable; mirror chosen because it is the newest reachable mirror of that repository)",
+        "provides": [
+          "h3d/includes/{h3d_values.h,h3dpublic_defs.h,h3dpublic_export.h}",
+          "h3d/lib/linux64/libh3dwriter.so",
+          "lapack-3.10.0/lib_linux64_gf/{liblapack.a,librefblas.a,libtmglib.a}",
+          "metis/linux64/libmetis_linux64_gcc.a",
+          "zlib/linux64/{include/zlib.h,lib/libz.a}",
+          "md5/{include/md5.h,linux64/libmd5.a}",
+          "license/"
+        ]
+      },
+      {
+        "kind": "docker-hub-image",
+        "role": "hm_reader + apr-1, which exist ONLY as extlib release assets upstream and are in no git mirror",
+        "uri": "docker.io/ale10tech/openradioss-core",
+        "image": "ale10tech/openradioss-core:ubuntu24.04",
+        "digest": "sha256:15c2c76f6380f3650cfd629ea5c7fdb75a5f9e7c2c3f2f4da73114f0974c97a5",
+        "path_in_image": "/opt/OpenRadioss/extlib/hm_reader/linux64",
+        "extraction": "docker create (never started) + docker cp + docker rm",
+"reported_openradioss_version": "unknown - the image ships release binaries only, no version file; libhm_reader_linux64.so inside the image is dated 2026-05-06",
+      "provides": [
+        "hm_reader/linux64/libhm_reader_linux64.so",
+        "hm_reader/linux64/libapr-1.so",
+        "hm_reader/linux64/libapr-1.so.0"
+      ],
+      "insufficient": {
+        "component": "hm_reader",
+        "missing_entry_points": ["cpp_get_include_file_by_index", "cpp_sale_mesh_create_", "cpp_is_part_with_elements_"],
+        "required_by": [
+          "starter/source/devtools/hm_reader/write_include_files_list.F90:49-56 (bind(C, name='cpp_get_include_file_by_index'))",
+          "starter/source/devtools/hm_reader/hm_s_ale.F90 (cpp_sale_mesh_create_)",
+          "starter/source/devtools/hm_reader/hm_is_part_with_elements.F90 (cpp_is_part_with_elements_)"
+        ],
+        "symptom": "link failure: undefined reference to `cpp_is_part_with_elements_' / `cpp_sale_mesh_create_' / `cpp_get_include_file_by_index'",
+        "checked_alternative": "dheiny/openradioss-solver:1.0.37 (image 2026-08-16) carries libhm_reader_linux64.so dated 2026-06-03 and misses the same three entry points (`nm -D --defined-only | grep -c ...` -> 0)",
+        "not_substituted": "No stub was written. These are the native-.k deck reader's entry points; a fake would make every keyword-read comparison meaningless."
+      }
+      }
+    ],
+    "verified_present": [
+      "hm_reader/linux64/libhm_reader_linux64.so",
+      "hm_reader/linux64/libapr-1.so",
+      "hm_reader/linux64/libapr-1.so.0",
+      "h3d/includes/h3dpublic_defs.h",
+      "h3d/lib/linux64/libh3dwriter.so",
+      "lapack-3.10.0/lib_linux64_gf/liblapack.a",
+      "lapack-3.10.0/lib_linux64_gf/librefblas.a",
+      "lapack-3.10.0/lib_linux64_gf/libtmglib.a",
+      "metis/linux64/libmetis_linux64_gcc.a",
+      "zlib/linux64/include/zlib.h",
+      "zlib/linux64/lib/libz.a",
+      "md5/include/md5.h",
+      "md5/linux64/libmd5.a",
+      "license/hm_reader_license.txt"
+    ],
+    "incompatible_with_pinned_source": {
+      "component": "h3d (Simcenter h3d writer/reader SDK)",
+      "harvested_version": "same binaries as extlib v59 (libh3dwriter.so, 759048 bytes, dated 2026-01-21; byte-identical in the extlib mirror and in the 2026-06 / 2026-08 Docker images checked)",
+      "required_by_pinned_source": "the h3d API additions that landed in extlib between v59 (2026-05-28) and v82 (2026-09-22)",
+      "symptoms": [
+        "common_source/output/h3d/h3d_build_cpp/h3d_dl.c:260,281,1373,1412 -> error: unknown type name 'H3D_NF_FORMAT'; did you mean 'H3D_DS_FORMAT'?  (the datatype/dataset entry points gained an H3D_NF_FORMAT argument; all 77 call sites pass H3D_NF_REAL)",
+        "starter/source/output/checksum/checksum_list.cpp:27 -> fatal error: h3dpublic_import.h: No such file or directory  (a whole new h3d reader/import header: Hyper3DImportOpen / Hyper3DLookupString / Hyper3DImportClose)"
+      ],
+      "not_substituted": "No stand-in was written for either symbol. h3d is an I/O library; inventing its interface would make every later H3D-related parity claim unsound, so the build is left failing instead.",
+      "runtime_consequence_if_forced": "libh3dwriter.so at this vintage exports no node-force entry points (`nm -D --defined-only | grep -ci node` -> 0), and libh3dreader.so is absent entirely, so H3D output could not be trusted even if the compile were forced through."
+    }
+  },
+
+  "build": {
+    "system": "cmake -S <mirror> -B <build>/<component> per component; -Dbuild=both in a single run is broken upstream (duplicate `extlib` custom target, starter/CMakeLists.txt:189-193 vs engine/CMakeLists.txt:266-270) and -Dbuild=starter together with -Dstarter=starter_linux64_gf silently produces an empty build system (CMakeLists.txt:18 dereferences the `starter` variable), hence -Dbuild=<component> -Dstarter=starter -Dengine=engine and a rename on install.",
+    "patched_in_mirror": [
+      {
+        "file": "$OR_BUILD/Compiling_tools/script/load_extlib.py",
+        "change": "short-circuit: exit 0 when extlib/hm_reader exists and extlib/P0_HARVESTED is present",
+        "why": "the `extlib` custom target re-downloads on every build and dies at 0%; without this the build cannot run offline",
+        "applied_by": "tools/oracle/build_oracle.sh (idempotent, gated on the marker, $OR_SRC never touched)",
+        "concern": "this is a modification of a file inside the writable mirror; it is deliberate, scripted and reversible, and it does not touch solver code"
+      }
+    ],
+    "flags": {
+      "source": "unchanged upstream, $OR_BUILD/{starter,engine}/CMake_Compilers/cmake_linux64_gf.txt",
+      "fortran": "-w -DMYREAL8 -Werror=aliasing -Werror=unused-dummy-argument -Werror=do-subscript -Werror=array-bounds -Werror=surprising -Werror=tabs -Werror=maybe-uninitialized -DMETIS5 -DCPP_mach=CPP_p4linux964 -DCPP_rel=80 -DCPP_comp=f90 -DCOMP_GFORTRAN=1 -fdec-math -O2 -ffp-contract=off -frounding-math -fopenmp -ffixed-line-length-none [-fallow-argument-mismatch -fallow-invalid-boz -std=legacy on some files]",
+      "cmake_defines": ["-Darch=linux64_gf", "-Dprecision=dp", "-DMPI=smp", "-Ddebug=0", "-Dstatic_link=0", "-DCMAKE_BUILD_TYPE=Release"],
+      "forbidden_flags_absent": ["-ffast-math", "-Ofast", "-fdefault-real-8"],
+      "extra_includes_in_probe_only": "none in the deliverable path; the feasibility probe in the report injected a scratch header with gcc -include from /tmp, never from the mirror"
+    }
+  },
+
+  "toolchain": {
+    "host": "Linux x86_64, 12 cores",
+    "gfortran": "GNU Fortran (GCC) 15.2.0 - /home/valentin/anaconda/bin/gfortran",
+    "gcc": "GNU C 15.2.0 (conda-forge) - /home/valentin/.local/bin/gcc -> anaconda/bin/x86_64-conda-linux-gnu-gcc",
+    "gxx": "GNU C++ 15.2.0 (conda-forge) - /home/valentin/.local/bin/g++ -> anaconda/bin/x86_64-conda-linux-gnu-g++",
+    "cmake": "cmake version 3.28.3 - /usr/bin/cmake",
+    "cmake_note": "the conda cmake 4.4.3 first on PATH is deliberately NOT used: CMake 4 rejects the `cmake_minimum_required (VERSION 3.15)` compatibility declarations in CMakeLists.txt:5 / starter/CMakeLists.txt:5 / engine/CMakeLists.txt:5",
+    "python3": "3.14.6 (the component CMakeLists hardcode python3 on non-Windows)",
+    "system_gfortran": null,
+    "system_gfortran_reason": "none installed; all Fortran comes from conda-forge"
+  },
+
+  "solvers": {
+    "starter_linux64_gf": {
+      "path": "/home/valentin/OpenRadioss_or/bin/starter_linux64_gf",
+      "built": false,
+      "reason": "h3d headers of the pinned source are not obtainable (see extlib.incompatible_with_pinned_source); the build fails while compiling the C/C++ h3d sources"
+    },
+    "engine_linux64_gf": {
+      "path": "/home/valentin/OpenRadioss_or/bin/engine_linux64_gf",
+      "built": false,
+      "reason": "same h3d blocker; not attempted because the starter build already fails on the same file"
+    }
+  },
+
+  "third_party_prebuilt_binaries_used": false,
+  "third_party_prebuilt_binaries_note": "Two Docker Hub images (ale10tech/openradioss-core, dheiny/openradioss-solver) contain prebuilt starter/engine binaries. They were NOT installed or used as the oracle: the deliverable is a from-source build, and shipping someone else's binary as parity evidence would be unsound.",
+
+  "built_on": null,
+  "not_built_reason": "extlib version skew, in two independent components: (a) h3d -- the reachable headers/library predate H3D_NF_FORMAT and h3dpublic_import.h; (b) hm_reader -- the reachable libhm_reader_linux64.so lacks three cpp_* entry points the pinned starter links against. Both arrived in extlib between v59 (2026-05-28) and v82 (2026-09-22), which cannot be fetched from this machine. Phase 0 is blocked on an extlib >= the one EXTLIB_VERSION.json asks for.",
+
+  "verification_performed": [
+    "cmake 3.28.3 configures starter and engine cleanly from the mirror (exit 0, targets created)",
+    "FULL feasibility probe of the starter: 100% of ~1400 translation units compile with gfortran 15.2.0 under the project's own strict flag set (including -Werror=maybe-uninitialized, which upstream adds for GCC 11/15/16) -- no compiler-flag or source-level workaround was needed",
+    "the probe reached the link step and failed only on the three missing hm_reader entry points listed above, so the toolchain, the extlib library paths and the link line are all validated",
+    "the generated build.make carries the POST_BUILD copy into $OR_BUILD/exec, confirming that install() is a no-op and the move to $OR_ROOT/bin has to be explicit",
+    "tools/oracle/mirror_and_fetch.sh verifies all 14 extlib paths the two arch flag files require, on every run",
+    "the probe injected two scratch h3d declarations from /tmp with `gcc -include` to get past the missing h3d API; nothing was written into the mirror and no probe binary was installed as the oracle"
+  ],
+
+  "unblock_options": [
+    "make github.com/OpenRadioss reachable again (then run mirror_and_fetch.sh with OR_USE_UPSTREAM_EXTLIB=1 to use upstream load_extlib.py unmodified)",
+    "allow GitHub release-asset downloads through the proxy and point EXTLIB at a mirror of OpenRadioss_extlib releases",
+    "supply extlib >= v60 as a local directory or archive and add it to REQUIRED_EXTLIB_PATHS-verified harvest (h3d/includes/h3dpublic_import.h plus an h3dpublic_defs.h defining H3D_NF_FORMAT)"
+  ]
+}
