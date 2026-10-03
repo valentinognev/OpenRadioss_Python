@@ -1,5 +1,40 @@
 # Updates
 
+## 1.3.0 - P0.10: the binary T01 reader, and one comparable number
+
+- **New** `tools/compare_t01.py` — `read_t01(path) -> T01` decodes the Fortran
+  engine's binary time-history file (`ITTYP==3` Radioss IEEE: big-endian 4-byte
+  record markers, header int32, single-precision channel values) into named
+  channels, sample times and an `(n_times, n_channels)` matrix, plus the header
+  facts (format code, title width, unit-scaling triples, the located 24-byte
+  `ctime` run stamp). Every structural constant is listed in a machine-readable
+  `LAYOUT` table with the upstream `file:line` range and a pattern that must
+  still be found there, so a constant cannot drift from `$OR_SRC` unnoticed.
+  The record framing is **imported** from `tools/oracle/oracle_selftest`, not
+  re-implemented: one record walk in the program.
+- **New** `score(ref, port) -> Score` — per-channel
+  `rel_rms = sqrt(mean((port-ref)^2)) / max(|ref|)` with the `MATCH_RMS = 0.05`
+  threshold pinned to `parity_m41.json`'s `tolerance_rel_rms`, so a verdict here
+  is comparable with the M36..M41 tables. Channels are matched **by name**; a
+  channel only one side has is `NODATA` and never drives `worst`, and neither
+  does a channel below 1 % of its group's dominant reference peak (the
+  historical harness's own significance rule — without it the transverse
+  momentum of a uniaxial test reads as `rel_rms ~ 0.5`).
+- **New** `read_port_csv(path) -> T01` — the port's ASCII T01 as the same shape,
+  with its column names folded onto the upstream short names (`MOMX -> XMOM`,
+  `EW -> EFW`, `P1_IE -> P1_1`) so the two series can be matched by name.
+- **New** `tests/test_p0_compare_t01.py` — 20 tests. The reader is validated
+  three ways, because upstream's own converter (`th_to_csv`) is unobtainable on
+  this box: against the cited upstream sources, against the committed golden
+  T01 of the P0.5 reference run (channel set, 100 samples, per-channel maxima,
+  all exactly), and against the port's own CSV for the same deck (significant
+  channels agree to ≤ 0.2 % rel-RMS; the round-off channels to an absolute
+  bound). A fourth test runs the brief's `th_to_csv` cross-check **if** the
+  converter ever appears and skips with a reason naming every place tried.
+- **Known limitation, stated not hidden:** the shared record walk fixes the
+  per-step record count at four, so a deck that also requests `/TH/SUBSET`
+  curves is refused loudly rather than mis-parsed; a test pins that refusal.
+
 ## 1.2.1 - P0.9: the validation harness runs on any box, and cannot be fooled into writing wrong H3D
 
 - **Fixed** `tools/validate_vs_fortran.py` no longer names one machine:
