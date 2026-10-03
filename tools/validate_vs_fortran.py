@@ -85,6 +85,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import re
@@ -130,53 +131,185 @@ DEFAULT_WORKDIR = os.environ.get(
 # the corpus unmounted, and the recorded hashes must still be readable; it
 # also means importing this module touches no resource (P0.9 replaces the
 # module-scope `C:\...` toolchain literals above with pyradioss.paths).
+#
+# A record's `deck` is RELATIVE to a corpus, and the corpus is chosen by the
+# environment (`PYRADIOSS_RD_DECKS`), so a bare `rd_decks_dir() / rec["deck"]`
+# can silently join a verdict to a *different* file that happens to sit at the
+# same relative path.  Two things prevent that: every record carries the
+# `corpus_fingerprint` it was hashed from, and `resolve_manifest_record()`
+# refuses to resolve a record against a corpus whose fingerprint differs.
 
 MANIFEST_SCHEMA = "pyradioss/rd-decks-manifest/1"
 MANIFEST_PATH = os.path.join(REPO, "tools", "validation_data",
                              "rd_decks_manifest.json")
 
-#: Fields every record must carry; a record missing one is a broken manifest,
-#: not a deck the harness may silently skip.
-MANIFEST_FIELDS = ("case_id", "deck", "hashed_file", "sha256", "size_bytes",
-                   "category", "package", "in_envelope", "in_envelope_source",
-                   "in_envelope_reason", "inventory_classification",
-                   "parity_case", "parity_class", "parity_max_rel_rms",
-                   "coverage_verdict")
+#: Fields every record must carry — the record schema, in full.  A record
+#: missing one is a broken manifest, not a deck the harness may silently skip;
+#: a record carrying an *extra* field is drift the tests must see too.
+MANIFEST_FIELDS = (
+    # what was covered, and which bytes
+    "case_id", "deck", "hashed_file", "sha256", "size_bytes",
+    # which corpus the bytes belong to
+    "corpus_fingerprint",
+    # identity, carried over from inventory.json (never invented)
+    "category", "package", "inventory_classification",
+    "inventory_classification_strict",
+    # the envelope claim and exactly what it rests on
+    "in_envelope", "in_envelope_source", "in_envelope_reason",
+    # the measured verdict (parity_m41.json) and its provenance
+    "parity_case", "parity_class", "parity_max_rel_rms", "parity_provenance",
+    # the reader census (coverage_results_m41.json): the families the port
+    # still skips on this deck qualify every verdict recorded above
+    "coverage_verdict", "skipped_families", "coverage_hard_skips",
+    "coverage_blockers", "coverage_degrade_warnings",
+    # whether the verdict above was measured on THESE bytes (false for every
+    # M41 row: the sweep ran from a scratchpad extract that no longer exists)
+    "parity_run_deck_bytes_verified", "coverage_run_deck_bytes_verified",
+)
+
+
+def load_manifest_doc(path: Optional[str] = None) -> dict:
+    """Return the whole manifest document: header + ``decks``.
+
+    The header is not decoration: ``corpus_root.fingerprint`` is what binds a
+    record's relative ``deck`` to one corpus, ``counts`` is the coverage
+    summary, and ``envelope_rule`` / ``notes`` state what ``in_envelope`` is
+    allowed to mean.  :func:`load_manifest` returns the records alone for the
+    common case.
+
+    Raises ``FileNotFoundError`` when the manifest has not been generated (run
+    ``tools/build_rd_decks_manifest.py``) and ``ValueError`` when the file is
+    present but is not a manifest this loader understands.
+    """
+    target = path or MANIFEST_PATH
+    with open(target, encoding="utf-8") as fh:
+        doc = json.load(fh)
+    schema = doc.get("schema")
+    if schema != MANIFEST_SCHEMA:
+        raise ValueError(
+            f"{target}: schema {schema!r} is not {MANIFEST_SCHEMA!r} — "
+            "regenerate it with tools/build_rd_decks_manifest.py")
+    records = doc.get("decks")
+    if not isinstance(records, list):
+        raise ValueError(f"{target}: no 'decks' list")
+    documented = set(MANIFEST_FIELDS)
+    for rec in records:
+        if not isinstance(rec, dict):
+            raise ValueError(f"{target}: deck record is not an object: {rec!r}")
+        missing = sorted(documented - set(rec))
+        extra = sorted(set(rec) - documented)
+        if missing or extra:
+            raise ValueError(
+                f"{target}: record {rec.get('deck')!r} does not match the "
+                f"record schema (missing {missing}, undocumented {extra}) — "
+                "regenerate it with tools/build_rd_decks_manifest.py")
+    return doc
 
 
 def load_manifest(path: Optional[str] = None) -> List[dict]:
     """Return the corpus manifest records, one per starter deck.
 
     ``path`` defaults to :data:`MANIFEST_PATH`.  Each record names the deck
-    (``deck``, a POSIX path relative to the corpus root), the file its
-    ``sha256`` was computed over (``hashed_file`` — equal to ``deck`` unless a
-    record says otherwise, so the hashed bytes are never a guess), the
-    inventory ``case_id`` it corresponds to (``null`` when the corpus holds a
-    deck inventory.json never saw), and the evidence-derived ``in_envelope``
-    flag together with the source of that flag.
+    (``deck``, a POSIX path relative to the corpus it was hashed from), the
+    file its ``sha256`` was computed over (``hashed_file`` — equal to ``deck``
+    unless a record says otherwise, so the hashed bytes are never a guess),
+    the inventory ``case_id`` it corresponds to (``null`` when the corpus
+    holds a deck inventory.json never saw), and the evidence-derived
+    ``in_envelope`` flag together with the source of that flag and the
+    families the port skips on the deck.
 
-    Raises ``FileNotFoundError`` when the manifest has not been generated
-    (run ``tools/build_rd_decks_manifest.py``) and ``ValueError`` when it is
-    present but unreadable as a manifest.
+    A record is bound to the corpus named by its ``corpus_fingerprint``, NOT
+    to whatever ``paths.rd_decks_dir()`` happens to resolve to; use
+    :func:`resolve_manifest_record` to turn one into a path.
     """
-    with open(path or MANIFEST_PATH, encoding="utf-8") as fh:
-        doc = json.load(fh)
-    schema = doc.get("schema")
-    if schema != MANIFEST_SCHEMA:
-        raise ValueError(
-            f"{path or MANIFEST_PATH}: schema {schema!r} is not "
-            f"{MANIFEST_SCHEMA!r} — regenerate it with "
-            "tools/build_rd_decks_manifest.py")
-    records = doc.get("decks")
-    if not isinstance(records, list):
-        raise ValueError(f"{path or MANIFEST_PATH}: no 'decks' list")
-    for rec in records:
-        missing = [f for f in MANIFEST_FIELDS if f not in rec]
-        if missing:
+    return load_manifest_doc(path)["decks"]
+
+
+def manifest_corpus_root(doc: Optional[dict] = None) -> str:
+    """The corpus the manifest was hashed from, as an absolute path.
+
+    Prefers the checkout-relative ``corpus_root.vendored`` (so the answer does
+    not depend on where the manifest was generated) and falls back to the
+    absolute ``resolved_at_generation`` recorded at generation time.  This is
+    NOT ``paths.rd_decks_dir()``: an env override must not silently re-point a
+    record at another extract.
+    """
+    doc = doc if doc is not None else load_manifest_doc()
+    root = doc.get("corpus_root") or {}
+    vendored = root.get("vendored")
+    if vendored:
+        return os.path.abspath(os.path.join(REPO, vendored))
+    resolved = root.get("resolved_at_generation")
+    if resolved:
+        return os.path.abspath(resolved)
+    raise ValueError(f"{MANIFEST_PATH}: corpus_root names no location")
+
+
+def corpus_fingerprint(root: str) -> str:
+    """``sha256:<hex>`` over every starter deck in ``root``.
+
+    Path-independent by construction: the digest covers the POSIX-relative
+    deck paths and their content hashes, never the root itself, so the same
+    corpus at another absolute path (another checkout, another machine, a
+    copy in a scratch dir) fingerprints identically — which is what makes it
+    usable to *accept* a moved corpus and to *reject* a different one.
+    """
+    root = os.path.abspath(root)
+    lines = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames.sort()
+        for name in sorted(filenames):
+            if not name.endswith("_0000.rad"):
+                continue
+            full = os.path.join(dirpath, name)
+            rel = os.path.relpath(full, root).replace(os.sep, "/")
+            digest = hashlib.sha256()
+            with open(full, "rb") as fh:
+                for chunk in iter(lambda: fh.read(1 << 20), b""):
+                    digest.update(chunk)
+            lines.append(f"{rel}\t{digest.hexdigest()}\n")
+    if not lines:
+        raise ValueError(f"{root}: no *_0000.rad starter deck to fingerprint")
+    lines.sort()
+    return "sha256:" + hashlib.sha256("".join(lines).encode("utf-8")).hexdigest()
+
+
+def resolve_manifest_record(rec: dict, root: Optional[str] = None, *,
+                            verify: bool = True) -> str:
+    """Resolve one record's ``hashed_file`` inside a corpus, refusing a corpus
+    it was not hashed from.
+
+    ``root`` defaults to :func:`manifest_corpus_root` — the corpus the
+    manifest names — so the result is independent of ``PYRADIOSS_RD_DECKS``.
+    A corpus whose :func:`corpus_fingerprint` differs from the record's
+    ``corpus_fingerprint`` raises ``ValueError`` rather than returning a path
+    to a different file that happens to share the relative name.  With
+    ``verify`` (the default) the resolved file is also re-hashed and must match
+    the record's ``sha256``.
+    """
+    expected = rec.get("corpus_fingerprint")
+    target_root = os.path.abspath(root) if root else manifest_corpus_root()
+    if expected:
+        actual = corpus_fingerprint(target_root)
+        if actual != expected:
             raise ValueError(
-                f"{path or MANIFEST_PATH}: record {rec.get('deck')!r} is "
-                f"missing {missing}")
-    return records
+                f"record {rec.get('deck')!r} was hashed from corpus "
+                f"{expected}, but {target_root} is {actual} — resolve it "
+                "against the corpus the manifest names, or re-hash this one "
+                "with tools/build_rd_decks_manifest.py")
+    path = os.path.join(target_root, rec["hashed_file"].replace("/", os.sep))
+    if verify:
+        if not os.path.isfile(path):
+            raise ValueError(f"record {rec.get('deck')!r}: {path} is missing")
+        digest = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                digest.update(chunk)
+        if digest.hexdigest() != rec["sha256"]:
+            raise ValueError(
+                f"record {rec.get('deck')!r}: {path} hashes to "
+                f"{digest.hexdigest()}, the manifest says {rec['sha256']}")
+    return os.path.abspath(path)
 
 
 def fortran_env() -> Dict[str, str]:

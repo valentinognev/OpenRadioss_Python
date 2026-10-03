@@ -1,37 +1,51 @@
 {
   "schema": "pyradioss/rd-decks-manifest/1",
-  "generated": "2026-10-03T04:45:13",
+  "generated": "2026-10-03T05:03:05",
   "generated_by": "tools/build_rd_decks_manifest.py",
   "corpus_root": {
+    "fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
+    "fingerprint_rule": "sha256 over the sorted '<relpath>\\t<sha256>' lines of every *_0000.rad under the root \u2014 path-independent, so the same corpus at another absolute path fingerprints equal",
     "resolved_by": "pyradioss.paths.rd_decks_dir()",
     "env_override": "PYRADIOSS_RD_DECKS",
+    "source": "vendored tests/data/rd_decks",
     "vendored": "tests/data/rd_decks",
     "resolved_at_generation": "/home/valentin/Projects/OpenRadioss/OpenRadioss_Python/tests/data/rd_decks"
   },
   "hash_algorithm": "sha256",
   "hashed_file_rule": "sha256 is the hash of the record's hashed_file; hashed_file == deck (the starter deck) for every record",
-  "envelope_rule": "in_envelope == (parity_m41.json class == MATCH) for this case_id; false with a recorded reason otherwise",
+  "envelope_rule": "in_envelope == (parity_m41.json class == MATCH) for this case_id; false with a recorded reason otherwise. Always read it together with skipped_families, which coverage_verdict does not count in full.",
+  "bytes_verified_rule": "parity_run_deck_bytes_verified / coverage_run_deck_bytes_verified are true only when the evidence row names an existing deck file whose bytes hash to this record's sha256. They are false on every M41 row \u2014 see notes.",
   "joins": {
     "inventory": "tools/validation_data/inventory.json (by case_id)",
     "parity": "tools/validation_data/parity_m41.json (by case_id)",
     "coverage": "tools/validation_data/coverage_results_m41.json (by case_id)",
-    "oracle_provenance": "tools/validation_data/oracle_provenance.json (admissible evidence channels)"
+    "oracle_provenance": "tools/validation_data/oracle_provenance.json (admissible evidence channels)",
+    "sweep_driver": ".agents/skills/validation-compare/SKILL.md:56-59 (the sweep has no in-repo driver; its root is a dead scratchpad)"
   },
   "counts": {
     "decks": 75,
     "in_envelope": 6,
+    "measured": 24,
+    "unmeasured": 51,
     "with_case_id": 75,
     "joined_parity_m41": 24,
     "joined_coverage_m41": 75,
+    "in_envelope_with_control_skips": 5,
+    "parity_run_deck_bytes_verified": 0,
+    "coverage_run_deck_bytes_verified": 0,
     "bytes_hashed": 8809732
   },
   "notes": [
     "sha256 is the hash of hashed_file; hashed_file equals deck for every record (the starter deck itself), stated per record so the hashed bytes are never a guess.",
+    "deck is RELATIVE to a corpus root, so every record also carries corpus_fingerprint (sha256 over the corpus' starter-deck paths and their hashes, path-independent). Resolve a record with tools.validate_vs_fortran.resolve_manifest_record(), which refuses a corpus whose fingerprint differs; never join rd_decks_dir() / rec['deck'] directly, a PYRADIOSS_RD_DECKS override would silently read a different file at the same relative path.",
     "in_envelope is true only where parity_m41.json carries a measured verdict of MATCH for this exact case_id; it means 'the port reproduced the oracle on this deck'.",
     "inventory_classification is the STATIC reading prediction from inventory.json (IN_ENVELOPE = no unsupported keyword family). It is recorded for context and never sets in_envelope.",
+    "skipped_families (with a class per family: 'control' or 'soft'), coverage_hard_skips and coverage_blockers qualify every verdict on this record: coverage_verdict counts only NON-control skips, so a 'SKIPS(2)' row can hide five control-class families. The note below lists exactly which families the in-envelope decks skip, so in_envelope is never read unqualified.",
     "case_id / category / package are carried over from inventory.json; null when the corpus holds a deck inventory.json never catalogued. Ids are never invented.",
     "Admissible oracle evidence channels are listed in tools/validation_data/oracle_provenance.json; a deck whose parity verdict leans on an inadmissible channel (H3D, the starter .out include list, /ALE/STRUCTURED_MESH, /CHECKSUM_REPORT, native .k reading) must not be recorded as MATCH - none of the vendored decks does.",
-    "One record per STARTER deck. Engine decks (*_0001.rad...) are restart continuations of the same case, not separate cases."
+    "One record per STARTER deck. Engine decks (*_0001.rad...) are restart continuations of the same case, not separate cases.",
+    "The M41 sweep was run from a session scratchpad extract that no longer exists (.agents/skills/validation-compare/SKILL.md:56-59: 'The 529-deck official-corpus sweep has NO in-repo driver (it lived in a session scratchpad) ... root points at a dead scratchpad'), and the official parity_m41.json rows carry no deck path at all (reference_used: null; their Fortran CSVs were carried forward from M37). Every record therefore pairs the sha256 of the RE-VENDORED copy of a deck with a verdict measured on the scratchpad copy: parity_run_deck_bytes_verified and coverage_run_deck_bytes_verified are false on all of them, and the flag is derived (does the evidence row name a file whose bytes hash to this record's sha256?) rather than asserted. A MATCH verdict here means 'the port reproduced the oracle on this deck as it stood in the M41 sweep', NOT 'these exact bytes were compared'.",
+    "What the in-envelope decks still skip \u2014 in_envelope is a reproduction claim about the COMPARED CHANNELS, not a full-reading claim: 5 of the 6 in-envelope decks skip [ANALY, DEF_SHELL, DEF_SOLID, IOFLAG, SPMD, TH/RBODY, TH/SHEL] (class control, soft); 1 of the 6 in-envelope decks skip [TH/BRIC] (class soft)."
   ],
   "decks": [
     {
@@ -40,18 +54,56 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.6/ROLLING_0000.rad",
       "sha256": "17ecb459c701c806d28c07d0f2604aa226539693405e7d9b1b89ff089d917318",
       "size_bytes": 29500,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
-      "in_envelope": true,
-      "in_envelope_source": "parity_m41.json results[case='c02_E1000_Bending_BATOZ_Sf_0.6'].class == MATCH (max_rel_rms=0.012612538238782056, provenance='M41-fresh')",
-      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance.",
       "inventory_classification": "IN_ENVELOPE",
       "inventory_classification_strict": "NEAR",
+      "in_envelope": true,
+      "in_envelope_source": "parity_m41.json results[case='c02_E1000_Bending_BATOZ_Sf_0.6'].class == MATCH (max_rel_rms=0.012612538238782056, provenance='M41-fresh')",
+      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance. See skipped_families for the families the port still skips on this deck. Qualified: the port skips 7 families on this deck (class control, soft): ANALY, DEF_SHELL, DEF_SOLID, IOFLAG, SPMD, TH/RBODY, TH/SHEL.",
       "parity_case": "c02_E1000_Bending_BATOZ_Sf_0.6",
       "parity_class": "MATCH",
       "parity_max_rel_rms": 0.012612538238782056,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(2)"
+      "coverage_verdict": "SKIPS(2)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "1 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.8/ROLLING_0000.rad",
@@ -59,18 +111,56 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.8/ROLLING_0000.rad",
       "sha256": "d1fa6eef8efd8092c7cbba109622fc6e3e0097fa3875c3cdbcd6403386ce7929",
       "size_bytes": 29500,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
-      "in_envelope": true,
-      "in_envelope_source": "parity_m41.json results[case='c03_E1000_Bending_BATOZ_Sf_0.8'].class == MATCH (max_rel_rms=0.009446593717375835, provenance='M41-fresh')",
-      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance.",
       "inventory_classification": "IN_ENVELOPE",
       "inventory_classification_strict": "NEAR",
+      "in_envelope": true,
+      "in_envelope_source": "parity_m41.json results[case='c03_E1000_Bending_BATOZ_Sf_0.8'].class == MATCH (max_rel_rms=0.009446593717375835, provenance='M41-fresh')",
+      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance. See skipped_families for the families the port still skips on this deck. Qualified: the port skips 7 families on this deck (class control, soft): ANALY, DEF_SHELL, DEF_SOLID, IOFLAG, SPMD, TH/RBODY, TH/SHEL.",
       "parity_case": "c03_E1000_Bending_BATOZ_Sf_0.8",
       "parity_class": "MATCH",
       "parity_max_rel_rms": 0.009446593717375835,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(2)"
+      "coverage_verdict": "SKIPS(2)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "1 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.9/ROLLING_0000.rad",
@@ -78,18 +168,56 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.9/ROLLING_0000.rad",
       "sha256": "c0d8ac3f5be03db267d82453786ee1b78aab90012e0d2e52b38acc6afed7f958",
       "size_bytes": 29500,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
-      "in_envelope": true,
-      "in_envelope_source": "parity_m41.json results[case='c04_E1000_Bending_BATOZ_Sf_0.9'].class == MATCH (max_rel_rms=0.008393049731271715, provenance='M41-fresh')",
-      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance.",
       "inventory_classification": "IN_ENVELOPE",
       "inventory_classification_strict": "NEAR",
+      "in_envelope": true,
+      "in_envelope_source": "parity_m41.json results[case='c04_E1000_Bending_BATOZ_Sf_0.9'].class == MATCH (max_rel_rms=0.008393049731271715, provenance='M41-fresh')",
+      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance. See skipped_families for the families the port still skips on this deck. Qualified: the port skips 7 families on this deck (class control, soft): ANALY, DEF_SHELL, DEF_SOLID, IOFLAG, SPMD, TH/RBODY, TH/SHEL.",
       "parity_case": "c04_E1000_Bending_BATOZ_Sf_0.9",
       "parity_class": "MATCH",
       "parity_max_rel_rms": 0.008393049731271715,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(2)"
+      "coverage_verdict": "SKIPS(2)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "1 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type1/Sf_0.1/ROLLING_0000.rad",
@@ -97,18 +225,56 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type1/Sf_0.1/ROLLING_0000.rad",
       "sha256": "9d2268346302c2e8feac9eb0bf04b46ff923b4586736f8d94151a166617a4006",
       "size_bytes": 30720,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c40_E1000_Bending_BT_BT_type1_Sf_0'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.18915117511522364).",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": "c40_E1000_Bending_BT_BT_type1_Sf_0",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.18915117511522364,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(2)"
+      "coverage_verdict": "SKIPS(2)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type1/Sf_0.9/ROLLING_0000.rad",
@@ -116,18 +282,56 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type1/Sf_0.9/ROLLING_0000.rad",
       "sha256": "38e750ec7c4c222ffc1e414f5581439b0357748d87e319520e19e891d370c8ee",
       "size_bytes": 30650,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c41_E1000_Bending_BT_BT_type1_Sf_0'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.13750034746788345).",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": "c41_E1000_Bending_BT_BT_type1_Sf_0",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.13750034746788345,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(2)"
+      "coverage_verdict": "SKIPS(2)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type3/Sf_0.1/ROLLING_0000.rad",
@@ -135,18 +339,56 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type3/Sf_0.1/ROLLING_0000.rad",
       "sha256": "79b1eab0dcaf6b09b5a5fb6d19e5fe60097cf4cb90655134e0dab8df3e09b469",
       "size_bytes": 30650,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c42_E1000_Bending_BT_BT_type3_Sf_0'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.25030368581431806).",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": "c42_E1000_Bending_BT_BT_type3_Sf_0",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.25030368581431806,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(2)"
+      "coverage_verdict": "SKIPS(2)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type3/Sf_0.9/ROLLING_0000.rad",
@@ -154,18 +396,56 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type3/Sf_0.9/ROLLING_0000.rad",
       "sha256": "3404ef4f58cf489f2caa4f08196b5ce4cd482e5f4508b124fa81980355c81a40",
       "size_bytes": 30720,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c43_E1000_Bending_BT_BT_type3_Sf_0'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.2565737863252257).",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": "c43_E1000_Bending_BT_BT_type3_Sf_0",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.2565737863252257,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(2)"
+      "coverage_verdict": "SKIPS(2)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type4/Sf_0.1/ROLLING_0000.rad",
@@ -173,18 +453,56 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type4/Sf_0.1/ROLLING_0000.rad",
       "sha256": "b9636d6b61e285f35e8004a872424a32f041aaba5decdef46fb3393d2983c2ca",
       "size_bytes": 30720,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c44_E1000_Bending_BT_BT_type4_Sf_0'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.19019132695804544).",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": "c44_E1000_Bending_BT_BT_type4_Sf_0",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.19019132695804544,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(2)"
+      "coverage_verdict": "SKIPS(2)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type4/Sf_0.9/ROLLING_0000.rad",
@@ -192,18 +510,56 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type4/Sf_0.9/ROLLING_0000.rad",
       "sha256": "1e4c2443efb6c66e6806291245ebb8b158245d98b0a2375afa734e30dc6dc689",
       "size_bytes": 30720,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c45_E1000_Bending_BT_BT_type4_Sf_0'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.14961544161338852).",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": "c45_E1000_Bending_BT_BT_type4_Sf_0",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.14961544161338852,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(2)"
+      "coverage_verdict": "SKIPS(2)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/DKT18/Sf_0.1/ROLLING_0000.rad",
@@ -211,18 +567,52 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/DKT18/Sf_0.1/ROLLING_0000.rad",
       "sha256": "f3ac9ceff0095cb1a503f5d4ebeb5bbd147209af2b500ab6c2cf6e94b899c5cb",
       "size_bytes": 38586,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c05_E1000_Bending_DKT18_Sf_0.1'].class == 'SKIPPED-SLOW'",
       "in_envelope_reason": "the parity run exceeded its time budget, so no verdict was reached.",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": "c05_E1000_Bending_DKT18_Sf_0.1",
       "parity_class": "SKIPPED-SLOW",
       "parity_max_rel_rms": null,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "1 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/DKT18/Sf_0.2/ROLLING_0000.rad",
@@ -230,18 +620,52 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/DKT18/Sf_0.2/ROLLING_0000.rad",
       "sha256": "3f58b548dce7afa77eb8ccc9c4dd937c36a4b29b035dea2836d1ea97b6668eaa",
       "size_bytes": 38586,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c06_E1000_Bending_DKT18_Sf_0.2'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.2813025962301115).",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": "c06_E1000_Bending_DKT18_Sf_0.2",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.2813025962301115,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "1 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/DKT18/Sf_0.3/ROLLING_0000.rad",
@@ -249,18 +673,52 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/DKT18/Sf_0.3/ROLLING_0000.rad",
       "sha256": "44ddf8114e5674d853ed138491567d26ffd8dbc08c8228dea2ff2075b0142c5c",
       "size_bytes": 38586,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c07_E1000_Bending_DKT18_Sf_0.3'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.25812750514955835).",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": "c07_E1000_Bending_DKT18_Sf_0.3",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.25812750514955835,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "1 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/QEPH/Sf_0.8/ROLLING_0000.rad",
@@ -268,18 +726,56 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/QEPH/Sf_0.8/ROLLING_0000.rad",
       "sha256": "658420833918d66b4113aa3f0b46ab26af07c6be9ebe3a74473b6ec9ad8fefc0",
       "size_bytes": 29497,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
-      "in_envelope": true,
-      "in_envelope_source": "parity_m41.json results[case='c08_E1000_Bending_QEPH_Sf_0.8'].class == MATCH (max_rel_rms=5.841708325388154e-06, provenance='M41-fresh')",
-      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance.",
       "inventory_classification": "IN_ENVELOPE",
       "inventory_classification_strict": "NEAR",
+      "in_envelope": true,
+      "in_envelope_source": "parity_m41.json results[case='c08_E1000_Bending_QEPH_Sf_0.8'].class == MATCH (max_rel_rms=5.841708325388154e-06, provenance='M41-fresh')",
+      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance. See skipped_families for the families the port still skips on this deck. Qualified: the port skips 7 families on this deck (class control, soft): ANALY, DEF_SHELL, DEF_SOLID, IOFLAG, SPMD, TH/RBODY, TH/SHEL.",
       "parity_case": "c08_E1000_Bending_QEPH_Sf_0.8",
       "parity_class": "MATCH",
       "parity_max_rel_rms": 5.841708325388154e-06,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(2)"
+      "coverage_verdict": "SKIPS(2)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "1 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-1000_Bending/10_Bending/QEPH/Sf_0.9/ROLLING_0000.rad",
@@ -287,18 +783,56 @@
       "hashed_file": "rd_e/RD-E-1000_Bending/10_Bending/QEPH/Sf_0.9/ROLLING_0000.rad",
       "sha256": "d64b6e7db636509e0045475ad6954d81c2b40946c9f16e13cf059a2abeb3f043",
       "size_bytes": 29497,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-1000_Bending",
-      "in_envelope": true,
-      "in_envelope_source": "parity_m41.json results[case='c09_E1000_Bending_QEPH_Sf_0.9'].class == MATCH (max_rel_rms=6.580144914995088e-06, provenance='M41-fresh')",
-      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance.",
       "inventory_classification": "IN_ENVELOPE",
       "inventory_classification_strict": "NEAR",
+      "in_envelope": true,
+      "in_envelope_source": "parity_m41.json results[case='c09_E1000_Bending_QEPH_Sf_0.9'].class == MATCH (max_rel_rms=6.580144914995088e-06, provenance='M41-fresh')",
+      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance. See skipped_families for the families the port still skips on this deck. Qualified: the port skips 7 families on this deck (class control, soft): ANALY, DEF_SHELL, DEF_SOLID, IOFLAG, SPMD, TH/RBODY, TH/SHEL.",
       "parity_case": "c09_E1000_Bending_QEPH_Sf_0.9",
       "parity_class": "MATCH",
       "parity_max_rel_rms": 6.580144914995088e-06,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(2)"
+      "coverage_verdict": "SKIPS(2)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "1 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-4801_Solid_spotweld/One_solid_element_validation_law83/run01_no_failure/KS2_model_v01_0000.rad",
@@ -306,18 +840,68 @@
       "hashed_file": "rd_e/RD-E-4801_Solid_spotweld/One_solid_element_validation_law83/run01_no_failure/KS2_model_v01_0000.rad",
       "sha256": "b941d33ac0014b6990ef723a98b23f061d8e63e8fa129c0ed89cf5c4f08aec47",
       "size_bytes": 224099,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-4801_Solid_spotweld",
+      "inventory_classification": "OUT",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "OUT",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "ERROR"
+      "coverage_verdict": "ERROR",
+      "skipped_families": {
+        "MOVE_FUNCT": {
+          "blocks": 1,
+          "class": "hard"
+        },
+        "TH/INTER": {
+          "blocks": 2,
+          "class": "soft"
+        },
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SECTIO": {
+          "blocks": 5,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [
+        "MOVE_FUNCT"
+      ],
+      "coverage_blockers": [
+        "MOVE_FUNCT",
+        "ERR: KS2_model_v01_0000.rad:3304: /INTER/TYPE7/1: Iform=2 (the incremental stiffness tangential formulation) is not ported \u2014 "
+      ],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW36/3: real-format fields not ported \u2014 ignored: F_smooth=1",
+        "/PROP/CONNECT/301: parsed, physics not implemented (M38) \u2014 the Engine will refuse element groups that use it",
+        "/RBODY/1001: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1001: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/1002: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1002: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/1003: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1003: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-4801_Solid_spotweld/One_solid_element_validation_law83/run02_w_failure/KS2_model_v01_0000.rad",
@@ -325,18 +909,74 @@
       "hashed_file": "rd_e/RD-E-4801_Solid_spotweld/One_solid_element_validation_law83/run02_w_failure/KS2_model_v01_0000.rad",
       "sha256": "b941d33ac0014b6990ef723a98b23f061d8e63e8fa129c0ed89cf5c4f08aec47",
       "size_bytes": 224099,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-4801_Solid_spotweld",
+      "inventory_classification": "OUT",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "OUT",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "ERROR"
+      "coverage_verdict": "ERROR",
+      "skipped_families": {
+        "FAIL/SNCONNECT": {
+          "blocks": 1,
+          "class": "hard"
+        },
+        "MOVE_FUNCT": {
+          "blocks": 5,
+          "class": "hard"
+        },
+        "TH/INTER": {
+          "blocks": 2,
+          "class": "soft"
+        },
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SECTIO": {
+          "blocks": 5,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [
+        "FAIL/SNCONNECT",
+        "MOVE_FUNCT"
+      ],
+      "coverage_blockers": [
+        "FAIL/SNCONNECT",
+        "MOVE_FUNCT",
+        "ERR: KS2_model_v01_0000.rad:3304: /INTER/TYPE7/1: Iform=2 (the incremental stiffness tangential formulation) is not ported \u2014 "
+      ],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW36/3: real-format fields not ported \u2014 ignored: F_smooth=1",
+        "/PROP/CONNECT/301: parsed, physics not implemented (M38) \u2014 the Engine will refuse element groups that use it",
+        "/RBODY/1001: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1001: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/1002: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1002: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/1003: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1003: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-4801_Solid_spotweld/One_solid_element_validation_law83/run02_w_failure_Beta_update/KS2_model_v01_0000.rad",
@@ -344,18 +984,74 @@
       "hashed_file": "rd_e/RD-E-4801_Solid_spotweld/One_solid_element_validation_law83/run02_w_failure_Beta_update/KS2_model_v01_0000.rad",
       "sha256": "b941d33ac0014b6990ef723a98b23f061d8e63e8fa129c0ed89cf5c4f08aec47",
       "size_bytes": 224099,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-4801_Solid_spotweld",
+      "inventory_classification": "OUT",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "OUT",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "ERROR"
+      "coverage_verdict": "ERROR",
+      "skipped_families": {
+        "FAIL/SNCONNECT": {
+          "blocks": 1,
+          "class": "hard"
+        },
+        "MOVE_FUNCT": {
+          "blocks": 5,
+          "class": "hard"
+        },
+        "TH/INTER": {
+          "blocks": 2,
+          "class": "soft"
+        },
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SECTIO": {
+          "blocks": 5,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [
+        "FAIL/SNCONNECT",
+        "MOVE_FUNCT"
+      ],
+      "coverage_blockers": [
+        "FAIL/SNCONNECT",
+        "MOVE_FUNCT",
+        "ERR: KS2_model_v01_0000.rad:3304: /INTER/TYPE7/1: Iform=2 (the incremental stiffness tangential formulation) is not ported \u2014 "
+      ],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW36/3: real-format fields not ported \u2014 ignored: F_smooth=1",
+        "/PROP/CONNECT/301: parsed, physics not implemented (M38) \u2014 the Engine will refuse element groups that use it",
+        "/RBODY/1001: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1001: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/1002: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1002: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/1003: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1003: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-4801_Solid_spotweld/One_solid_element_validation_law83/run03_peel_test_1/KS2_model_v01_0000.rad",
@@ -363,18 +1059,74 @@
       "hashed_file": "rd_e/RD-E-4801_Solid_spotweld/One_solid_element_validation_law83/run03_peel_test_1/KS2_model_v01_0000.rad",
       "sha256": "b941d33ac0014b6990ef723a98b23f061d8e63e8fa129c0ed89cf5c4f08aec47",
       "size_bytes": 224099,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-4801_Solid_spotweld",
+      "inventory_classification": "OUT",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "OUT",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "ERROR"
+      "coverage_verdict": "ERROR",
+      "skipped_families": {
+        "FAIL/SNCONNECT": {
+          "blocks": 1,
+          "class": "hard"
+        },
+        "MOVE_FUNCT": {
+          "blocks": 5,
+          "class": "hard"
+        },
+        "TH/INTER": {
+          "blocks": 2,
+          "class": "soft"
+        },
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SECTIO": {
+          "blocks": 5,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [
+        "FAIL/SNCONNECT",
+        "MOVE_FUNCT"
+      ],
+      "coverage_blockers": [
+        "FAIL/SNCONNECT",
+        "MOVE_FUNCT",
+        "ERR: KS2_model_v01_0000.rad:3304: /INTER/TYPE7/1: Iform=2 (the incremental stiffness tangential formulation) is not ported \u2014 "
+      ],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW36/3: real-format fields not ported \u2014 ignored: F_smooth=1",
+        "/PROP/CONNECT/301: parsed, physics not implemented (M38) \u2014 the Engine will refuse element groups that use it",
+        "/RBODY/1001: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1001: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/1002: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1002: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/1003: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1003: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-4801_Solid_spotweld/One_solid_element_validation_law83/run03_peel_test_2/KS2_model_v01_0000.rad",
@@ -382,18 +1134,74 @@
       "hashed_file": "rd_e/RD-E-4801_Solid_spotweld/One_solid_element_validation_law83/run03_peel_test_2/KS2_model_v01_0000.rad",
       "sha256": "b941d33ac0014b6990ef723a98b23f061d8e63e8fa129c0ed89cf5c4f08aec47",
       "size_bytes": 224099,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-4801_Solid_spotweld",
+      "inventory_classification": "OUT",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "OUT",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "ERROR"
+      "coverage_verdict": "ERROR",
+      "skipped_families": {
+        "FAIL/SNCONNECT": {
+          "blocks": 1,
+          "class": "hard"
+        },
+        "MOVE_FUNCT": {
+          "blocks": 5,
+          "class": "hard"
+        },
+        "TH/INTER": {
+          "blocks": 2,
+          "class": "soft"
+        },
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/SECTIO": {
+          "blocks": 5,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [
+        "FAIL/SNCONNECT",
+        "MOVE_FUNCT"
+      ],
+      "coverage_blockers": [
+        "FAIL/SNCONNECT",
+        "MOVE_FUNCT",
+        "ERR: KS2_model_v01_0000.rad:3304: /INTER/TYPE7/1: Iform=2 (the incremental stiffness tangential formulation) is not ported \u2014 "
+      ],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW36/3: real-format fields not ported \u2014 ignored: F_smooth=1",
+        "/PROP/CONNECT/301: parsed, physics not implemented (M38) \u2014 the Engine will refuse element groups that use it",
+        "/RBODY/1001: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1001: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/1002: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1002: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/1003: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/1003: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-5200_Creep/52_cylinder_creep/cylinder_creep_beta_001/foam_relax_0000.rad",
@@ -401,18 +1209,61 @@
       "hashed_file": "rd_e/RD-E-5200_Creep/52_cylinder_creep/cylinder_creep_beta_001/foam_relax_0000.rad",
       "sha256": "342697a5669174cdd3f9f5372ab82279808c415641e7d92efdd603c1d72774f6",
       "size_bytes": 59550,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-5200_Creep",
+      "inventory_classification": "OUT",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "OUT",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(3)"
+      "coverage_verdict": "SKIPS(3)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 2,
+          "class": "soft"
+        },
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        },
+        "TH/SECTIO": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/INTER/TYPE7/1: real-format fields not ported \u2014 ignored: Inacti=1",
+        "2 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Arruda_Boyce_model/LAW92_UT/rubber_tension_v1_0000.rad",
@@ -420,18 +1271,52 @@
       "hashed_file": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Arruda_Boyce_model/LAW92_UT/rubber_tension_v1_0000.rad",
       "sha256": "0c78ccf780d2dabafa226af17fc214703aa8d9841d48d9ca5dd496b7fcb95e85",
       "size_bytes": 8185,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-5600_Hyperelastic_material",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW92/1 on bricks elements: parsed, physics not implemented (M37) \u2014 the Engine will refuse to run this model"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Arruda_Boyce_model/LAW92_UT_parameter/rubber_tension_v1_0000.rad",
@@ -439,18 +1324,52 @@
       "hashed_file": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Arruda_Boyce_model/LAW92_UT_parameter/rubber_tension_v1_0000.rad",
       "sha256": "0f12ae98495ab148fd1444f1dc2b878a82dec0cbeebfbf0238f3624af4cec442",
       "size_bytes": 8162,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-5600_Hyperelastic_material",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW92/1 on bricks elements: parsed, physics not implemented (M37) \u2014 the Engine will refuse to run this model"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW42_pair2/rubber_tension_v1_0000.rad",
@@ -458,18 +1377,50 @@
       "hashed_file": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW42_pair2/rubber_tension_v1_0000.rad",
       "sha256": "ac156f7ce57ef012f2d59ced9095be6410d7fb5c686830582e0d5c178da10705",
       "size_bytes": 8154,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-5600_Hyperelastic_material",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW42_pair3/rubber_tension_v1_0000.rad",
@@ -477,18 +1428,53 @@
       "hashed_file": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW42_pair3/rubber_tension_v1_0000.rad",
       "sha256": "9120fb079afad59ba74d494cc77a6dc63dab65beb2eaa748f08ca6cf888a855d",
       "size_bytes": 8149,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-5600_Hyperelastic_material",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "ERROR"
+      "coverage_verdict": "ERROR",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [
+        "ERR: LAW42.txt:7: /MAT/LAW42/1: every Ogden pair must satisfy mu_p * alpha_p > 0 (material stability)",
+        "ERR: PART CHECK: /PART/1: material 1 not defined"
+      ],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW69_extend_to_compression/rubber_tension_v1_0000.rad",
@@ -496,18 +1482,52 @@
       "hashed_file": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW69_extend_to_compression/rubber_tension_v1_0000.rad",
       "sha256": "5dbd75489d30ce6702bc923230179bfd2483c5c798f66ce43ae0fc45c3247158",
       "size_bytes": 8388,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-5600_Hyperelastic_material",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW69/1 on bricks elements: parsed, physics not implemented (M37) \u2014 the Engine will refuse to run this model"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW69_ogden_pair2/LAW69_ogden_pair2_Poisson04997/rubber_tension_v1_0000.rad",
@@ -515,18 +1535,52 @@
       "hashed_file": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW69_ogden_pair2/LAW69_ogden_pair2_Poisson04997/rubber_tension_v1_0000.rad",
       "sha256": "1a705003fd882f0e9f7905e229b54c89f350109e903d491b523506eef0b894b9",
       "size_bytes": 8182,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-5600_Hyperelastic_material",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW69/1 on bricks elements: parsed, physics not implemented (M37) \u2014 the Engine will refuse to run this model"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW69_ogden_pair3/rubber_tension_v1_0000.rad",
@@ -534,18 +1588,52 @@
       "hashed_file": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW69_ogden_pair3/rubber_tension_v1_0000.rad",
       "sha256": "1a705003fd882f0e9f7905e229b54c89f350109e903d491b523506eef0b894b9",
       "size_bytes": 8182,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-5600_Hyperelastic_material",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW69/1 on bricks elements: parsed, physics not implemented (M37) \u2014 the Engine will refuse to run this model"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW82/rubber_tension_v1_0000.rad",
@@ -553,18 +1641,52 @@
       "hashed_file": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW82/rubber_tension_v1_0000.rad",
       "sha256": "126ce227b6f3146980d741a69bd4f4725d15fa1953a9a65387c06c4965f883b1",
       "size_bytes": 8154,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-5600_Hyperelastic_material",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW82/1 on bricks elements: parsed, physics not implemented (M37) \u2014 the Engine will refuse to run this model"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW88/rubber_tension_v1_0000.rad",
@@ -572,18 +1694,52 @@
       "hashed_file": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Ogden_model/LAW88/rubber_tension_v1_0000.rad",
       "sha256": "e94ed057485992e26fc074fa7e4c3f14bb2c03c21ef563b2fe52bc6265f72cbe",
       "size_bytes": 8392,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-5600_Hyperelastic_material",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW88/1 on bricks elements: parsed, physics not implemented (M37) \u2014 the Engine will refuse to run this model"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Yeoh_model/rubber_tension_v1_0000.rad",
@@ -591,18 +1747,52 @@
       "hashed_file": "rd_e/RD-E-5600_Hyperelastic_material/56_HyperElastic_Material/Yeoh_model/rubber_tension_v1_0000.rad",
       "sha256": "063e0f04f040061f5f3c50831282e3f11fc179561379278df3199d60474a93c1",
       "size_bytes": 8152,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_e",
       "package": "RD-E-5600_Hyperelastic_material",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "SPMD": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/MAT/LAW94/1 on bricks elements: parsed, physics not implemented (M37) \u2014 the Engine will refuse to run this model"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/beam_type3/Cantilever_beam_0000.rad",
@@ -610,18 +1800,38 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/beam_type3/Cantilever_beam_0000.rad",
       "sha256": "55bba8bcf2064a32338901dce309b1c1554a17f3544e956d89a2d5c4be090761",
       "size_bytes": 15959,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "CLEAN"
+      "coverage_verdict": "CLEAN",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "57 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/brick_isolid14/Cantilever_beam_0000.rad",
@@ -629,18 +1839,43 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/brick_isolid14/Cantilever_beam_0000.rad",
       "sha256": "9574debe6050cb5f34f2133c94b4a2b21a81db0c550fee00690e19adf4bcd11b",
       "size_bytes": 98097,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/brick_isolid17/Cantilever_beam_0000.rad",
@@ -648,18 +1883,43 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/brick_isolid17/Cantilever_beam_0000.rad",
       "sha256": "1d36c30db37de89542ab3531d6578c1c90e3d8a4c5d66f4e8433467667b85a41",
       "size_bytes": 98097,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/brick_isolid18/Cantilever_beam_0000.rad",
@@ -667,18 +1927,43 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/brick_isolid18/Cantilever_beam_0000.rad",
       "sha256": "8398ec673f920c81313f82d718eb4dc1200e68d452c124917560a6c276afb278",
       "size_bytes": 98103,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/brick_isolid24/Cantilever_beam_0000.rad",
@@ -686,18 +1971,43 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/brick_isolid24/Cantilever_beam_0000.rad",
       "sha256": "2e329c2f3a8dfb1ad0dafc349ae87cbbda508ab4a553f53a8e90a22f2d00f798",
       "size_bytes": 98098,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/sh3n_Ish3n0/Cantilever_beam_0000.rad",
@@ -705,18 +2015,44 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/sh3n_Ish3n0/Cantilever_beam_0000.rad",
       "sha256": "c4216be81282415c07005b780dc755288710e75430975e69ed9344778b078263",
       "size_bytes": 26815,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "2 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/sh3n_Ish3n30/Cantilever_beam_0000.rad",
@@ -724,18 +2060,44 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/sh3n_Ish3n30/Cantilever_beam_0000.rad",
       "sha256": "184aebf075bafd829dd0a7656e465d288ebb6f6a26d44f96f5c828812838a0e1",
       "size_bytes": 26821,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "2 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/shell_ishell12/Cantilever_beam_0000.rad",
@@ -743,18 +2105,44 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/shell_ishell12/Cantilever_beam_0000.rad",
       "sha256": "0e8b75979fd1619b013bbe250480b65dc4bbd7da16fc6dfca1867b30c64806d8",
       "size_bytes": 23727,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "2 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/shell_ishell24/Cantilever_beam_0000.rad",
@@ -762,18 +2150,44 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/shell_ishell24/Cantilever_beam_0000.rad",
       "sha256": "26121e72f5091ef1b0c9e0b71e5ac5bbe4e616652e1533088cadfab84f6d9c39",
       "size_bytes": 23727,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "2 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/tetra10_0/Cantilever_beam_0000.rad",
@@ -781,18 +2195,54 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/tetra10_0/Cantilever_beam_0000.rad",
       "sha256": "aef742eeff0d22a0a2fb2d484251c545d09a5c8c0346c1076f3464900bf79d09",
       "size_bytes": 565029,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "ERROR"
+      "coverage_verdict": "ERROR",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TETRA10": {
+          "blocks": 1,
+          "class": "hard"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [
+        "TETRA10"
+      ],
+      "coverage_blockers": [
+        "TETRA10",
+        "ERR: MODEL CHECK: model has no elements"
+      ],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/3: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/tetra10_2/Cantilever_beam_0000.rad",
@@ -800,18 +2250,54 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/tetra10_2/Cantilever_beam_0000.rad",
       "sha256": "f0480cda4301936028b98f741ee7ae8d60700b7c40a1ee47c45b0ba7b1ab1f36",
       "size_bytes": 565029,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "ERROR"
+      "coverage_verdict": "ERROR",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TETRA10": {
+          "blocks": 1,
+          "class": "hard"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [
+        "TETRA10"
+      ],
+      "coverage_blockers": [
+        "TETRA10",
+        "ERR: MODEL CHECK: model has no elements"
+      ],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/3: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/tetra4_0/Cantilever_beam_0000.rad",
@@ -819,18 +2305,46 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/tetra4_0/Cantilever_beam_0000.rad",
       "sha256": "1b1c8253dc97161c7378979bc063e1c0272a78660a3faf93a3bceb7e005e9491",
       "size_bytes": 175720,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/3: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/tetra4_1/Cantilever_beam_0000.rad",
@@ -838,18 +2352,46 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/tetra4_1/Cantilever_beam_0000.rad",
       "sha256": "30319ea5fbbf8e3bfb2e70bd894e1d4067cbe5e140ac163295470c4433f4248d",
       "size_bytes": 175720,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/3: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/tetra4_3/Cantilever_beam_0000.rad",
@@ -857,18 +2399,46 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/explicit/tetra4_3/Cantilever_beam_0000.rad",
       "sha256": "0592c27b28fb27cc3eff49fe145a99b2efdfcb541931bd487cbe275491498b70",
       "size_bytes": 175720,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/3: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/beam_type3/Cantilever_beam_0000.rad",
@@ -876,18 +2446,38 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/beam_type3/Cantilever_beam_0000.rad",
       "sha256": "55bba8bcf2064a32338901dce309b1c1554a17f3544e956d89a2d5c4be090761",
       "size_bytes": 15959,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "CLEAN"
+      "coverage_verdict": "CLEAN",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "57 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/brick_isolid14/Cantilever_beam_0000.rad",
@@ -895,18 +2485,43 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/brick_isolid14/Cantilever_beam_0000.rad",
       "sha256": "9574debe6050cb5f34f2133c94b4a2b21a81db0c550fee00690e19adf4bcd11b",
       "size_bytes": 98097,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/brick_isolid17/Cantilever_beam_0000.rad",
@@ -914,18 +2529,43 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/brick_isolid17/Cantilever_beam_0000.rad",
       "sha256": "1d36c30db37de89542ab3531d6578c1c90e3d8a4c5d66f4e8433467667b85a41",
       "size_bytes": 98097,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/brick_isolid18/Cantilever_beam_0000.rad",
@@ -933,18 +2573,43 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/brick_isolid18/Cantilever_beam_0000.rad",
       "sha256": "8398ec673f920c81313f82d718eb4dc1200e68d452c124917560a6c276afb278",
       "size_bytes": 98103,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/brick_isolid24/Cantilever_beam_0000.rad",
@@ -952,18 +2617,43 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/brick_isolid24/Cantilever_beam_0000.rad",
       "sha256": "2e329c2f3a8dfb1ad0dafc349ae87cbbda508ab4a553f53a8e90a22f2d00f798",
       "size_bytes": 98098,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/sh3n_Ish3n0/Cantilever_beam_0000.rad",
@@ -971,18 +2661,44 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/sh3n_Ish3n0/Cantilever_beam_0000.rad",
       "sha256": "c4216be81282415c07005b780dc755288710e75430975e69ed9344778b078263",
       "size_bytes": 26815,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "2 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/shell_ishell12/Cantilever_beam_0000.rad",
@@ -990,18 +2706,44 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/shell_ishell12/Cantilever_beam_0000.rad",
       "sha256": "0e8b75979fd1619b013bbe250480b65dc4bbd7da16fc6dfca1867b30c64806d8",
       "size_bytes": 23727,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "2 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/shell_ishell24/Cantilever_beam_0000.rad",
@@ -1009,18 +2751,44 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/shell_ishell24/Cantilever_beam_0000.rad",
       "sha256": "26121e72f5091ef1b0c9e0b71e5ac5bbe4e616652e1533088cadfab84f6d9c39",
       "size_bytes": 23727,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "2 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/tetra10_0/Cantilever_beam_0000.rad",
@@ -1028,18 +2796,54 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/tetra10_0/Cantilever_beam_0000.rad",
       "sha256": "aef742eeff0d22a0a2fb2d484251c545d09a5c8c0346c1076f3464900bf79d09",
       "size_bytes": 565029,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "ERROR"
+      "coverage_verdict": "ERROR",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TETRA10": {
+          "blocks": 1,
+          "class": "hard"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [
+        "TETRA10"
+      ],
+      "coverage_blockers": [
+        "TETRA10",
+        "ERR: MODEL CHECK: model has no elements"
+      ],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/3: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/tetra4_0/Cantilever_beam_0000.rad",
@@ -1047,18 +2851,46 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/tetra4_0/Cantilever_beam_0000.rad",
       "sha256": "1b1c8253dc97161c7378979bc063e1c0272a78660a3faf93a3bceb7e005e9491",
       "size_bytes": 175720,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/3: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/tetra4_3/Cantilever_beam_0000.rad",
@@ -1066,18 +2898,46 @@
       "hashed_file": "rd_v_elements/RD-V-0020_Cantilever_Beam/0020_beam/implicit/tetra4_3/Cantilever_beam_0000.rad",
       "sha256": "0f6645866e62dc26f6ff6ae461bb929c26426077f3ba6c8b9c210ac26aa3ed06",
       "size_bytes": 175720,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_elements",
       "package": "RD-V-0020_Cantilever_Beam",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/CLOAD/1: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/2: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/CLOAD/3: real-format fields not ported \u2014 ignored: Ascale_x=.1",
+        "/RBODY/1: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/2: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "/RBODY/3: ICoG=3 approximated as 0 (port: 1 = master moved to COG, 0 = kept in place)",
+        "3 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/HEXA_DEGE_LAW2/HEXA_DEGE_0000.rad",
@@ -1085,18 +2945,30 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/HEXA_DEGE_LAW2/HEXA_DEGE_0000.rad",
       "sha256": "36848c474de183ed94eb92bff6783ed7f1e11ce5a9bfd2e6f6fa17002410fb78",
       "size_bytes": 205890,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c12_V0700_LAW2_HEXA_DEGE_LAW2'].class == 'NO-CHANNELS'",
       "in_envelope_reason": "no comparable channel was produced, so reproduction was never measured.",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": "c12_V0700_LAW2_HEXA_DEGE_LAW2",
       "parity_class": "NO-CHANNELS",
       "parity_max_rel_rms": null,
       "parity_provenance": "M40-carried (not re-run in M41 session)",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/HEXA_ELEM_SOLID_18_LAW2/HEXAP14_18_0000.rad",
@@ -1104,18 +2976,30 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/HEXA_ELEM_SOLID_18_LAW2/HEXAP14_18_0000.rad",
       "sha256": "1cc66b76fbf7213fe952998a88c3cfb4d1181c0954264d643790f6023cd7cabe",
       "size_bytes": 202548,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c13_V0700_LAW2_HEXA_18_LAW2'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.20899214318855944).",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": "c13_V0700_LAW2_HEXA_18_LAW2",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.20899214318855944,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/HEXA_ELEM_SOLID_24_LAW2/HEXA_LAW2_0000.rad",
@@ -1123,18 +3007,30 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/HEXA_ELEM_SOLID_24_LAW2/HEXA_LAW2_0000.rad",
       "sha256": "1cc66b76fbf7213fe952998a88c3cfb4d1181c0954264d643790f6023cd7cabe",
       "size_bytes": 202548,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c14_V0700_LAW2_HEXA_24_LAW2'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.20899214317146372).",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": "c14_V0700_LAW2_HEXA_24_LAW2",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.20899214317146372,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/HEXA_ELEM_TSHELL_LAW2/HEXA_TSHELL_LAW2_0000.rad",
@@ -1142,18 +3038,39 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/HEXA_ELEM_TSHELL_LAW2/HEXA_TSHELL_LAW2_0000.rad",
       "sha256": "f8dc8d2611972c7dec2c679f26bf1946decbf69364591c963b7d198bd3de82ca",
       "size_bytes": 202794,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/PROP/TSHELL/100001: parsed, physics not implemented (M38) \u2014 the Engine will refuse element groups that use it",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/SHELL_Ishell24_LAW2/shell_Ishell24_LAW2_0000.rad",
@@ -1161,18 +3078,30 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/SHELL_Ishell24_LAW2/shell_Ishell24_LAW2_0000.rad",
       "sha256": "7375a908187d5e445bc5d18ace7f30856cf75fed52582ecb9a5c21b37b9b1075",
       "size_bytes": 103643,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c15_V0700_LAW2_SHELL_Ishell24_LAW2'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.12581368654848038).",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": "c15_V0700_LAW2_SHELL_Ishell24_LAW2",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.12581368654848038,
       "parity_provenance": "M40-carried (not re-run in M41 session)",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/TETRA_ELEM_24/TETRA_LAW2_0000.rad",
@@ -1180,18 +3109,25 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/TETRA_ELEM_24/TETRA_LAW2_0000.rad",
       "sha256": "7baa355afbc2647ecad37a471313d5e08ef254ae07631789d4694854f3d04eff",
       "size_bytes": 204122,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "IN_ENVELOPE",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "IN_ENVELOPE",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "CLEAN"
+      "coverage_verdict": "CLEAN",
+      "skipped_families": {},
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/TRIA_LAW2/TRIA_JC_LAW2_0000.rad",
@@ -1199,18 +3135,30 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW2_version2/TRIA_LAW2/TRIA_JC_LAW2_0000.rad",
       "sha256": "9033f73de6647e7b2ab39f1ba5b96f9695e13e664081f61f024bd2157e82bf24",
       "size_bytes": 105410,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c17_V0700_LAW2_TRIA_LAW2'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.12339394517780886).",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": "c17_V0700_LAW2_TRIA_LAW2",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.12339394517780886,
       "parity_provenance": "M40-carried (not re-run in M41 session)",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/SH3N": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/HEXA_DEGE/HEXA_DEGE_0000.rad",
@@ -1218,18 +3166,30 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/HEXA_DEGE/HEXA_DEGE_0000.rad",
       "sha256": "60dc473b346eb78c307600874899733630c470fb058e97f035fc2e35117cee40",
       "size_bytes": 205890,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c18_V0700_LAW36_HEXA_DEGE'].class == 'SKIPPED-SLOW'",
       "in_envelope_reason": "the parity run exceeded its time budget, so no verdict was reached.",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": "c18_V0700_LAW36_HEXA_DEGE",
       "parity_class": "SKIPPED-SLOW",
       "parity_max_rel_rms": null,
       "parity_provenance": "M40-carried (not re-run in M41 session)",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/HEXA_ELEM_SOLID_18/HEXAP14_18_0000.rad",
@@ -1237,18 +3197,30 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/HEXA_ELEM_SOLID_18/HEXAP14_18_0000.rad",
       "sha256": "f3b6c1ac29793fc6a272a3af02fd9e0697b31beba7c5edfcaacb60c5052d8cff",
       "size_bytes": 202545,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
-      "in_envelope": true,
-      "in_envelope_source": "parity_m41.json results[case='c19_V0700_LAW36_HEXA_18'].class == MATCH (max_rel_rms=0.0011261464783572771, provenance='M41-fresh')",
-      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance.",
       "inventory_classification": "IN_ENVELOPE",
       "inventory_classification_strict": "NEAR",
+      "in_envelope": true,
+      "in_envelope_source": "parity_m41.json results[case='c19_V0700_LAW36_HEXA_18'].class == MATCH (max_rel_rms=0.0011261464783572771, provenance='M41-fresh')",
+      "in_envelope_reason": "measured differential parity against the Fortran oracle: every compared channel within the M41 tolerance. See skipped_families for the families the port still skips on this deck. Qualified: the port skips 1 family on this deck (class soft): TH/BRIC.",
       "parity_case": "c19_V0700_LAW36_HEXA_18",
       "parity_class": "MATCH",
       "parity_max_rel_rms": 0.0011261464783572771,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/HEXA_ELEM_SOLID_24/HEXA1_0000.rad",
@@ -1256,18 +3228,30 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/HEXA_ELEM_SOLID_24/HEXA1_0000.rad",
       "sha256": "f3b6c1ac29793fc6a272a3af02fd9e0697b31beba7c5edfcaacb60c5052d8cff",
       "size_bytes": 202545,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c20_V0700_LAW36_HEXA_24'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.31561531680675253).",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": "c20_V0700_LAW36_HEXA_24",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.31561531680675253,
       "parity_provenance": "M41-fresh",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/HEXA_ELEM_TSHELL/HEXA_TSHELL_0000.rad",
@@ -1275,18 +3259,39 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/HEXA_ELEM_TSHELL/HEXA_TSHELL_0000.rad",
       "sha256": "f3b6c1ac29793fc6a272a3af02fd9e0697b31beba7c5edfcaacb60c5052d8cff",
       "size_bytes": 202545,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/BRIC": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/PROP/TSHELL/100001: parsed, physics not implemented (M38) \u2014 the Engine will refuse element groups that use it",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model",
+        "/PROP/TSHELL/100001 on bricks elements: parsed, physics not implemented (M38) \u2014 the Engine will refuse to run this model"
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/SHELL_Ishell12/shell_Ishell12_0000.rad",
@@ -1294,18 +3299,30 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/SHELL_Ishell12/shell_Ishell12_0000.rad",
       "sha256": "69b5566df9841ef48ed4b2bb01e526287245028be7907ba079817264c4e7c4e1",
       "size_bytes": 116414,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/SHELL_Ishell24/shell_Ishell24_0000.rad",
@@ -1313,18 +3330,30 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/SHELL_Ishell24/shell_Ishell24_0000.rad",
       "sha256": "7375a908187d5e445bc5d18ace7f30856cf75fed52582ecb9a5c21b37b9b1075",
       "size_bytes": 103643,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/SHEL": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/TETRA_ELEM_24/TETRA_0000.rad",
@@ -1332,18 +3361,25 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/TETRA_ELEM_24/TETRA_0000.rad",
       "sha256": "7baa355afbc2647ecad37a471313d5e08ef254ae07631789d4694854f3d04eff",
       "size_bytes": 204122,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "IN_ENVELOPE",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "IN_ENVELOPE",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "CLEAN"
+      "coverage_verdict": "CLEAN",
+      "skipped_families": {},
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/TRIA/TRIA_JC_0000.rad",
@@ -1351,18 +3387,30 @@
       "hashed_file": "rd_v_failure/RD-V-0700/Final_version_JC_LAW36_LAW2/JOHNSON_COOK_FAILURE_2024_LAW36_version2/TRIA/TRIA_JC_0000.rad",
       "sha256": "9033f73de6647e7b2ab39f1ba5b96f9695e13e664081f61f024bd2157e82bf24",
       "size_bytes": 105410,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_failure",
       "package": "RD-V-0700",
+      "inventory_classification": "IN_ENVELOPE",
+      "inventory_classification_strict": "NEAR",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "IN_ENVELOPE",
-      "inventory_classification_strict": "NEAR",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "TH/SH3N": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_material/RD-V-0220_Foam_LAW70/0220_foam_LAW70/0220_foam_LAW70_0/BLOCK_H8_0000.rad",
@@ -1370,18 +3418,50 @@
       "hashed_file": "rd_v_material/RD-V-0220_Foam_LAW70/0220_foam_LAW70/0220_foam_LAW70_0/BLOCK_H8_0000.rad",
       "sha256": "bc73f97e62fff58cc5086842f49321b3f11755bb99c3669c081eeb8f82ca34d4",
       "size_bytes": 199852,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_material",
       "package": "RD-V-0220_Foam_LAW70",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c46_V0220_Foam_LAW70_0'].class == 'SKIPPED-SLOW'",
       "in_envelope_reason": "the parity run exceeded its time budget, so no verdict was reached.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": "c46_V0220_Foam_LAW70_0",
       "parity_class": "SKIPPED-SLOW",
       "parity_max_rel_rms": null,
       "parity_provenance": "M40-carried (not re-run in M41 session)",
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/RBODY/1: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/2: real-format fields not ported \u2014 ignored: Ispher=1",
+        "2 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_material/RD-V-0220_Foam_LAW70/0220_foam_LAW70/0220_foam_LAW70_1/BLOCK_H8_0000.rad",
@@ -1389,18 +3469,50 @@
       "hashed_file": "rd_v_material/RD-V-0220_Foam_LAW70/0220_foam_LAW70/0220_foam_LAW70_1/BLOCK_H8_0000.rad",
       "sha256": "69d740225a3e9a083cb5f9d055296d94cb2ca39fefc1c73fe678f7a84ce36ba4",
       "size_bytes": 199750,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_material",
       "package": "RD-V-0220_Foam_LAW70",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/RBODY/1: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/2: real-format fields not ported \u2014 ignored: Ispher=1",
+        "2 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_material/RD-V-0220_Foam_LAW70/0220_foam_LAW70/0220_foam_LAW70_2/BLOCK_H8_0000.rad",
@@ -1408,18 +3520,50 @@
       "hashed_file": "rd_v_material/RD-V-0220_Foam_LAW70/0220_foam_LAW70/0220_foam_LAW70_2/BLOCK_H8_0000.rad",
       "sha256": "c251ec050da8b7e58c91e88c50d110a75da18741aac45bf6c14ad73f054e646e",
       "size_bytes": 204154,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_material",
       "package": "RD-V-0220_Foam_LAW70",
+      "inventory_classification": "NEAR",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "NEAR",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/RBODY/1: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/RBODY/2: real-format fields not ported \u2014 ignored: Ispher=1",
+        "2 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_material/RD-V-0220_Foam_LAW70/0220_foam_LAW70/0220_foam_LAW70_3/BLOCK_H8_0000.rad",
@@ -1427,18 +3571,52 @@
       "hashed_file": "rd_v_material/RD-V-0220_Foam_LAW70/0220_foam_LAW70/0220_foam_LAW70_3/BLOCK_H8_0000.rad",
       "sha256": "00761cec6b3076b33189c1e6692cbf0ae23c7f0d760455177c16ad8cb089416d",
       "size_bytes": 213716,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_material",
       "package": "RD-V-0220_Foam_LAW70",
+      "inventory_classification": "OUT",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "no parity_m41.json row carries this case_id - unmeasured, not disproven",
       "in_envelope_reason": "no measured parity verdict exists for this deck; it is outside the validated envelope until a parity run records MATCH for it.",
-      "inventory_classification": "OUT",
-      "inventory_classification_strict": "OUT",
       "parity_case": null,
       "parity_class": null,
       "parity_max_rel_rms": null,
       "parity_provenance": null,
-      "coverage_verdict": "SKIPS(1)"
+      "coverage_verdict": "SKIPS(1)",
+      "skipped_families": {
+        "ANALY": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SHELL": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "DEF_SOLID": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "IOFLAG": {
+          "blocks": 1,
+          "class": "control"
+        },
+        "TH/RBODY": {
+          "blocks": 1,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "/RBODY/1: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/BOX/RECTA/1: Iskew=1 not ported \u2014 global axes used",
+        "/RBODY/2: real-format fields not ported \u2014 ignored: Ispher=1",
+        "/BOX/RECTA/2: Iskew=1 not ported \u2014 global axes used",
+        "6 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     },
     {
       "case_id": "rd_v_material/RD-V-0230_Fabric_LAW19/0230_fabric_LAW19/0230_shell_mat_019_01/SHELL_LAW19_PROP9_0000.rad",
@@ -1446,18 +3624,40 @@
       "hashed_file": "rd_v_material/RD-V-0230_Fabric_LAW19/0230_fabric_LAW19/0230_shell_mat_019_01/SHELL_LAW19_PROP9_0000.rad",
       "sha256": "4b8fcc76653846692ba18a26b665d95c0405e5b1d4cf82ce83f7c4a20bf2a947",
       "size_bytes": 146860,
+      "corpus_fingerprint": "sha256:916d3cfbbd2e23c286518fdc6eae74bf785ffe39c056d036f99893ba3cc49d51",
       "category": "rd_v_material",
       "package": "RD-V-0230_Fabric_LAW19",
+      "inventory_classification": "OUT",
+      "inventory_classification_strict": "OUT",
       "in_envelope": false,
       "in_envelope_source": "parity_m41.json results[case='c50_V0230_Fabric_LAW19_0230_shell'].class == 'DEVIATION'",
       "in_envelope_reason": "the port ran and the oracle ran, but at least one channel exceeded the M41 tolerance (max_rel_rms=0.6086655334487759).",
-      "inventory_classification": "OUT",
-      "inventory_classification_strict": "OUT",
       "parity_case": "c50_V0230_Fabric_LAW19_0230_shell",
       "parity_class": "DEVIATION",
       "parity_max_rel_rms": 0.6086655334487759,
       "parity_provenance": "M40-carried (not re-run in M41 session)",
-      "coverage_verdict": "SKIPS(3)"
+      "coverage_verdict": "SKIPS(3)",
+      "skipped_families": {
+        "TH/RBODY": {
+          "blocks": 6,
+          "class": "soft"
+        },
+        "TH/SHEL": {
+          "blocks": 3,
+          "class": "soft"
+        },
+        "TH/SH3N": {
+          "blocks": 3,
+          "class": "soft"
+        }
+      },
+      "coverage_hard_skips": [],
+      "coverage_blockers": [],
+      "coverage_degrade_warnings": [
+        "12 node(s) carry no mass (not referenced by any element); they are frozen."
+      ],
+      "parity_run_deck_bytes_verified": false,
+      "coverage_run_deck_bytes_verified": false
     }
   ]
 }
