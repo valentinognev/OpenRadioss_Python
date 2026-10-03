@@ -163,8 +163,8 @@ def test_declared_licence_is_consistent(tmp_path):
 - Consumes: nothing.
 - Produces: `tools/oracle/toolchain_probe.py::probe() -> dict` with keys
   `gfortran`, `gfortran_version`, `cmake`, `cmake_version`, `make`,
-  `openmp_ok`, `python3`, `docker`, `network_ok`. Writes
-  `tools/validation_data/toolchain_probe.json`.
+  `openmp_ok`, `python3`, `docker`, `network_ok`, `extlib_url_reachable`.
+  Writes `tools/validation_data/toolchain_probe.json`.
 
 - [ ] **Step 1** — write the failing test:
 
@@ -191,9 +191,27 @@ enddo
 end program t
 ```
 
-  invoked as `gfortran -fopenmp <file> -o <exe>` then `<exe>`. `network_ok`
-  is a `urllib` HEAD against the `url` in `$OR_SRC/EXTLIB_VERSION.json`
-  (5 s timeout), because Task 0.3 needs it.
+  invoked as `gfortran -fopenmp <file> -o <exe>` then `<exe>`.
+  **AMENDED 2026-10-03 (fix round 2).** `network_ok` was specified here as "a
+  `urllib` HEAD against the `url` in `$OR_SRC/EXTLIB_VERSION.json` (5 s
+  timeout), because Task 0.3 needs it", and reality disagrees: that asset URL
+  answers **404** on a box whose network demonstrably works (`curl -I
+  https://github.com/` → 200; the extlib release asset → 404 — the
+  organisation moved it). A key called `network_ok` reporting `false` there is
+  a false record, and this project's standard is that a record must not claim
+  something untrue. Reality wins; the two facts are therefore two keys:
+
+  * **`network_ok`** — a `urllib` HEAD against a known-good **host**
+    (`NETWORK_HOST_URL`, the operator that serves the asset; 5 s timeout).
+    This is the machine fact Task 0.3 needs before it tries to download
+    anything: "can this box reach the internet at all".
+  * **`extlib_url_reachable`** — the original HEAD, against the `url` in
+    `$OR_SRC/EXTLIB_VERSION.json`. Kept as its own key so nothing the old
+    single key carried is lost: a `404` here is a fact about *the release*
+    (where the asset lives now), not about the machine, and Task 0.3 needs it to
+    decide whether it can fetch v82 at all.
+
+  Nothing is downloaded by either probe; both are HEADs.
 - [ ] **Step 4** — run → PASS; commit
   `feat(oracle): toolchain probe covering gfortran/cmake/make/openmp/network`.
 
@@ -257,8 +275,8 @@ there), `:70-99` (the download and `extractall(source_root)`),
 **Files:** Create `tools/oracle/mirror_and_fetch.sh`.
 
 **Interfaces:**
-- Consumes: `OR_SRC`, `OR_ROOT` from the environment; `probe()["network_ok"]`
-  from Task 0.1.
+- Consumes: `OR_SRC`, `OR_ROOT` from the environment;
+  `probe()["network_ok"]` and `probe()["extlib_url_reachable"]` from Task 0.1.
 - Produces: `$OR_BUILD` — a writable mirror of `$OR_SRC` (via
   `git -C "$OR_SRC" worktree list`-independent `git archive` so the mirror
   carries no `.git` churn), containing `CMake_Compilers/cmake_linux64_gf.txt`

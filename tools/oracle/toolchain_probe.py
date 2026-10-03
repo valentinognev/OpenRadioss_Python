@@ -4,9 +4,13 @@
 Phase 0 (P0.1) of the oracle effort: before any Fortran build is attempted we
 record what this Linux box actually provides -- gfortran (its own version and
 the whole ``--version`` banner it printed), cmake, make, a *working* OpenMP
-runtime, python3, docker -- plus whether the extlib download host is reachable.
-The result lands in ``tools/validation_data/toolchain_probe.json`` so a later
-failure to build can be attributed to the toolchain instead of guessed at.
+runtime, python3, docker -- plus TWO reachability answers, because they are two
+different facts and one key was claiming to be both: ``network_ok`` (can this box
+reach a known-good host at all -- a machine fact) and ``extlib_url_reachable``
+(does the one extlib asset URL still answer -- a fact about the release, which
+answers 404 on a box whose network is fine).  The result lands in
+``tools/validation_data/toolchain_probe.json`` so a later failure to build can be
+attributed to the toolchain instead of guessed at.
 
 Every recorded value is a property of the MACHINE: a tool resolved on PATH, a
 capability the probe exercised, or a reachability answer.  None of them is a
@@ -51,6 +55,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -67,6 +72,21 @@ EXTLIB_MANIFEST = OR_SRC / "EXTLIB_VERSION.json"
 NET_TIMEOUT = 5.0
 COMPILE_TIMEOUT = 120
 
+#: A known-good host for the *machine* network fact, and the reason it is not the
+#: extlib asset URL: that asset answers ``404`` on this box (the organisation
+#: moved the release), while this host answers ``200``, and a record key called
+#: ``network_ok`` must never claim a dead network because one download URL moved.
+#: It is the operator that serves the asset, so answering here is the precondition
+#: for fetching it.  MEASURED on every run, never assumed: :func:`probe_network`
+#: HEADs it and records what came back.
+NETWORK_HOST_URL = "https://github.com/"
+
+#: A parenthesised group of a ``--version`` banner, with its contents: the
+#: *packaging* of a compiler, never its own version.  Matched so the whole group
+#: goes, contents included -- deleting only the brackets would leave the vendor's
+#: version behind as an ordinary token.
+_PARENTHESISED = re.compile(r"\([^()]*\)")
+
 #: The one command that refreshes the committed record.  It lives here so that
 #: a drift failure can *quote* the fix instead of merely reporting the
 #: difference -- a failure that does not say how to repair itself sends the
@@ -78,7 +98,8 @@ REFRESH_COMMAND = ".venv/bin/python -m tools.oracle.toolchain_probe"
 #: The shape is ``<tool>`` + ``<tool>_version`` + (for the compiler)
 #: ``<tool>_banner``: the path the build invokes, the version it reports, and
 #: for gfortran the whole first line it printed, because the version alone does
-#: not say which *packaging* of the compiler produced it.
+#: not say which *packaging* of the compiler produced it.  The last two keys are
+#: the two reachability facts, kept apart on purpose (see :data:`NETWORK_HOST_URL`).
 RECORD_KEYS = (
     "gfortran",
     "gfortran_version",
@@ -91,6 +112,7 @@ RECORD_KEYS = (
     "python3_version",
     "docker",
     "network_ok",
+    "extlib_url_reachable",
 )
 
 #: Every key is a property of the MACHINE -- a tool resolved on PATH, a
@@ -140,27 +162,50 @@ def _version(exe, flag="--version"):
 def _gcc_version(banner):
     """The compiler's OWN version out of a ``--version`` first line.
 
-    GCC prints the packaging in parentheses and its own version after it::
+    GCC prints the *packaging* in parentheses and its own version outside them,
+    and the two do not always carry the same numbers -- so the parenthesised
+    groups are removed **whole** before anything is searched, and only what the
+    compiler said about itself is left.  The banner shapes this parser reads,
+    one row per distro, look like this::
 
-        GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
-        gfortran (GCC) 4.8.5 20150623 (Red Hat 4.8.5-44)
+        GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0  Debian/Ubuntu
+        GNU Fortran (GCC) 13.2.0                             upstream GCC
+        gfortran (GCC) 4.8.5 20150623 (Red Hat 4.8.5-44)     Red Hat
+        gfortran-13 (Homebrew 13.1) 13.2.0                   Homebrew
+        GNU Fortran (GCC-14.2.0) 14.2.0                     Fedora/openSUSE
+        gfortran-13                                            bare program name
+        13.2.0                                                bare version
 
-    so the version is the first token made up *entirely* of dot-separated
-    digits.  Requiring every part to be numeric is what separates it from the
-    Debian package version ``13.3.0-6ubuntu2~24.04.1`` -- whose first two parts
-    are digits, which is exactly how the previous parse came to record a
-    truncated package string as the compiler's version.  A bare date such as
-    Red Hat's ``20150623`` has no dot and is skipped for the same reason.
+    Rules, in order:
 
-    Falls back to the whole first line when no token qualifies: an exotic
-    banner then records itself verbatim rather than an empty string, which the
-    gate can still compare.
+    1. the first remaining token that is *entirely* dot-separated digits with at
+       least two parts.  Requiring every part to be numeric is what rejects the
+       Debian package string ``13.3.0-6ubuntu2~24.04.1``; taking the groups
+       with their contents is what rejects the vendor version *inside* them --
+       the Homebrew row above would otherwise yield ``13.1``, which is the
+       packaging's number, not the compiler's.  Red Hat's bare date
+       ``20150623`` has no dot and is skipped for the same reason.
+    2. otherwise a ``-<major>`` suffix on the program name -- the only version
+       the bare-program-name row carries.
+    3. otherwise the whole first line, verbatim: an exotic banner then records
+       what the compiler actually said instead of an empty string, which the
+       gate can still compare.
+
+    One rule per shape above is a test row in tests/test_p0_toolchain.py, so a
+    parser repaired against the banner of whichever box ran it cannot quietly
+    regress on the next distro.
     """
-    for token in banner.replace("(", " ").replace(")", " ").split():
+    unvendored = " ".join(_PARENTHESISED.sub(" ", banner).split())
+    tokens = unvendored.split()
+    for token in tokens:
         parts = token.split(".")
         if len(parts) >= 2 and all(part.isdigit() for part in parts):
             return token
-    return banner
+    if tokens:  # rule 2: the version a bare program name carries
+        program, sep, suffix = tokens[0].rpartition("-")
+        if sep and program and all(part.isdigit() for part in suffix.split(".")):
+            return suffix
+    return banner  # rule 3: the banner verbatim
 
 
 def _gfortran_version(exe):
@@ -190,13 +235,37 @@ def probe_openmp(gfortran):
 
 
 def probe_network():
-    """True if the extlib URL answers a HEAD request.  Nothing is downloaded."""
-    url = ""
-    try:
-        url = json.loads(EXTLIB_MANIFEST.read_text(encoding="utf-8"))["url"]
-    except (OSError, ValueError, KeyError) as exc:
-        sys.stderr.write(f"network probe: no url in {EXTLIB_MANIFEST}: {exc}\n")
-        return False
+    """The MACHINE fact: is a known-good host reachable at all?  HEAD only.
+
+    Deliberately NOT the extlib asset URL.  That URL answers ``404`` here -- the
+    release moved -- and a key called ``network_ok`` reporting ``false`` on a
+    box whose network demonstrably works is a false record.  What this box can
+    reach is what this key says; where the release lives is
+    :func:`probe_extlib_url`'s to say.
+    """
+    return _head_ok(NETWORK_HOST_URL)
+
+
+def probe_extlib_url():
+    """The RELEASE fact: does the extlib asset URL in the manifest answer?
+
+    Kept as its own key (recorded as ``extlib_url_reachable``) so the honest
+    ``network_ok`` above does not cost the information Task 0.3 needs: a 404
+    here says the asset moved, which is a fact about the release and not about
+    the machine.
+    """
+    url = _extlib_url()
+    return _head_ok(url) if url else False
+
+
+def _head_ok(url):
+    """True if ``url`` answers a HEAD with 2xx/3xx.  Nothing is downloaded.
+
+    A ``404`` is an *answer*, so it raises :class:`urllib.error.HTTPError` (a
+    :class:`urllib.error.URLError`) and lands in the ``False`` branch together
+    with a real connectivity failure -- the caller decides what that False
+    means, which is exactly why the two facts have two keys.
+    """
     req = urllib.request.Request(url, method="HEAD")
     try:
         with urllib.request.urlopen(req, timeout=NET_TIMEOUT) as resp:
@@ -204,6 +273,15 @@ def probe_network():
     except (urllib.error.URLError, OSError, ValueError) as exc:
         sys.stderr.write(f"network probe: {url} unreachable: {exc}\n")
         return False
+
+
+def _extlib_url():
+    """The extlib asset URL declared by ``$OR_SRC/EXTLIB_VERSION.json`` ("" if none)."""
+    try:
+        return json.loads(EXTLIB_MANIFEST.read_text(encoding="utf-8"))["url"]
+    except (OSError, ValueError, KeyError) as exc:
+        sys.stderr.write(f"extlib probe: no url in {EXTLIB_MANIFEST}: {exc}\n")
+        return ""
 
 
 def probe():
@@ -233,6 +311,7 @@ def probe():
         "python3_version": _version(python3),
         "docker": _which("docker") or "",
         "network_ok": probe_network(),
+        "extlib_url_reachable": probe_extlib_url(),
     }
 
 

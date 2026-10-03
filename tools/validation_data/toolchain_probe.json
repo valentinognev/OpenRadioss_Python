@@ -2,11 +2,12 @@
   "cmake": "/usr/bin/cmake",
   "cmake_version": "cmake version 3.28.3",
   "docker": "/usr/bin/docker",
+  "extlib_url_reachable": false,
   "gfortran": "/usr/bin/gfortran",
   "gfortran_banner": "GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
   "gfortran_version": "13.3.0",
   "make": "/usr/bin/make",
-  "network_ok": false,
+  "network_ok": true,
   "openmp_ok": true,
   "python3": "/home/valentin/anaconda3/bin/python3",
   "python3_version": "Python 3.11.5"

@@ -8,7 +8,7 @@ Fortran program -- grepping a flag string proves nothing about the runtime.
 Mirrors the Linux environment contract in $OR_SRC/INSTALL.md:34-42.
 
 ``tools/validation_data/toolchain_probe.json`` is a COMMITTED FACT, so this
-module is its gate.  Four properties are load-bearing and each has a test:
+module is its gate.  Five properties are load-bearing and each has a test:
 
 * **the suite verifies, it never refreshes.**  The probe's read side
   (:func:`probe`, :func:`read_record`, :func:`differences`) writes nothing, and
@@ -32,15 +32,20 @@ module is its gate.  Four properties are load-bearing and each has a test:
   names absolute paths of a machine, so it is checked where the oracle is
   installed -- the box whose toolchain built it -- and skipped elsewhere (a CI
   runner has no oracle).  That predicate is the repo's own
-  ``_require_live_oracle``, imported rather than re-invented, so it carries
-  ``PYRADIOSS_ORACLE_DISABLED=1`` (silence), ``PYRADIOSS_ORACLE_REQUIRED=1``
-  (turn the skip into a failure) and the "exported but unresolvable is always a
-  failure" rule that P0.14 added.  Nothing here skips silently: the two
-  structural checks (the record exists, parses and carries every declared key)
-  run on every machine, and the live claims below run everywhere too.
+  ``_require_oracle_box`` / ``_require_live_oracle``, imported rather than
+  re-invented, so it carries ``PYRADIOSS_ORACLE_DISABLED=1`` (silence),
+  ``PYRADIOSS_ORACLE_REQUIRED=1`` (turn the skip into a failure) and the
+  "exported but unresolvable is always a failure" rule that P0.14 added.  A
+  box with no compiler is the same story one level down: a live claim that
+  needs the toolchain to measure it skips through the *one* narrow
+  :func:`_skip_without_a_probeable_toolchain`, the same predicate the gate
+  uses, with the missing tool and PATH named in the reason.  Nothing here skips
+  silently, and nothing here skips on a condition the gate does not: three
+  checks are box-independent and run everywhere -- the record exists, parses and
+  carries every declared key; it holds no checkout-local value; and the version
+  parser answers every banner shape in a table, offline.
 """
 
-import pathlib
 import sys
 
 import pytest
@@ -93,7 +98,7 @@ def test_probe_reports_required_tools():
     for key in ("gfortran", "cmake", "make", "python3", "openmp_ok"):
         assert key in fresh
     # the project's own rule for a usable oracle compiler: a GCC major in
-    # 11..15 (plan/01_phase0_oracle_and_licensing.md:172)
+    # 11..15 (plan/01_phase0_oracle_and_licensing.md:177)
     assert fresh["gfortran_version"].startswith(("11", "12", "13", "14", "15")), (
         f"gfortran_version {fresh['gfortran_version']!r} is not a GCC major in "
         f"11..15; the probe parsed {fresh['gfortran']!r} --version into it"
@@ -111,11 +116,16 @@ def test_the_recorded_gfortran_version_is_the_compilers_own_version():
     satisfied the project's ``startswith`` 11..15 rule by accident, and that no
     reader would recognise as the compiler's version.
 
-    Three properties, all checkable here:
+    Four properties, all checkable here:
       * digits and dots only, so a packaging suffix can never reappear;
       * a whitespace-delimited token of the banner the compiler printed, so the
         version is quoted from the compiler and not invented;
-      * the plan's own 11..15 rule holds on the RECORDED string.
+      * the plan's own 11..15 rule holds on the RECORDED string;
+      * the box's own banner parses to it -- and that last claim is a LIVE one,
+        so it skips on the same narrow missing-toolchain predicate the gate
+        uses (:func:`_skip_without_a_probeable_toolchain`).  Without that guard
+        this test failed on a compiler-less box with ``assert '' == '13.3.0'``
+        while the gate skipped, so a failure pointed at a test that had skipped.
     """
     tp = _probe_module()
     record = tp.read_record()
@@ -130,11 +140,191 @@ def test_the_recorded_gfortran_version_is_the_compilers_own_version():
         f"the compiler printed, {banner!r}")
     assert version.startswith(("11", "12", "13", "14", "15")), (
         f"recorded gfortran_version {version!r} does not satisfy the project's "
-        f"rule (plan/01_phase0_oracle_and_licensing.md:172): a GCC major in "
+        f"rule (plan/01_phase0_oracle_and_licensing.md:177): a GCC major in "
         f"11..15")
-    assert tp.probe()["gfortran_version"] == version, (
+
+    fresh = tp.probe()
+    _skip_without_a_probeable_toolchain(fresh)
+    assert fresh["gfortran_version"] == version, (
         "the recorded version and the measured one disagree -- the gate in "
         f"test_the_committed_record_matches_a_fresh_probe reports the drift")
+
+
+#: Every banner shape a real ``gfortran --version`` is known to print, and the
+#: compiler's OWN version each must yield.  A parser repaired against the banner
+#: on the box that ran it is a parser that will misparse the next distro, so the
+#: class is closed here instead of by one more fix round: the shapes a formula-
+#: based distro (``gfortran-13 (Homebrew 13.1) 13.2.0``), a plain upstream GCC,
+#: Red Hat (which appends a *date*), a distro that names GCC in the
+#: parentheses (``(GCC-14.2.0)``), a bare program name and a bare version all
+#: have a stated answer.  Two of these rows are the ones that break a
+#: "first dotted-numeric token" rule: the Homebrew banner's first such token is
+#: the Homebrew version ``13.1``, and Red Hat's is a truncated package string.
+BANNER_SHAPES = (
+    pytest.param("GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0", "13.3.0",
+                 id="debian-ubuntu"),
+    pytest.param("GNU Fortran (GCC) 13.2.0", "13.2.0", id="upstream-gcc"),
+    pytest.param("gfortran (GCC) 4.8.5 20150623 (Red Hat 4.8.5-44)", "4.8.5",
+                 id="red-hat"),
+    pytest.param("gfortran-13 (Homebrew 13.1) 13.2.0", "13.2.0",
+                 id="homebrew"),
+    pytest.param("GNU Fortran (GCC-14.2.0) 14.2.0", "14.2.0",
+                 id="fedora-orasl"),
+    pytest.param("gfortran-13", "13", id="bare-program-name"),
+    pytest.param("13.2.0", "13.2.0", id="version-only"),
+    # nothing to parse: the banner is recorded verbatim rather than as an empty
+    # string, so a reader sees what the compiler actually said
+    pytest.param("GNU Fortran (packaging unknown)", "GNU Fortran (packaging unknown)",
+                 id="unparseable-is-verbatim"),
+)
+
+
+#: The two rows that cannot satisfy ``startswith(("11".."15"))``, each with the
+#: reason -- named, not silently dropped, and counted in the assertion below so a
+#: new row cannot join them by accident.
+OUTSIDE_THE_PLAN_RULE = {
+    "red-hat": "GCC 4.8.5 predates the 11..15 majors this project accepts",
+    "unparseable-is-verbatim": "no version in the banner to parse; it is recorded "
+                               "verbatim",
+}
+
+
+@pytest.mark.parametrize(("banner", "expected"), BANNER_SHAPES)
+def test_the_version_parse_survives_every_banner_shape(banner, expected):
+    """``_gcc_version`` must yield the compiler's version for every known shape.
+
+    Three properties per row, so the table cannot be satisfied by a rule that
+    merely returns something plausible:
+
+      * the stated answer, exactly;
+      * the answer is *quoted* -- a substring of the banner the compiler
+        printed -- so it can never be invented;
+      * the answer is never the parenthesised vendor/packaging version, and
+        unless the row is the documented verbatim fallback it is digits and
+        dots only.
+    """
+    tp = _probe_module()
+    parsed = tp._gcc_version(banner)
+
+    assert parsed == expected, (
+        f"{banner!r} -> {parsed!r}, expected {expected!r}; the parenthesised "
+        "group is the packaging, never the compiler's own version")
+    assert parsed in banner, f"{parsed!r} is not quoted from {banner!r}"
+    assert f"({parsed})" not in banner, (
+        f"{parsed!r} is the parenthesised vendor version of {banner!r}, not the "
+        "compiler's own")
+    if expected != banner:  # not the documented verbatim fallback row
+        assert all(c.isdigit() or c == "." for c in parsed), (
+            f"{parsed!r} carries a packaging suffix; it must be digits and dots")
+
+
+def test_the_plan_rule_holds_for_every_banner_this_project_accepts():
+    """The project's own ``startswith(("11".."15"))`` rule, per banner shape.
+
+    ``plan/01_phase0_oracle_and_licensing.md:177`` requires the recorded
+    ``gfortran_version`` to be a GCC major in 11..15, and a parser that can
+    return ``13.1`` for a Homebrew compiler -- or a Red Hat packaging string --
+    satisfies that rule by accident.  Every row outside :data:`OUTSIDE_THE_PLAN_RULE`
+    is checked, and the count makes sure a row cannot be added that escapes it.
+    """
+    tp = _probe_module()
+    rule = ("11", "12", "13", "14", "15")
+    checked = 0
+
+    for case in BANNER_SHAPES:
+        if case.id in OUTSIDE_THE_PLAN_RULE:
+            continue
+        banner, expected = case.values
+        checked += 1
+        parsed = tp._gcc_version(banner)
+        assert parsed == expected, f"{case.id}: {banner!r} parsed to {parsed!r}"
+        assert parsed.startswith(rule), (
+            f"{case.id}: {banner!r} parses to {parsed!r}, which is not a GCC "
+            f"major in 11..15")
+
+    ids = {case.id for case in BANNER_SHAPES}
+    assert set(OUTSIDE_THE_PLAN_RULE) <= ids, (
+        "OUTSIDE_THE_PLAN_RULE exempts rows that do not exist, so a future row "
+        f"cannot be checked by accident: {sorted(set(OUTSIDE_THE_PLAN_RULE) - ids)}")
+    assert checked == len(BANNER_SHAPES) - len(OUTSIDE_THE_PLAN_RULE), (
+        f"{checked} of the {len(BANNER_SHAPES) - len(OUTSIDE_THE_PLAN_RULE)} "
+        "rows that must satisfy the plan rule did not get checked")
+
+    # the reviewer's counterexample, named so it cannot be quietly re-broken
+    assert tp._gcc_version("gfortran-13 (Homebrew 13.1) 13.2.0") == "13.2.0", (
+        "a formula-based distro's banner must not yield the Homebrew 13.1")
+
+
+def test_network_ok_measures_the_network_and_not_one_url(monkeypatch):
+    """A URL that 404s is not a network that is down.
+
+    The record used to carry ``network_ok`` measured by a HEAD against the
+    ``url`` in ``$OR_SRC/EXTLIB_VERSION.json``.  That asset 404s here (the
+    organisation moved it), so the record said ``network_ok: false`` on a box
+    whose network demonstrably works -- a key asserting a machine fact it does
+    not hold.  Two facts, two keys:
+
+      * ``network_ok`` -- is a known-good HOST reachable at all (the machine
+        fact Task 0.3 needs before it tries to download anything);
+      * ``extlib_url_reachable`` -- does that one asset URL still answer (a
+        fact about the release, not about the box).
+
+    Driven against a fake ``urlopen`` so the test is offline-deterministic:
+    the host answers 200 while the asset 404s, so the two keys MUST differ, and
+    the URLs each is asked about are asserted, not assumed.
+    """
+    import urllib.error
+    import urllib.request
+
+    tp = _probe_module()
+    extlib = tp._extlib_url()
+    assert extlib and extlib != tp.NETWORK_HOST_URL, (
+        f"the network host {tp.NETWORK_HOST_URL!r} and the extlib asset "
+        f"{extlib!r} are the same URL; then one key would carry both facts")
+    requested = []
+
+    class _Answer:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def fake_urlopen(req, timeout=None):
+        requested.append(req.full_url)
+        if req.full_url == tp.NETWORK_HOST_URL:
+            return _Answer()
+        raise urllib.error.HTTPError(req.full_url, 404, "Not Found", None, None)
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    assert tp.probe_network() is True, (
+        "a 404 from one asset URL must not be reported as a dead network")
+    assert tp.probe_extlib_url() is False, (
+        "the extlib URL answered 404; the key must say so")
+    assert requested == [tp.NETWORK_HOST_URL, extlib], requested
+
+
+def test_the_record_separates_the_network_from_the_extlib_url():
+    """Both keys are declared, and both are booleans the probe measures.
+
+    The record must not lose the extlib fact when ``network_ok`` is corrected:
+    two keys, both present, so no information the old single key carried is
+    dropped on the floor.
+    """
+    tp = _probe_module()
+    record = tp.read_record()
+
+    for key in ("network_ok", "extlib_url_reachable"):
+        assert key in tp.RECORD_KEYS, (
+            f"{key} is measured but undeclared; a key the gate does not know "
+            "about cannot be compared key-by-key")
+        assert key in record, f"{RECORD_REL} does not carry {key}"
+        assert isinstance(record[key], bool), (
+            f"{RECORD_REL} records {key}={record[key]!r}; a reachability answer "
+            "is a bool, never a string or a null")
 
 
 def test_the_record_holds_no_checkout_local_value():
@@ -172,6 +362,52 @@ def test_openmp_is_decided_by_compiling_not_by_reading_a_flag():
 
     # openmp_ok must be a real bool from an actual compile+run
     assert isinstance(probe()["openmp_ok"], bool)
+    # and the program that decides it is an OpenMP program, not an empty file
+    assert "!$omp parallel" in _probe_module().OMP_SOURCE, (
+        "the openmp probe compiles a program with no OpenMP directive in it, so "
+        "a compiler with no runtime would still pass it")
+
+
+def test_the_openmp_probe_compiles_the_program_and_then_runs_it(monkeypatch):
+    """The decision is ``-fopenmp`` on the command line AND a program that exits.
+
+    Grepping ``-fopenmp`` out of a makefile proves the *flag* is accepted; only
+    running the binary proves ``libgomp`` is there.  Driven against a recorded
+    ``_run`` so the two steps are visible offline, and the phase-0 reviewer
+    checklist item for P0.1 (``openmp_ok`` is decided by compiling *and
+    running*) is a test rather than a claim about the source.
+    """
+    tp = _probe_module()
+    calls = []
+
+    def fake_run(cmd, timeout=30):
+        calls.append(list(cmd))
+        return 0, ""
+
+    monkeypatch.setattr(tp, "_run", fake_run)
+
+    assert tp.probe_openmp("gfortran") is True
+    assert len(calls) == 2, f"expected a compile then a run, got {calls}"
+    compile_cmd, run_cmd = calls
+    assert compile_cmd[:2] == ["gfortran", "-fopenmp"], compile_cmd
+    assert "-o" in compile_cmd and compile_cmd[-1].endswith("omp_probe"), (
+        f"the probe does not link a program: {compile_cmd}")
+    assert run_cmd == [compile_cmd[-1]], (
+        f"the binary that was compiled is not the one that was run: {calls}")
+
+    # a failure at EITHER step must make openmp_ok False
+    for failing_step, step in ((0, "the compile"), (1, "the run")):
+        calls.clear()
+
+        def failing_run(cmd, timeout=30, _step=failing_step, _calls=calls):
+            _calls.append(list(cmd))
+            return (1, "simulated failure") if len(_calls) == _step + 1 \
+                else (0, "")
+
+        monkeypatch.setattr(tp, "_run", failing_run)
+        assert tp.probe_openmp("gfortran") is False, (
+            f"a failing {step} must make openmp_ok False -- accepting the flag "
+            "and running the program are both required")
 
 
 def test_the_committed_record_is_readable_and_complete():
