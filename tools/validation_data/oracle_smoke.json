@@ -1,0 +1,422 @@
+{
+  "schema": "pyradioss/oracle-smoke/1",
+  "purpose": "The golden reference run of the real Fortran OpenRadioss on one vendored deck: the anchor every later differential parity claim in this program is measured against. Regenerate with `python -m tools.oracle.oracle_selftest --write`.",
+  "generated_by": "tools/oracle/oracle_selftest.py --write",
+  "generated_on": "2026-10-03",
+  "oracle": {
+    "provenance": "tools/validation_data/oracle_provenance.json",
+    "upstream_git_sha": "1a0d691b82bd4f94a3bc2399682551e84e1d5fa4",
+    "built_by": "tools/oracle/build_oracle.sh",
+    "third_party_prebuilt_binary": false,
+    "starter": {
+      "path": "/home/valentin/OpenRadioss_or/bin/starter_linux64_gf",
+      "sha256": "b2f6a19f178867da9a9478fb23f8a09b76370b53ef3e31444f80e183b58a03d6"
+    },
+    "engine": {
+      "path": "/home/valentin/OpenRadioss_or/bin/engine_linux64_gf",
+      "sha256": "99e63c5c4a39dd870fc98c40ccbd3eb34f05dde202317a2cda1c919090ae9270"
+    }
+  },
+  "deck": {
+    "root": "examples/tensile_bar",
+    "starter_deck": "examples/tensile_bar/TENSILE_0000.rad",
+    "starter_deck_sha256": "3d2ab367e3b3d662e961ed6fb6438faf3b7fdf27048271e6109d8805de146560",
+    "engine_deck": "examples/tensile_bar/TENSILE_0001.rad",
+    "engine_deck_sha256": "70a54f38058b08922c1b91e5f468410017e3c306ff92825dd43a0277fdc2d483",
+    "run_name": "TENSILE",
+    "why": "examples/tensile_bar (upstream's own tensile example, vendored in this repo) rather than a vendored RD-* deck, for four measured reasons. (1) THREADS: it is run with -np 1 / -nt 1, so no OpenMP reduction order can vary between the determinism runs; the RD-V-0020 and RD-E-4801 decks in tests/data/rd_decks ask for /PROC/8, which would put a thread-count-dependent summation order into the very bytes being pinned. (2) H3D: every RD-V-0020 engine deck requests /H3D/DT, and this oracle REFUSES h3d output by design (RAD_H3D_PATH unset -> h3d_dl.c:920-921 -> genh3d.F:729-731 MSGID 274 + ARRET), so those decks cannot reach NORMAL TERMINATION here at all. (3) COST: 1420 cycles, starter 0.30 s + engine 0.08 s of solver time and a 15 168-byte T01, so the three determinism runs cost about 1.2 s and the gate belongs in the default tier, not behind @pytest.mark.slow. (4) ADMISSIBILITY: oracle_provenance.json already records this deck pair as the measured evidence for the T01 / A-file / RESTART / energy-ledger channels, so the golden record extends proved evidence instead of opening a new one. Its sha256 is re-hashed by the test on every run."
+  },
+  "invocation": {
+    "starter_argv": [
+      "/home/valentin/OpenRadioss_or/bin/starter_linux64_gf",
+      "-i",
+      "TENSILE_0000.rad",
+      "-np",
+      "1"
+    ],
+    "engine_argv": [
+      "/home/valentin/OpenRadioss_or/bin/engine_linux64_gf",
+      "-i",
+      "TENSILE_0001.rad",
+      "-nt",
+      "1"
+    ],
+    "starter_argv_template": [
+      "$OR_STARTER",
+      "-i",
+      "<run>_0000.rad",
+      "-np",
+      "1"
+    ],
+    "engine_argv_template": [
+      "$OR_ENGINE",
+      "-i",
+      "<run>_0001.rad",
+      "-nt",
+      "1"
+    ],
+    "citation": "$OR_SRC/INSTALL.md:105-115 (see :110 and :111)",
+    "why_not_np_on_the_engine": "the engine's argument parser does not accept -np: it prints its usage and then dies with a segmentation violation (measured). Only -nt / -nthread work there. See oracle_provenance.json -> invocation.",
+    "shape": "two separate invocations, the starter's return code checked before the engine runs, each in a private scratch directory -- the shape upstream's own reference driver uses ($OR_SRC/qa-tests/scripts/or_run_test.py:74-125)"
+  },
+  "environment": {
+    "rad_h3d_path": null,
+    "rad_h3d_path_unset": true,
+    "rad_h3d_path_unset_reason": "the reachable libh3dwriter.so (extlib v59) is one parameter short of what the pinned source calls, so a run that wrote H3D through it would produce silently wrong files. With the variable unset, h3d_dl.c:920-921 cannot dlopen the writer and returns *IERROR = 1, which genh3d.F:729-731 turns into MSGID 274 + ARRET(2): h3d output is refused loudly. T01, the A-files, RESTART and the listings are unaffected. See oracle_provenance.json -> extlib.version_gaps.enforcement.",
+    "omp_num_threads": "1",
+    "omp_stacksize": "400m",
+    "openradioss_path": "$OR_BUILD (the writable mirror, not $OR_SRC)",
+    "rad_cfg_path": "$OR_BUILD/hm_cfg_files",
+    "ld_library_path": "$OR_BUILD/extlib/hm_reader/linux64",
+    "citation": "$OR_SRC/INSTALL.md:34-42 and :95-101",
+    "built_by": "tools/oracle/oracle_env.sh is the human-facing source; this record's environment is built by oracle_selftest.oracle_env() so the harness never depends on the caller's shell"
+  },
+  "run": {
+    "verdict": "NORMAL",
+    "verdict_banner": "NORMAL TERMINATION",
+    "n_cycles": 1420,
+    "starter_verdict_banner": "NORMAL TERMINATION",
+    "starter_msgerrors": 0,
+    "starter_warnings": 0,
+    "engine_msgerrors": 0,
+    "engine_msgerrors_definition": "the engine listing carries no 'ERROR(S)' summary; the count of '** ERROR' lines is used instead (a clean run has none, and a failed one ends in ERROR TERMINATION)",
+    "a_files": [
+      "TENSILEA001",
+      "TENSILEA002",
+      "TENSILEA003",
+      "TENSILEA004",
+      "TENSILEA005",
+      "TENSILEA006",
+      "TENSILEA007",
+      "TENSILEA008",
+      "TENSILEA009",
+      "TENSILEA010",
+      "TENSILEA011"
+    ],
+    "restart_files": [
+      "TENSILE_0000_0001.rst",
+      "TENSILE_0001_0001.rst"
+    ],
+    "wall_seconds": {
+      "starter": 0.29078156501054764,
+      "engine": 0.07715701400593389,
+      "total": 0.3708340000011958
+    },
+    "wall_seconds_note": "one measured run on the dev box; an upper bound only, since absolute seconds are contention-sensitive. Cycles, verdict and all digests are contention-insensitive."
+  },
+  "t01": {
+    "path": "tests/data/oracle_smoke/TENSILET01",
+    "size_bytes": 15168,
+    "format": "ITTYP==3 Radioss IEEE: big-endian 4-byte record markers, big-endian int32 headers, and SINGLE-PRECISION (float32) channel values even in this double-precision build (wrtdes.F:121-133). Stored maxima are float32 widened to float64, hence exact.",
+    "header_records": 14,
+    "n_records": 414,
+    "n_steps": 100,
+    "t_first": 0.0,
+    "t_last": 0.19806575775146484,
+    "channels_per_step": {
+      "time": 1,
+      "global": 23,
+      "part": 2,
+      "th_group": 2
+    },
+    "part_curve_codes": [
+      1,
+      2
+    ],
+    "data_blocks_per_step": [
+      {
+        "name": "TIME",
+        "source": "engine/source/output/th/hist2.F:302-303",
+        "floats": 1,
+        "maxima_recorded": true
+      },
+      {
+        "name": "GLOBAL",
+        "source": "engine/source/output/th/hist2.F:307-333",
+        "floats": 23,
+        "maxima_recorded": true
+      },
+      {
+        "name": "PART",
+        "source": "engine/source/output/th/hist2.F:338-477",
+        "floats": 2,
+        "maxima_recorded": true
+      },
+      {
+        "name": "TH_GROUP",
+        "source": "engine/source/output/th/hist2.F:608-1403",
+        "floats": 2,
+        "maxima_recorded": false,
+        "maxima_reason": "no maxima are recorded for this block: upstream ships no curve-title table for it (th_titles.F90 has varpa_title and varn1_title but no subset table) and this module refuses to invent a channel name"
+      }
+    ],
+    "run_stamp": {
+      "offset": 96,
+      "length": 24,
+      "content": "ctime() -- 'Sat Oct  3 06:53:35 2026'",
+      "citation": "engine/source/output/th/hist1.F:210-234 with engine/source/system/timer_c.c:30-40",
+      "note": "located by content (the record carrying ' RADIOSS '), never hardcoded"
+    },
+    "md5": "e3688899358f35e825cd640f9bd94964",
+    "md5_definition": "md5 of the T01 bytes with the 24-byte ctime run stamp at t01.run_stamp.offset replaced by 24 NUL bytes. This is the parity anchor.",
+    "md5_raw": "7f4f47238a1ee2c45bedc0303bb4c2a1",
+    "md5_raw_is_reproducible": false,
+    "md5_raw_reason": "hist1.F:211 stamps ctime() into the T01 header (timer_c.c:30-40, the 24-character copy at :39) and no keyword or environment variable suppresses it, so the raw bytes move with the wall clock: measured, two runs sharing a wall-clock second produced the same raw md5 and a run one second away differed in exactly one byte, the seconds digit of the stamp. The physics payload is reproducible -- see determinism below.",
+    "md5_raw_observed": [
+      "7f4f47238a1ee2c45bedc0303bb4c2a1",
+      "e842d33921f4984d8ab4fa453b1515e5",
+      "e842d33921f4984d8ab4fa453b1515e5",
+      "e842d33921f4984d8ab4fa453b1515e5"
+    ]
+  },
+  "determinism": {
+    "method": "the reference was run three times in three separate scratch directories with one thread; the normalized digest must be identical every time and every raw differing byte must lie inside the 24-byte run stamp",
+    "runs": 4,
+    "md5": [
+      "e3688899358f35e825cd640f9bd94964",
+      "e3688899358f35e825cd640f9bd94964",
+      "e3688899358f35e825cd640f9bd94964",
+      "e3688899358f35e825cd640f9bd94964"
+    ],
+    "md5_raw": [
+      "7f4f47238a1ee2c45bedc0303bb4c2a1",
+      "e842d33921f4984d8ab4fa453b1515e5",
+      "e842d33921f4984d8ab4fa453b1515e5",
+      "e842d33921f4984d8ab4fa453b1515e5"
+    ],
+    "distinct_md5": [
+      "e3688899358f35e825cd640f9bd94964"
+    ],
+    "distinct_md5_raw": [
+      "7f4f47238a1ee2c45bedc0303bb4c2a1",
+      "e842d33921f4984d8ab4fa453b1515e5"
+    ],
+    "conclusion": "the oracle is bit-reproducible given a fixed run stamp; the raw T01 bytes are not, and the normalized digest is therefore the anchor. tests/test_p0_oracle_selftest.py asserts both halves and FAILS (never skips) when the oracle is present and non-deterministic."
+  },
+  "channel_maxima": {
+    "global": [
+      {
+        "index": 1,
+        "name": "IE",
+        "description": "INTERNAL ENERGY",
+        "max": 0.3118744194507599,
+        "max_abs": 0.3118744194507599,
+        "final": 0.3118744194507599
+      },
+      {
+        "index": 2,
+        "name": "KE",
+        "description": "KINETIC ENERGY",
+        "max": 7.746584742562845e-05,
+        "max_abs": 7.746584742562845e-05,
+        "final": 5.138248161529191e-05
+      },
+      {
+        "index": 3,
+        "name": "XMOM",
+        "description": "X-MOMENTUM",
+        "max": 0.0001975767663680017,
+        "max_abs": 0.0001975767663680017,
+        "final": 0.00015194073785096407
+      },
+      {
+        "index": 4,
+        "name": "YMOM",
+        "description": "Y-MOMENTUM",
+        "max": 4.950122747736195e-17,
+        "max_abs": 1.1017773120476431e-16,
+        "final": 1.8451970863779592e-17
+      },
+      {
+        "index": 5,
+        "name": "ZMOM",
+        "description": "Z-MOMENTUM",
+        "max": 1.095535738017563e-16,
+        "max_abs": 1.095535738017563e-16,
+        "final": 1.5200595191074557e-17
+      },
+      {
+        "index": 6,
+        "name": "MASS",
+        "description": "MASS",
+        "max": 0.000311999989207834,
+        "max_abs": 0.000311999989207834,
+        "final": 0.000311999989207834
+      },
+      {
+        "index": 7,
+        "name": "DT",
+        "description": "TIME STEP",
+        "max": 0.00014221578021533787,
+        "max_abs": 0.00014221578021533787,
+        "final": 0.00013953154848422855
+      },
+      {
+        "index": 8,
+        "name": "RKE",
+        "description": "ROTATION ENERGY",
+        "max": 0.0,
+        "max_abs": 0.0,
+        "final": 0.0
+      },
+      {
+        "index": 9,
+        "name": "EFW",
+        "description": "EXTERNAL WORK",
+        "max": 0.31208205223083496,
+        "max_abs": 0.31208205223083496,
+        "final": 0.31208205223083496
+      },
+      {
+        "index": 10,
+        "name": "SIE",
+        "description": "SPRING ENERGY",
+        "max": 0.0,
+        "max_abs": 0.0,
+        "final": 0.0
+      },
+      {
+        "index": 11,
+        "name": "CE",
+        "description": "CONTACT ENERGY",
+        "max": 0.0,
+        "max_abs": 0.0,
+        "final": 0.0
+      },
+      {
+        "index": 12,
+        "name": "HE",
+        "description": "HOURGLASS ENERGY",
+        "max": 0.00015405844897031784,
+        "max_abs": 0.00015405844897031784,
+        "final": 0.00015405844897031784
+      },
+      {
+        "index": 13,
+        "name": "CE_ELAST",
+        "description": "ELASTIC CONTACT ENERGY",
+        "max": 0.0,
+        "max_abs": 0.0,
+        "final": 0.0
+      },
+      {
+        "index": 14,
+        "name": "CE_FRIC",
+        "description": "FRICTIONAL CONTACT ENERGY",
+        "max": 0.0,
+        "max_abs": 0.0,
+        "final": 0.0
+      },
+      {
+        "index": 15,
+        "name": "CE_DAMP",
+        "description": "DAMPING CONTACT ENERGY",
+        "max": 0.0,
+        "max_abs": 0.0,
+        "final": 0.0
+      },
+      {
+        "index": 16,
+        "name": "WPLA",
+        "description": "PLASTIC WORK",
+        "max": 0.2913503050804138,
+        "max_abs": 0.2913503050804138,
+        "final": 0.2913503050804138
+      },
+      {
+        "index": 17,
+        "name": "DMASS",
+        "description": "ADDED MASS",
+        "max": 2.168404344971009e-19,
+        "max_abs": 2.168404344971009e-19,
+        "final": 2.168404344971009e-19
+      },
+      {
+        "index": 18,
+        "name": "DMASS%",
+        "description": "PERCENTAGE ADDED MASS",
+        "max": 6.950013752438783e-14,
+        "max_abs": 6.950013752438783e-14,
+        "final": 6.950013752438783e-14
+      },
+      {
+        "index": 19,
+        "name": "M_IN",
+        "description": "INLET MASS",
+        "max": 0.0,
+        "max_abs": 0.0,
+        "final": 0.0
+      },
+      {
+        "index": 20,
+        "name": "M_OUT",
+        "description": "OUTLET MASS",
+        "max": 0.0,
+        "max_abs": 0.0,
+        "final": 0.0
+      },
+      {
+        "index": 21,
+        "name": "E_IN",
+        "description": "INLET ENERGY",
+        "max": 0.0,
+        "max_abs": 0.0,
+        "final": 0.0
+      },
+      {
+        "index": 22,
+        "name": "E_OUT",
+        "description": "OUTLET ENERGY",
+        "max": 0.0,
+        "max_abs": 0.0,
+        "final": 0.0
+      },
+      {
+        "index": 23,
+        "name": "DTE_INOUT",
+        "description": "IE+KE+RKE+CE+HE-EFW+E_IN-E_OUT",
+        "max": 1.4796010816553462e-07,
+        "max_abs": 2.189612814618158e-06,
+        "final": -2.189612814618158e-06
+      }
+    ],
+    "part": [
+      {
+        "index": 1,
+        "name": "INTERNAL ENERGY",
+        "max": 0.3118744194507599,
+        "max_abs": 0.3118744194507599,
+        "final": 0.3118744194507599
+      },
+      {
+        "index": 2,
+        "name": "KINETIC ENERGY",
+        "max": 7.765696500428021e-05,
+        "max_abs": 7.765696500428021e-05,
+        "final": 5.142150985193439e-05
+      }
+    ]
+  },
+  "notes": [
+    "The 23 global channels are named from $OR_SRC/starter/source/output/th/write_thnms1.F90:228-250, the authoritative index/name/description table, in the order hist2.F:307-333 writes them.",
+    "The part channels are named from varpa_title ($OR_SRC/starter/source/output/th/th_titles.F90:2759-2792) keyed by the curve codes the deck's /TH/PART block requested, which this module reads out of the T01 header (hist1.F:367-376).",
+    "MAXIMA ARE THE SEED, NOT A TOLERANCE: a later phase compares its own T01 against these numbers with a stated tolerance, or -- better -- against the committed tests/data/oracle_smoke/<run>T01 digest.",
+    "Only channels oracle_provenance.json marks admissible are recorded. H3D is deliberately absent (refused at run time), and the starter's include-file list is not a channel this record touches."
+  ],
+  "not_established": {
+    "th_to_csv": null,
+    "h3d": null,
+    "starter_include_file_list": null,
+    "native_lsdyna_k_deck_reading": null,
+    "ale_structured_mesh": null,
+    "checksum_report_over_h3d": null
+  },
+  "not_established_reasons": {
+    "th_to_csv": "upstream's T01->CSV converter is not built on this box: $OR_ROOT/bin holds only starter_linux64_gf and engine_linux64_gf. That is why this module carries its own T01 reader rather than shelling out to th_to_csv. Source: $OR_SRC/tools/th_to_csv/README.md:1-7.",
+    "h3d": "REFUSED at run time, and inadmissible: oracle_provenance.json -> admissible_parity_evidence['H3D animation files'] = no, for three independent ABI reasons.",
+    "starter_include_file_list": "oracle_provenance.json -> admissible_parity_evidence['starter .out include-file list'] = no (the harvested v59 reader does not reproduce a pristine include listing).",
+    "native_lsdyna_k_deck_reading": "oracle_provenance.json -> admissible_parity_evidence['native LS-DYNA .k deck reading (hm_reader)'] = no: no native .k fixture has ever been run through this oracle, so nothing is claimed. This record's deck is Radioss format.",
+    "ale_structured_mesh": "oracle_provenance.json -> admissible_parity_evidence['/ALE/STRUCTURED_MESH (S-ALE)'] = no.",
+    "checksum_report_over_h3d": "oracle_provenance.json -> admissible_parity_evidence['/CHECKSUM_REPORT over H3D files'] = no."
+  }
+}

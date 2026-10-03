@@ -1,5 +1,50 @@
 # Updates
 
+## 1.2.0 - P0.5: golden reference run + the oracle's determinism, proved
+
+- **New** `tools/oracle/oracle_selftest.py` — runs the oracle built by
+  `tools/oracle/build_oracle.sh` on `examples/tensile_bar` (starter `-np 1`,
+  engine `-nt 1`, one thread, `RAD_H3D_PATH` unset), parses
+  `<run>_0001.out` for the `ENGINE TERMINATION` banner and
+  `TOTAL NUMBER OF CYCLES`, md5s `<run>T01` and decodes it. Ships a pure-Python
+  `ITTYP==3` T01 reader (big-endian Radioss IEEE records, float32 values) so the
+  stored numbers can be re-derived with no oracle installed.
+  `--write` regenerates the record and the golden artefacts.
+- **New** `tools/validation_data/oracle_smoke.json` — the seed of every later
+  parity comparison: deck path + sha256, oracle binary sha256s and the
+  `oracle_provenance.json` pointer, the starter/engine argv, `NORMAL
+  TERMINATION`, 1420 cycles, T01 size + md5, per-channel maxima for the 23
+  global channels (`write_thnms1.F90:228-250`) and the 2 part channels
+  (`varpa_title`), wall time, the `RAD_H3D_PATH`-unset fact, and a
+  `not_established` block where every null carries a reason (th_to_csv is not
+  built on this box; H3D, the starter include-file list, native `.k` reading,
+  `/ALE/STRUCTURED_MESH` and `/CHECKSUM_REPORT` over H3D are inadmissible).
+- **New** `tests/data/oracle_smoke/{TENSILET01,TENSILE_0001.out}` — the golden
+  run's admissible artefacts, committed so the structural tests can verify the
+  record without a solver.
+- **New** `tests/test_p0_oracle_selftest.py` — 7 tests: 4 always-run structural
+  ones (record completeness, deck bytes, maxima re-derived from the committed
+  T01, determinism evidence) and 3 oracle ones (reproduction, bit
+  reproducibility, differing-bytes-inside-the-run-stamp). Oracle absent → skip
+  with an actionable reason; `PYRADIOSS_ORACLE_DISABLED=1` /
+  `PYRADIOSS_ORACLE_REQUIRED=1` behave exactly as in
+  `tests/test_p0_oracle_build.py`. ~1.3 s, so default tier, no `slow` marker.
+- **Finding — the raw T01 is not byte-reproducible, and that is upstream, not a
+  defect.** `hist1.F:211` writes `ctime()` (`timer_c.c:30-40`) into the T01
+  header unconditionally; no keyword and no environment variable suppresses it.
+  Measured: runs sharing a wall-clock second have an identical raw md5, a run
+  one second away differs in **one** byte (the seconds digit), and with those
+  24 bytes zeroed the digest is identical every time
+  (`e3688899358f35e825cd640f9bd94964`). The anchor is therefore
+  `deterministic_md5()` — the stamp-normalised digest — and the gate asserts
+  *both* halves (equal normalised digests **and** every varying raw byte inside
+  the 24-byte window), failing rather than skipping when it is violated.
+- **Deck choice** `examples/tensile_bar`, not a vendored RD-* deck: it is the
+  only small deck runnable with one thread that does not request `/H3D` (the
+  oracle refuses H3D by design, so every `/H3D/DT` deck aborts with MSGID 274),
+  it costs 0.30 s + 0.08 s per run, and `oracle_provenance.json` already records
+  it as the measured evidence for the T01 / A-file / RESTART / energy channels.
+
 ## 1.1.3 - P0.8 fix round 3: the remedy must not damage the artifact
 
 - **Fix (I1a)** the manifest's corpus-dependent assertions now read
