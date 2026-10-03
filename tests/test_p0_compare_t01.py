@@ -33,6 +33,17 @@ cross-check, wired to run *if* upstream's converter is ever installed
 (``OR_TH_TO_CSV``, or ``$OR_ROOT/{bin,exec}/th_to_csv_*``) and to skip with a
 reason naming every place that was looked at when it is not.
 
+And a **second real oracle deck**
+(``test_the_stride_measurement_holds_on_a_second_real_oracle_t01``): the golden
+is a 4-records-per-step T01, and the shared walk
+(``tools.oracle.oracle_selftest.parse_t01``) fixes the per-step stride at four.
+The stride is really a property of the deck's ``/TH`` requests -- measured on
+``RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.6/ROLLING`` it is **6** (9630 records,
+1605 steps, ``[4, 92, 36, 64, 264, 36]``), with no ``/TH/SUBSET`` card in the
+deck at all -- so one live oracle run re-measures that here rather than trusting
+the number in the module docstring, and pins the refusal that follows.  Skips
+loudly without an oracle or without the deck in the live corpus.
+
 The run stamp
 -------------
 ``hist1.F:211`` stamps ``ctime()`` into the T01 header (``timer_c.c:30-40``), so
@@ -76,12 +87,14 @@ Upstream Fortran origins (``$OR_SRC`` = the read-only OpenCourant tree):
   source lives in a separate repository this box cannot reach.
 """
 
+import ast
 import json
 import math
 import os
 import pathlib
 import re
 import shutil
+import struct
 import subprocess
 import sys
 
@@ -113,6 +126,84 @@ def read_golden():
 
     assert GOLDEN_T01.is_file(), f"missing golden T01 {GOLDEN_T01}"
     return read_t01(GOLDEN_T01)
+
+
+@pytest.fixture(scope="module")
+def batoz_t01(tmp_path_factory):
+    """A second, real oracle T01 whose per-step stride is NOT four.
+
+    ``RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.6/ROLLING``: 1605 steps, a deck
+    whose only ``/TH`` requests are ``/TH/SHEL``, ``/TH/PART``, ``/TH/RBODY`` and
+    ``/TH/NODE`` -- **no** ``/TH/SUBSET`` card -- and whose T01 therefore carries
+    three per-/TH-group records per step instead of one.  One live oracle run
+    (~15 s: the engine is 1605 cycles), module-scoped and read by one test.
+    Skips (loudly) without an oracle or without the deck in the live corpus.
+    """
+    from pyradioss import paths
+
+    deck_root = (paths.rd_decks_dir()
+                 / "rd_e/RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.6")
+    if not (deck_root / "ROLLING_0000.rad").is_file():
+        pytest.skip(f"deck not in the live corpus: {deck_root}")
+    try:
+        from tools.oracle.oracle_selftest import resolve_oracle
+
+        starter, engine, _ = resolve_oracle()
+    except Exception as exc:  # noqa: BLE001 - configuration only
+        pytest.skip(f"oracle not resolvable ({exc})")
+    if not (starter.is_file() and engine.is_file()):
+        pytest.skip("oracle binaries are not built")
+
+    from tools.oracle.oracle_selftest import run_reference
+
+    work = tmp_path_factory.mktemp("batoz")
+    try:
+        run_reference("ROLLING", workdir=work, deck_root=deck_root, timeout=3600)
+    except Exception as exc:  # noqa: BLE001 - the shared walk refuses this file
+        # That refusal is the point of the test; the run and the T01 are already
+        # on disk, so only a MISSING T01 is a real failure.
+        if not (work / "ROLLINGT01").is_file():
+            raise AssertionError(
+                f"the oracle run produced no T01: {type(exc).__name__}: {exc}")
+    produced = work / "ROLLINGT01"
+    assert produced.is_file(), sorted(p.name for p in work.iterdir())
+    return produced
+
+
+def test_the_stride_measurement_holds_on_a_second_real_oracle_t01(batoz_t01):
+    """The stride note's numbers are re-measured on a live run, not remembered.
+
+    The module docstring claims, for this deck, a 9630-record data section of
+    1605 steps of **6** records (``[4, 92, 36, 64, 264, 36]`` bytes) and says the
+    extra records come from the ``/TH`` group block rather than the subset block.
+    If a future edit to the reader, to upstream, or to the deck made that false,
+    this test is what notices -- and it also pins the refusal: the reader must
+    still refuse this file, with that measurement in the message.
+    """
+    from tools.compare_t01 import (T01FormatError, _hierarchy_and_nglobth,
+                                   _per_step_stride, read_t01)
+    from tools.oracle.oracle_selftest import t01_records
+
+    records = t01_records(batoz_t01.read_bytes())
+    payloads = [p for _, p in records]
+    hierarchy, nglo, index = _hierarchy_and_nglobth(records)
+    assert nglo == 23, nglo
+    assert hierarchy == (1, 2, 1, 1, 3, 23), (
+        "NPART+NTHPART=1, NUMMAT=2, NUMGEO=1, NSUBS=1 (the global subset alone -- "
+        "contrl.F:671-673 adds one whatever the deck asks for), NTHGRP2=3, "
+        "NGLOBTH=23")
+
+    measured = _per_step_stride(payloads, nglo)
+    assert measured is not None
+    stride, shape, steps = measured
+    assert (stride, shape, steps) == (6, (4, 92, 36, 64, 264, 36), 1605), measured
+    assert stride * steps == 9630, "the data section is 9630 records"
+
+    with pytest.raises(T01FormatError) as caught:
+        read_t01(batoz_t01)
+    message = str(caught.value)
+    assert "9630 records = 1605 steps of 6" in message, message
+    assert "[4, 92, 36, 64, 264, 36]" in message, message
 
 
 @pytest.fixture(scope="module")
@@ -383,48 +474,6 @@ def test_read_port_csv_renames_columns_onto_the_upstream_names(tmp_path):
         got.column("MOMX")
 
 
-def test_read_t01_states_its_known_limitation_rather_than_mis_parsing(tmp_path):
-    """A per-step block this reader did not expect must be refused, loudly.
-
-    The record walk is shared with ``tools.oracle.oracle_selftest``, which fixes
-    the per-step record count at four (``TT``, the global block, the part block,
-    the per-TH-group curves).  A deck that also asks for ``/TH/SUBSET`` curves
-    gets a fifth record per step (``hist2.F:478-607``).  This crafts exactly
-    that file -- the golden with one extra 4-byte record per step -- and pins
-    that the reader REFUSES it with a message about the block shape, rather than
-    returning a plausible, wrong series.  Widening the shared walk is a Phase 12
-    change; until then the boundary has to be visible.
-    """
-    from tools.compare_t01 import T01FormatError, read_t01
-    from tools.oracle.oracle_selftest import t01_records
-
-    def reframe(payloads):
-        out = bytearray()
-        for payload in payloads:
-            out += len(payload).to_bytes(4, "big")
-            out += payload
-            out += len(payload).to_bytes(4, "big")
-        return bytes(out)
-
-    payloads = [payload for _, payload in t01_records(GOLDEN_T01.read_bytes())]
-    header = 14                # the golden's header record count
-    steps = (len(payloads) - header) // 4
-    assert steps == 100, steps
-    widened = list(payloads[:header])
-    for k in range(steps):
-        widened.extend(payloads[header + 4 * k:header + 4 * k + 4])
-        widened.append(b"\x00\x00\x80\x3f")      # one more float: 1.0
-    assert len(widened) == header + 5 * steps
-    path = tmp_path / "TENSILE_SUBSET_T01"
-    path.write_bytes(reframe(widened))
-
-    with pytest.raises(T01FormatError) as caught:
-        read_t01(path)
-    message = str(caught.value)
-    assert "block shape is not uniform" in message or (
-        "not a multiple of 4" in message), message
-
-
 def test_read_port_csv_rejects_a_file_without_a_time_column(tmp_path):
     from tools.compare_t01 import T01FormatError, read_port_csv
 
@@ -476,9 +525,9 @@ def test_layout_constants_match_the_cited_upstream_source():
 
     :data:`tools.compare_t01.LAYOUT` is the machine-readable form of the
     module's citations: ``name -> (upstream file, first line, last line,
-    pattern)``.  Each pattern must still be present in that exact line range, so
-    a constant that drifts from upstream -- or a source that moves -- fails here
-    instead of silently producing a mis-parse.
+    pattern, symbol)``.  Each pattern must still be present in that exact line
+    range, so a constant that drifts from upstream -- or a source that moves --
+    fails here instead of silently producing a mis-parse.
     """
     from tools import compare_t01 as C
 
@@ -491,7 +540,8 @@ def test_layout_constants_match_the_cited_upstream_source():
             "module docstring, but nothing can be verified against the source")
 
     assert C.LAYOUT, "the citation table must not be empty"
-    for name, (relative, first, last, pattern) in sorted(C.LAYOUT.items()):
+    for name, entry in sorted(C.LAYOUT.items()):
+        relative, first, last, pattern = entry[:4]
         path = root / relative
         assert path.is_file(), f"{name}: {relative} is missing under {root}"
         lines = path.read_text(errors="replace").splitlines()
@@ -504,18 +554,38 @@ def test_layout_constants_match_the_cited_upstream_source():
             f"{pattern!r}; the constant and its source disagree")
 
 
-def test_every_layout_constant_is_actually_used_by_the_reader():
+def test_every_cited_layout_constant_is_used_by_the_reader():
     """A citation with no reader behind it is documentation rot.
 
-    The reverse direction of the test above: each name in :data:`C.LAYOUT` must
-    appear in the module source, so a constant that is documented but not used
-    (or added without a citation) is visible.
+    Each entry names the symbol it documents.  That symbol must (a) exist in the
+    module -- so a typo in a binding fails rather than silently passing -- and
+    (b) be **read** somewhere in the module's code, by :mod:`ast`: the test
+    collects every ``Name`` in a *load* context and requires the symbol to be
+    one.
+
+    Loads, not text occurrences.  Both weaker versions were tried and neither
+    bites: the previous test asserted only that the table's own key appeared in
+    the file, and each key occurred exactly once, so it could not fail; counting
+    occurrences instead would still pass for a constant that is defined and
+    cited and never called, because its own definition is an occurrence.  A load
+    is a use, and the table's entries are string literals, so a citation can
+    never satisfy its own check.  (Proven both ways on a copy: binding an entry
+    to a constant nothing calls turns this test red.)
     """
     from tools import compare_t01 as C
 
-    source = pathlib.Path(C.__file__).read_text()
-    for name in C.LAYOUT:
-        assert name in source, f"{name} is cited but absent from the module"
+    tree = ast.parse(pathlib.Path(C.__file__).read_text())
+    loads = {node.id for node in ast.walk(tree)
+             if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)}
+    for name, entry in sorted(C.LAYOUT.items()):
+        symbol = entry[4]
+        assert hasattr(C, symbol), (
+            f"{name} names {symbol!r}, which this module does not define -- the "
+            "citation is bound to nothing")
+        assert symbol in loads, (
+            f"{name} -> {symbol}: nothing in the module READS it, so the "
+            "citation documents dead code (its definition and its own table "
+            "entry are not uses)")
 
 
 # ---------------------------------------------------------------------------
@@ -669,6 +739,144 @@ def test_read_t01_rejects_a_foreign_file(tmp_path):
         read_t01(empty)
 
 
+def _reframe(payloads):
+    """Rebuild a T01 blob from record payloads (markers written both sides)."""
+    out = bytearray()
+    for payload in payloads:
+        out += len(payload).to_bytes(4, "big")
+        out += payload
+        out += len(payload).to_bytes(4, "big")
+    return bytes(out)
+
+
+def _golden_payloads():
+    from tools.oracle.oracle_selftest import t01_records
+
+    return [payload
+            for _, payload in t01_records(GOLDEN_T01.read_bytes())]
+
+
+def _as_ints(payload):
+    from tools.oracle.oracle_selftest import _as_ints as reader
+
+    return reader(payload)
+
+
+def test_the_hierarchy_is_not_mistaken_for_a_part_curve_code_record():
+    """A ``1..N`` run of int32 is not by itself the global curve-code record.
+
+    A part curve-code record (``hist1.F:376``) is *also* a run of int32, so a
+    part that asked for exactly codes ``1..8`` matches the content scan -- and
+    the 60-byte part description ahead of it (``hist1.F:357-366``) reinterpreted
+    as six int32 is ``IPART(4,N)`` followed by five words of title text, which
+    looks like a hierarchy and is not one.  Upstream never puts such a part
+    first, which is why this needs a crafted file to reach.
+
+    So the golden's records get a decoy pair -- a part-description-shaped record
+    (``4 + LTITL + 16`` bytes with ``LTITL = 40``, the format code 3040 width)
+    followed by the codes ``1..8`` -- inserted **before** the real
+    hierarchy/curve-code pair, and the scan must still find the real one:
+    ``NGLOBTH == 23`` and the golden's own hierarchy ``(1, 2, 1, 1, 1, 23)``.
+
+    The check is on :func:`tools.compare_t01._hierarchy_and_nglobth` directly
+    rather than through :func:`read_t01`, because the *shared* walk
+    (``tools.oracle.oracle_selftest.parse_t01``) has the same first-match
+    weakness and would fail first -- with a misleading message about a "32-byte
+    global block".  That is a finding, not something this task fixes in another
+    task's module; it belongs with the stride work (see the module docstring's
+    "Per-step stride").
+    """
+    from tools.compare_t01 import _hierarchy_and_nglobth
+    from tools.oracle.oracle_selftest import t01_records
+
+    payloads = _golden_payloads()
+    assert len(payloads[2]) == 24 and len(payloads[3]) == 4 * 23, (
+        "the golden's layout: 0 title, 1 stamp, 2 hierarchy, 3 the 1..23 codes")
+
+    # a decoy part description: IPART(4,N)=99, a 40-char title, IPART(7,N)=0,
+    # the two bounds, NVAR=8 -- hist1.F:357-366 with LTITL=40
+    title = b"decoy part".ljust(40, b" ")
+    decoy_description = (struct.pack(">i", 99) + title
+                         + struct.pack(">4i", 0, 1, 99, 8))
+    decoy_codes = struct.pack(">8i", 1, 2, 3, 4, 5, 6, 7, 8)
+    assert len(decoy_description) == 60 and len(decoy_codes) == 32
+    # the decoy's "hierarchy" is the element count plus five words of title
+    assert _as_ints(decoy_description[:24])[5] == 0x20202020 != 8, (
+        "the crafted decoy must NOT satisfy hierarchy[5] == len(codes), or the "
+        "test would prove nothing")
+
+    crafted = [payloads[0], payloads[1], decoy_description, decoy_codes] + \
+        list(payloads[2:])
+    records = t01_records(_reframe(crafted))
+    hierarchy, nglo, index = _hierarchy_and_nglobth(records)
+    assert nglo == 23, nglo
+    assert hierarchy == (1, 2, 1, 1, 1, 23), hierarchy
+    assert index == 5, index              # the decoy pair sits at 2 and 3
+    assert [p for _, p in records][index] == payloads[3]
+
+
+def test_the_refusal_names_the_stride_it_measured(tmp_path, read_golden):
+    """A per-step block this reader cannot describe is refused, with the number.
+
+    The record walk is shared with ``tools.oracle.oracle_selftest``, which fixes
+    the per-step record count at four.  The true count is a property of the
+    deck's ``/TH`` requests: measured on the real oracle it is 4 for the
+    committed golden (``examples/tensile_bar``) and **6** for
+    ``RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.6/ROLLING`` -- 9630 records,
+    1605 steps, repeating unit ``[4, 92, 36, 64, 264, 36]`` bytes -- a deck
+    with no ``/TH/SUBSET`` card at all, whose extra records come from the
+    ordinary ``/TH`` group block (``hist2.F:608-1403``).  See the module
+    docstring's "Per-step stride".
+
+    So this crafts a five-record-per-step file (the golden plus one extra
+    4-byte record per step) and pins two things: the reader REFUSES it rather
+    than returning a plausible, wrong series, and the message carries the
+    stride measured from the file -- 500 records = 100 steps of 5 -- instead of
+    the fixed four.
+    """
+    from tools.compare_t01 import T01FormatError, read_t01
+
+    payloads = _golden_payloads()
+    header = 14# the golden's header record count
+    steps = (len(payloads) - header) // 4
+    assert steps == 100, steps
+    widened = list(payloads[:header])
+    for k in range(steps):
+        widened.extend(payloads[header + 4 * k:header + 4 * k + 4])
+        widened.append(b"\x00\x00\x80\x3f")      # one more float: 1.0
+    assert len(widened) == header + 5 * steps
+    path = tmp_path / "TENSILE_FIVE_T01"
+    path.write_bytes(_reframe(widened))
+
+    with pytest.raises(T01FormatError) as caught:
+        read_t01(path)
+    message = str(caught.value)
+    assert "block shape is not uniform" in message or (
+        "not a multiple of 4" in message), message
+    assert "500 records = 100 steps of 5" in message, message
+    assert "[4, 92, 8, 8, 4]" in message, message
+
+
+def test_the_stride_helper_reports_the_variable_per_step_count(read_golden):
+    """``_per_step_stride`` measures 4 on the golden, and nothing repeats on junk.
+
+    The golden is the 4-record case the shared walk handles; the measurement
+    exists so a refusal can quote a number rather than a guess, so it is pinned
+    on both a real file and a shape that does not repeat at all.
+    """
+    from tools.compare_t01 import _per_step_stride
+
+    payloads = _golden_payloads()
+    measured = _per_step_stride(payloads, 23)
+    assert measured is not None
+    stride, shape, steps = measured
+    assert (stride, shape, steps) == (4, (4, 92, 8, 8), 100), measured
+    assert read_golden.n_steps == steps
+
+    # a header-only list has no data section at all
+    assert _per_step_stride(payloads[:14], 23) is None
+
+
 # ---------------------------------------------------------------------------
 # Cross-check 3: a second producer -- the port's ASCII T01 CSV
 # ---------------------------------------------------------------------------
@@ -770,6 +978,61 @@ def test_binary_reader_agrees_with_the_port_csv(read_golden, port_t01):
 
 def _column(t01, name):
     return t01.values[:, t01.channels.index(name)]
+
+
+def test_the_score_names_the_channels_its_worst_verdict_rests_on(read_golden,
+                                                                port_t01):
+    """``Score.significant`` is what a consumer must count, not ``per_channel``.
+
+    ``tools/validate_vs_fortran.py`` records the number of channels it
+    *compared*, which over-counts: the round-off channels are in that number and
+    are not in the ``max_rel_rms`` the verdict came from
+    (``validate_vs_fortran.py:1461-1465`` maximises over the ``significant``
+    rows).  This is the field that fixes that, so it is pinned here: on the
+    golden-versus-port pair it must be exactly the eight signal-carrying
+    channels, and ``worst`` must be the maximum over precisely that set.
+    """
+    from tools import compare_t01 as C
+
+    result = C.score(read_golden, port_t01)
+    # IE (0.3118) dominates the energy group, and KE (7.7e-5) and HE (1.5e-4)
+    # sit below 1 % of it -- which is exactly how the historical harness
+    # classified them (``compare_channels`` -> ``significant``), so they are
+    # compared and reported but do not decide the verdict.
+    assert result.significant == ("EFW", "IE", "MASS", "P1_1", "XMOM"), (
+        result.significant)
+    assert result.significant == tuple(sorted(result.significant)), (
+        "the field feeds recorded evidence, so its order must be stable")
+    for compared in ("KE", "HE", "P1_2"):
+        assert compared not in result.significant
+        assert result.per_channel[compared].verdict == "MATCH", compared
+
+    # worst is the max over exactly that set, and no channel outside it can
+    # change it
+    worst = max(result.per_channel[name].rel_rms
+                for name in result.significant)
+    assert result.worst.rel_rms == worst
+    outside = max(result.per_channel[name].rel_rms
+                  for name in result.per_channel
+                  if name not in result.significant)
+    assert outside > result.worst.rel_rms, (
+        "this pair only means something if a non-significant channel really "
+        "does carry a larger rel_rms than the worst significant one -- the "
+        "round-off momenta are what the significance rule exists for")
+
+    # nothing comparable -> nothing significant, and worst is NODATA
+    times = np.array([0.0, 1.0, 2.0])
+    left = C.T01(channels=["Z"], times=times, values=np.zeros((3, 1)),
+                 scaling=[])
+    right = C.T01(channels=["Y"], times=times, values=np.zeros((3, 1)),
+                  scaling=[])
+    empty = C.score(left, right)
+    assert empty.significant == ()
+    assert empty.worst.verdict == "NODATA"
+    # and a self-comparison IS comparable, and significant (it is its own
+    # group's dominant channel) -- so the empty case above is about the
+    # channels, not about the file being trivial
+    assert C.score(left, left).significant == ("Z",)
 
 
 def test_the_verdict_does_not_depend_on_which_grid_is_chosen(read_golden,

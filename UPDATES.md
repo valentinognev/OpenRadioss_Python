@@ -257,9 +257,33 @@ Four honesty-layer defects fixed, none in the solver path:
   channels agree to ≤ 0.2 % rel-RMS; the round-off channels to an absolute
   bound). A fourth test runs the brief's `th_to_csv` cross-check **if** the
   converter ever appears and skips with a reason naming every place tried.
-- **Known limitation, stated not hidden:** the shared record walk fixes the
-  per-step record count at four, so a deck that also requests `/TH/SUBSET`
-  curves is refused loudly rather than mis-parsed; a test pins that refusal.
+- **New** `Score.significant` — the channels that carry signal and therefore
+  decided `worst` (1 % of their group's dominant reference peak). A consumer
+  has to be able to report how many channels a verdict rests on:
+  `tools/validate_vs_fortran.py` records the *compared* count, which
+  over-counts, because the round-off channels are compared too.
+- **Fixed** the hierarchy scan can no longer be fooled by a part curve-code
+  record: a candidate `1..N` int32 run is accepted only when the record ahead of
+  it yields six int32 whose **sixth equals N**, which is what `hist1.F:300-316`
+  guarantees (`IWA(6) = NGLOBTH`).
+- **Fixed** every citation in `LAYOUT` now names the symbol it documents, and a
+  test requires that symbol to exist and to occur at least twice in the module
+  (its definition **and** a use). The previous version of that test asserted
+  only that the table's own key appeared in the file; each key occurred exactly
+  once, so it could not fail.
+- **Per-step stride: measured, and the old explanation was wrong.** The shared
+  record walk fixes the per-step record count at four, and the count is a
+  property of the deck's `/TH` requests. Measured on the real oracle: **4** for
+  `examples/tensile_bar` (`[4, 92, 8, 8]` bytes) and **6** for
+  `RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.6/ROLLING` (9630 records = 1605
+  steps, `[4, 92, 36, 64, 264, 36]`; stride 5 does not match). The extra
+  records come from the ordinary `/TH` group block (`hist2.F:608-1403`), **not**
+  from the subset block (`hist2.F:478-607`) as first written here — that deck
+  asks for no `/TH/SUBSET` at all, and `NSUBS` is never 0 anyway
+  (`contrl.F:671-673` adds one for the global subset). Such a file is still
+  refused, but the message now quotes the stride measured on it, and the fix
+  (derive the stride from the header in the shared walk) is flagged as belonging
+  there, before Phase 12 relies on the note.
 
 ## 1.2.1 - P0.9: the validation harness runs on any box, and cannot be fooled into writing wrong H3D
 

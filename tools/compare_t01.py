@@ -33,7 +33,8 @@ program, two consumers.  What this module adds on top is the part the golden
 record has no use for: the channel **names**, the header facts (format code,
 title width, unit scaling), upstream's exact value decoder, and the scorer.
 Generalising the per-step record stride belongs in that shared walk, not in a
-second reader; see "Known limitation" below.
+second reader; the measured truth about it is in "Per-step stride" below, and
+**the fix belongs there, before Phase 12 relies on this note**.
 
 Upstream Fortran origins (``$OR_SRC`` = the read-only OpenCourant tree)
 ----------------------------------------------------------------------
@@ -122,15 +123,55 @@ so a verdict produced here means what a historical verdict meant.  Fewer than
 :data:`MIN_SAMPLES` comparable samples is ``NODATA`` (the harness uses three,
 this scorer two: the brief's own synthetic case scores two samples).
 
-Known limitation (one record walk, shared)
-------------------------------------------
-``tools.oracle.oracle_selftest.parse_t01`` fixes the per-step record count at
-four -- ``TT``, the global block, the part block, and one further block (the
-per-TH-group curves, ``hist2.F:608-1403``).  A deck that also requests
-``/TH/SUBSET`` curves gets a fifth record per step (``hist2.F:478-607``) and
-that parser refuses the file with a loud error rather than mis-parsing it.
-Widening it belongs in the shared walk so both consumers benefit; until then
-this reader inherits the limitation instead of hiding it.
+Per-step stride: variable, and measured here, not guessed
+--------------------------------------------------------
+``tools.oracle.oracle_selftest.parse_t01`` -- the shared walk -- fixes the
+per-step record count at **four**.  That is right for the committed golden and
+wrong for most decks, and the count is a property of *the deck's ``/TH``
+requests*, not of the format.  What ``hist2.F`` writes per step, in order:
+
+* ``TT`` -- one value, always (``:302-303``);
+* the ``NGLOBTH`` global block, when this unit is the global history file
+  (``:307-333``);
+* one part block, when any part asked for curves (``:338-477``);
+* one subset block, when any subset asked for curves (``:481-607``) -- note
+  ``NSUBS`` is **never** zero: ``starter/source/starter/contrl.F:671-673`` does
+  ``CALL HM_OPTION_COUNT('SUBSET',NSUBS)`` and then ``NSUBS = NSUBS+1``
+  ("add 1 : for global subset"), so the guard at ``hist2.F:481`` is always open
+  and it is the *global* subset's ``NVARTH`` that decides whether a record
+  appears;
+* one record **per /TH group with curves** (``:608-1403``) -- ``/TH/NODE``,
+  ``/TH/SHEL``, ``/TH/PART``, ``/TH/RBODY``, sensors, interfaces, ... each
+  contributing its own record, sized by its members times its variables.
+
+Measured on this box, 2026-10-03, on the real oracle:
+
+* ``examples/tensile_bar`` (the committed golden): **100 steps of 4 records**,
+  ``[4, 92, 8, 8]`` bytes = ``TT``, the 23 globals, the part block (1 part x 2
+  variables) and one ``/TH`` group (1 node x 2 variables).
+* ``RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.6/ROLLING``: **1605 steps of 6
+  records**, ``[4, 92, 36, 64, 264, 36]`` bytes = ``TT``, the 23 globals, the part
+  block (9 variables) and **three** ``/TH`` groups -- ``/TH/NODE`` (2 nodes x 8
+  variables), ``/TH/SHEL`` (6 elements x 11 variables) and ``/TH/RBODY`` (9
+  variables).
+
+9630 records = 1605 steps x 6, and **stride 5 does not match** (checked
+mechanically: every step's record-length tuple is identical).  The BATOZ deck
+carries **no ``/TH/SUBSET`` card at all** -- its ``/TH`` requests are
+``/TH/SHEL``, ``/TH/PART``, ``/TH/RBODY``, ``/TH/NODE`` -- and its own hierarchy
+record is ``(1, 2, 1, 1, 3, 23)`` with ``NSUBS = 1``, i.e. the global subset
+alone, whose header record shows ``NVAR = 0``, so it contributes no record.  The
+extra records therefore come from the ordinary ``/TH`` group block
+(``:608-1403``), **not** from ``:478-607``.
+
+So the reader refuses such a file -- loudly, and with the measured stride in the
+message (:func:`_per_step_stride` computes it) rather than with a guess.  The
+fix belongs **here, in the shared walk, before Phase 12 relies on this note**:
+``parse_t01`` should derive the stride from the header (the per-part ``NVAR``
+sum of ``hist1.F:357-376``, the per-subset ``NVAR`` of ``:486-513``, and one
+record per /TH group with curves) instead of fixing it at four, and both
+consumers should be re-run against the BATOZ T01.  Until that happens this
+reader inherits the limitation instead of hiding it.
 
 Deliberate deviation from the brief
 -----------------------------------
@@ -221,89 +262,118 @@ HEADER_TITLE_RECORD = 84
 #: :data:`tools.oracle.oracle_selftest.GLOBAL_CHANNELS` transcribes.
 GLOBAL_CHANNEL_NAMES: Tuple[str, ...] = tuple(n for _, n, _ in GLOBAL_CHANNELS)
 
-#: Machine-readable citations: ``name -> (file, first line, last line, pattern)``.
-#: ``tests/test_p0_compare_t01.py`` asserts every pattern is still present in
-#: that exact line range, so a constant cannot drift away from its source.  A
-#: pattern that has to span several lines starts with ``(?s)``: the window the
-#: test builds is newline-joined source text, and ``.`` does not cross a
-#: newline by default.
-LAYOUT: Dict[str, Tuple[str, int, int, str]] = {
+#: Machine-readable citations:
+#: ``name -> (file, first line, last line, pattern, symbol)``.
+#:
+#: ``tests/test_p0_compare_t01.py`` checks **both** halves:
+#:
+#: * the pattern is still present in exactly that line range, so a constant
+#:   cannot drift away from its source (nor a source move away from it); and
+#: * the named ``symbol`` exists in this module and is **read** somewhere in its
+#:   code, so the reader uses the thing the citation is about; a constant that
+#:   is defined, cited and never called fails the test.  (The test collects
+#:   ``ast`` load contexts -- an occurrence count would not bite, because a
+#:   definition and a citation are themselves occurrences, and the earlier
+#:   version of that test could not fail at all.)
+#:
+#: So the table is a machine-checked transcription of the citations **and** a
+#: use check: it says which symbol depends on which line of upstream.  A pattern
+#: that has to span several lines starts with ``(?s)``: the window the test
+#: builds is newline-joined source text, and ``.`` does not cross a newline by
+#: default.  Several citations may bind the same symbol when they document the
+#: same decode from different ends (the write side and the read side of the
+#: value codec, say).
+LAYOUT: Dict[str, Tuple[str, int, int, str, str]] = {
     "record_marker": (
         "common_source/tools/input_output/write_routines.c", 499, 510,
         r"integer_to_IEEE_ASCII\(\*len,octet\);\s*write_buffer\(octet,"
-        r"sizeof\(unsigned char\),4\)"),
+        r"sizeof\(unsigned char\),4\)", "t01_records"),
     "int32_header_write": (
         "common_source/tools/input_output/write_routines.c", 646, 663,
-        r"integer_to_IEEE_ASCII\(w\[i\+k\],&buf\[i\*4\]\)"),
-    "value_write": (
-        "common_source/tools/input_output/write_routines.c", 520, 539,
-        r"real_to_IEEE_ASCII\(w\[i\+k\],&buf\[i\*4\]\)"),
-    "value_read": (
-        "common_source/tools/input_output/write_routines.c", 757, 796,
-        r"IEEE_ASCII_to_real\(&w\[i\+k\],&buf\[4\*i\]\)"),
-    "value_encoding": (
-        "engine/source/output/tools/ieee.cpp", 66, 124,
-        r"mantisse = \(frexp\(\(double\)reel,&exposant\) - 0\.5\)\*1\.6777216E7"),
-    "value_decoding": (
-        "engine/source/output/tools/ieee.cpp", 127, 165,
-        r"mantisse /= ldexp\(1\.,24\);\s*mantisse \+= 0\.5;"),
+        r"integer_to_IEEE_ASCII\(w\[i\+k\],&buf\[i\*4\]\)", "_as_ints"),
     "int32_byte_order": (
         "engine/source/output/tools/ieee.cpp", 40, 46,
-        r"octet\[3\] = entier & 0xff;"),
+        r"octet\[3\] = entier & 0xff;", "_as_ints"),
+    "value_write": (
+        "common_source/tools/input_output/write_routines.c", 520, 539,
+        r"real_to_IEEE_ASCII\(w\[i\+k\],&buf\[i\*4\]\)", "decode_radioss_float"),
+    "value_read": (
+        "common_source/tools/input_output/write_routines.c", 757, 796,
+        r"IEEE_ASCII_to_real\(&w\[i\+k\],&buf\[4\*i\]\)", "decode_radioss_float"),
+    "value_encoding": (
+        "engine/source/output/tools/ieee.cpp", 66, 124,
+        r"mantisse = \(frexp\(\(double\)reel,&exposant\) - 0\.5\)\*1\.6777216E7",
+        "decode_radioss_float"),
+    "value_decoding": (
+        "engine/source/output/tools/ieee.cpp", 127, 165,
+        r"mantisse /= ldexp\(1\.,24\);\s*mantisse \+= 0\.5;",
+        "decode_radioss_float"),
     "value_record_width": (
         "engine/source/output/th/wrtdes.F", 121, 133,
-        r"(?s)CALL EOR_C\(4\*L\).*R4 = A\(I\).*CALL EOR_C\(4\*L\)"),
+        r"(?s)CALL EOR_C\(4\*L\).*R4 = A\(I\).*CALL EOR_C\(4\*L\)",
+        "decode_radioss_float"),
     "format_code_table": (
         "engine/source/output/th/hist1.F", 132, 144,
-        r"(?s)ICODE=3040.*LTITL = 40"),
+        r"(?s)ICODE=3040.*LTITL = 40", "FORMAT_CODE_TABLE"),
     "header_record_1": (
         "engine/source/output/th/hist1.F", 201, 208,
         r"(?s)CALL EOR_C\(84\).*CALL WRITE_I_C\(ICODE,1\).*CALL WRITE_C_C"
-        r"\(ITITLE,80\).*CALL EOR_C\(84\)"),
+        r"\(ITITLE,80\).*CALL EOR_C\(84\)", "HEADER_TITLE_RECORD"),
     "header_record_2_stamp": (
         "engine/source/output/th/hist1.F", 210, 234,
-        r"(?s)CALL MY_CTIME\(ITITLE\).*CH80\(25:33\) =' RADIOSS '"),
+        r"(?s)CALL MY_CTIME\(ITITLE\).*CH80\(25:33\) =' RADIOSS '",
+        "RUN_STAMP_LENGTH"),
     "additional_records": (
         "engine/source/output/th/hist1.F", 237, 290,
-        r"FAC_MASS,FAC_LENGTH,FAC_TIME"),
+        r"FAC_MASS,FAC_LENGTH,FAC_TIME", "_scaling_records"),
     "hierarchy_record": (
         "engine/source/output/th/hist1.F", 292, 316,
-        r"(?s)NGLOBTH=23.*IWA\(6\)= NGLOBTH"),
+        r"(?s)NGLOBTH=23.*IWA\(6\)= NGLOBTH", "_hierarchy_and_nglobth"),
     "part_record": (
         "engine/source/output/th/hist1.F", 357, 376,
         r"(?s)CALL EOR_C\(20\+LTITL\).*CALL WRITE_I_C\(IPART\(4,N\),1\).*"
         r"CALL WRITE_C_C\(ITITLE,LTITL\).*CALL WRITE_I_C\(NVAR,1\).*"
-        r"CALL EOR_C\(20\+LTITL\)"),
+        r"CALL EOR_C\(20\+LTITL\)", "_part_channels"),
     "part_curve_codes": (
         "engine/source/output/th/hist1.F", 367, 376,
-        r"IF\(NVAR/=0\)CALL WRTDES\(IWA,IWA,NVAR,ITTYP,0\)"),
+        r"IF\(NVAR/=0\)CALL WRTDES\(IWA,IWA,NVAR,ITTYP,0\)", "_part_channels"),
     "time_record": (
         "engine/source/output/th/hist2.F", 302, 303,
-        r"(?s)WA_LOCAL\(1\) = TT.*CALL WRTDES\(WA_LOCAL,WA_LOCAL,1,ITTYP,1\)"),
+        r"(?s)WA_LOCAL\(1\) = TT.*CALL WRTDES\(WA_LOCAL,WA_LOCAL,1,ITTYP,1\)",
+        "parse_t01"),
     "global_record": (
         "engine/source/output/th/hist2.F", 307, 333,
-        r"CALL WRTDES\(WA,WA,NGLOBTH,ITTYP,1\)"),
+        r"CALL WRTDES\(WA,WA,NGLOBTH,ITTYP,1\)", "parse_t01"),
     "part_values_record": (
         "engine/source/output/th/hist2.F", 338, 477,
-        r"IF \(II/=0\) CALL WRTDES\(WA,WA,II,ITTYP,1\)"),
+        r"IF \(II/=0\) CALL WRTDES\(WA,WA,II,ITTYP,1\)", "parse_t01"),
     "subset_record": (
         "engine/source/output/th/hist2.F", 478, 607,
-        r"(?s)VARIABLES FOR EACH SUBSET.*IF\(II/=0\)CALL WRTDES\(WA,WA,II,ITTYP,1\)"),
+        r"(?s)VARIABLES FOR EACH SUBSET.*IF\(II/=0\)CALL WRTDES\(WA,WA,II,ITTYP,1\)",
+        "_per_step_stride"),
+    "th_group_record": (
+        "engine/source/output/th/hist2.F", 608, 1403,
+        r"(?s)TH GROUP KINE SPMD.*IF\(II>0\)CALL WRTDES\(WA,WA,II,ITTYP,1\)",
+        "_per_step_stride"),
+    "subset_count_never_zero": (
+        "starter/source/starter/contrl.F", 671, 673,
+        r"(?s)CALL HM_OPTION_COUNT\('SUBSET',NSUBS\).*NSUBS    = NSUBS\+1",
+        "_per_step_stride"),
     "global_channel_names": (
         "starter/source/output/th/write_thnms1.F90", 230, 252,
-        r"(?s)1 IE\s+INTERNAL ENERGY.*23 DTE_INOUT"),
+        r"(?s)1 IE\s+INTERNAL ENERGY.*23 DTE_INOUT", "GLOBAL_CHANNEL_NAMES"),
     "part_channel_titles": (
         "starter/source/output/th/th_titles.F90", 2759, 2792,
-        r"(?s)varpa_title = \(/.*INTERNAL ENERGY.*KINETIC ENERGY"),
+        r"(?s)varpa_title = \(/.*INTERNAL ENERGY.*KINETIC ENERGY",
+        "PORT_PART_CODES"),
     "run_stamp_source": (
-        "engine/source/system/timer_c.c", 30, 40, r"ctime"),
+        "engine/source/system/timer_c.c", 30, 40, r"ctime", "RUN_STAMP_LENGTH"),
     "th_vers_default": (
-        "engine/source/input/freform.F", 1543, 1549, r"TH_VERS=40"),
+        "engine/source/input/freform.F", 1543, 1549, r"TH_VERS=40",
+        "_scaling_records"),
     "th_vers_floor": (
         "starter/source/output/th/hm_read_th.F", 48, 57,
-        r"(?s)TH_VERS = 0.*TH_VERS=MAX\(TH_VERS,41\)"),
-    "th_to_csv_is_external": (
-        "tools/th_to_csv/README.md", 1, 7, r"OpenRadioss/Tools"),
+        r"(?s)TH_VERS = 0.*TH_VERS=MAX\(TH_VERS,41\)", "_scaling_records"),
 }
 
 #: Port CSV column -> upstream channel name.  The same pairs as
@@ -413,10 +483,20 @@ class ChannelScore:
 
 @dataclass(frozen=True)
 class Score:
-    """``per_channel`` for every name either side mentioned, plus ``worst``."""
+    """``per_channel`` for every name either side mentioned, plus ``worst``.
+
+    ``significant`` names the channels that carry signal and therefore decided
+    :attr:`worst` (:data:`SIGNIFICANCE_FRACTION`).  It is exposed because a
+    consumer has to be able to say *how many* channels the verdict rests on:
+    ``tools/validate_vs_fortran.py`` records the compared count today, which
+    over-counts (it includes the round-off channels), so a parity row's
+    "N channels" is not the number of channels its ``max_rel_rms`` came from.
+    Sorted, so a record built from it is stable.
+    """
 
     per_channel: Dict[str, ChannelScore]
     worst: ChannelScore
+    significant: Tuple[str, ...] = ()
 
 
 _NODATA = ChannelScore(rel_rms=math.inf, max_abs=math.inf, n=0,
@@ -505,25 +585,37 @@ def _hierarchy_and_nglobth(records: Sequence[Tuple[int, bytes]]
     The curve-code record is found **by content**, the way
     ``tools.oracle.oracle_selftest`` finds it: a run of big-endian int32 equal
     to ``1..N`` with ``N >= 8``.  ``hist1.F:308-316`` writes the hierarchy record
-    (6 int32, ``NGLOBTH`` sixth) immediately before it, with nothing in between,
-    so the hierarchy is the record directly ahead of it.  ``NGLOBTH`` therefore
-    comes from the file, never assumed to be 23.
+    (6 int32, ``NGLOBTH`` sixth) immediately before it, with nothing in between.
+
+    The **predecessor check is what makes that unambiguous**, and it is not
+    decoration: a part curve-code record (``hist1.F:376``) is also a run of
+    int32, so a part that asked for exactly codes ``1..8`` would match -- and
+    the 60-byte part description ahead of it (``hist1.F:357-366``) reinterpreted
+    as six int32 gives ``IPART(4,N)`` followed by the first five words of the
+    title, which is a plausible-looking hierarchy with garbage in it.  So a
+    candidate is accepted only when the record ahead of it yields six int32
+    whose **sixth equals ``N``** -- which is what ``hist1.F:300-316``
+    guarantees, since ``IWA(6) = NGLOBTH`` is what ``WRTDES`` writes right after
+    the six-integer hierarchy record.  ``NGLOBTH`` therefore comes from the
+    file, never assumed to be 23.
     """
     for index, (_, payload) in enumerate(records):
         if len(payload) < 8 * 4 or len(payload) % 4:
             continue
         values = _as_ints(payload)
-        if values == list(range(1, len(values) + 1)):
-            if index == 0:
-                break
-            hierarchy = _as_ints(records[index - 1][1][:24])
-            if len(hierarchy) != 6:
-                continue
-            return tuple(hierarchy), len(values), index
+        if values != list(range(1, len(values) + 1)) or index == 0:
+            continue
+        if len(records[index - 1][1]) < 24:
+            continue
+        hierarchy = _as_ints(records[index - 1][1][:24])
+        if len(hierarchy) != 6 or hierarchy[5] != len(values):
+            continue          # not the hierarchy/curve-code pair hist1.F writes
+        return tuple(hierarchy), len(values), index
     raise T01FormatError(
-        "no 1..N curve-code record found; hist1.F:311-316 writes one right after "
-        "the hierarchy record of :292-308 when the T01 is the global history "
-        "file, and :300-316 fixes NGLOBTH=23")
+        "no 1..N curve-code record preceded by a hierarchy record was found; "
+        "hist1.F:311-316 writes one right after the 6-integer hierarchy record "
+        "of :292-308 (whose sixth integer is NGLOBTH) when the T01 is the "
+        "global history file, and :300-316 fixes NGLOBTH=23")
 
 
 def _scaling_records(records: Sequence[Tuple[int, bytes]],
@@ -600,6 +692,55 @@ def _part_channels(records: Sequence[Tuple[int, bytes]], after: int,
     return codes
 
 
+def _per_step_stride(payloads: Sequence[bytes], nglo: int
+                     ) -> Optional[Tuple[int, Tuple[int, ...], int]]:
+    """``(stride, record lengths of one step, steps)`` -- measured, not assumed.
+
+    The data section starts at the first 4-byte record followed by a
+    ``4 * NGLOBTH`` one (``hist2.F:302-303`` then ``:307-333``, the same pair
+    ``parse_t01`` looks for).  From there the **smallest** stride whose
+    record-length tuple repeats exactly through the whole remainder is the
+    per-step stride, and the reader reports it rather than assuming four (see the
+    module docstring's "Per-step stride": it is 4 for the committed golden and 6
+    for a deck with three ``/TH`` families).  ``None`` when nothing repeats.
+
+    This is diagnostics, not a second reader: it decodes no value and the reader
+    still refuses the file it is describing.
+    """
+    start = None
+    for index in range(len(payloads) - 1):
+        if len(payloads[index]) == 4 and len(payloads[index + 1]) == 4 * nglo:
+            start = index
+            break
+    if start is None:
+        return None
+    body = payloads[start:]
+    for stride in range(1, len(body) // 2 + 1):
+        if len(body) % stride:
+            continue
+        shape = tuple(len(body[j]) for j in range(stride))
+        steps = len(body) // stride
+        if steps < 2:
+            continue
+        if all(tuple(len(body[stride * k + j]) for j in range(stride)) == shape
+               for k in range(steps)):
+            return stride, shape, steps
+    return None
+
+
+def _stride_report(payloads: Sequence[bytes], nglo: int) -> str:
+    """One sentence naming the measured stride, for the refusal message."""
+    measured = _per_step_stride(payloads, nglo)
+    if measured is None:
+        return ("the data section does not repeat with any stride, so it is not "
+                "a sequence of per-step blocks")
+    stride, shape, steps = measured
+    return (f"measured on this file: the data section is "
+            f"{stride * steps} records = {steps} steps of {stride} "
+            f"(record lengths {list(shape)} bytes), which the shared walk's "
+            f"fixed stride of 4 does not describe")
+
+
 def read_t01(path) -> T01:
     """Decode a binary ``ITTYP==3`` T01 into a :class:`T01`.
 
@@ -610,10 +751,11 @@ def read_t01(path) -> T01:
     title, ``IPART(7,N)``, the node bounds and ``NVAR``), so the position in the
     file is the only identity available and the curve code is the only variable
     identity.  Subset, TH-group and per-node curve records are part of the
-    per-step block and are walked (the shared walk validates their stride) but
-    are **not** named: upstream ships no name table for them without the
-    object-type dispatch ``hist2.F:608-1403`` performs, and no channel name is
-    invented here.
+    per-step block; a deck whose per-step stride is not the four the shared walk
+    fixes is refused with the stride **measured** on the file (see "Per-step
+    stride"), and those blocks are never named even when they are walked:
+    upstream ships no name table for them without the object-type dispatch
+    ``hist2.F:608-1403`` performs, and no channel name is invented here.
 
     ``path`` in, :class:`T01` out; anything that is not an ``ITTYP==3`` T01 raises
     :class:`T01FormatError` (re-exported from
@@ -642,10 +784,16 @@ def read_t01(path) -> T01:
     part_codes = _part_channels(records, code_index + 1, title_width,
                                 hierarchy[0])
 
-    # The data section: time, the global block, the part block, one more block.
-    # Framing and stride validation are the shared walk's job (see the module
-    # docstring's "Known limitation").
-    parsed = parse_t01(blob)
+    # The data section: time, the global block, the part block, and one record
+    # per /TH family that asked for curves.  Framing and stride validation are
+    # the shared walk's job (see the module docstring's "Per-step stride"); when
+    # it refuses, the refusal carries the stride MEASURED here, so whoever fixes
+    # the walk is told the number rather than left to re-derive it.
+    try:
+        parsed = parse_t01(blob)
+    except T01FormatError as exc:
+        raise T01FormatError(
+            f"{exc}. {_stride_report([p for _, p in records], nglo)}") from exc
     globals_ = parsed["global"]
     parts = parsed["part"]
     n_expected = sum(len(codes) for codes in part_codes)
@@ -806,8 +954,10 @@ def score(ref: T01, port: T01) -> Score:
     compared **and** carry signal (:data:`SIGNIFICANCE_FRACTION` of their
     group's dominant reference peak -- the harness's own rule, so that
     ``worst.rel_rms`` is the number ``parity_m41.json``'s ``max_rel_rms`` is).
-    With nothing comparable it is itself a ``NODATA`` score.  Every channel,
-    significant or not, stays in :attr:`Score.per_channel`.
+    Those channels are named in :attr:`Score.significant`, so a consumer can
+    report how many the verdict rests on.  With nothing comparable it is itself
+    a ``NODATA`` score.  Every channel, significant or not, stays in
+    :attr:`Score.per_channel`.
     """
     if ref.times.ndim != 1 or port.times.ndim != 1:
         raise ValueError("times must be one-dimensional")
@@ -825,7 +975,6 @@ def score(ref: T01, port: T01) -> Score:
     comparable = grid.size >= MIN_SAMPLES
 
     per_channel: Dict[str, ChannelScore] = {}
-    significant: List[ChannelScore] = []
     peaks: Dict[str, float] = {}
     for name in sorted(set(ref.channels) | set(port.channels)):
         if name not in ref.channels or name not in port.channels or not comparable:
@@ -840,11 +989,12 @@ def score(ref: T01, port: T01) -> Score:
     for name, peak in peaks.items():
         group = _group_of(name)
         dominant[group] = max(dominant.get(group, 0.0), peak)
-    for name, peak in peaks.items():
-        if peak >= SIGNIFICANCE_FRACTION * dominant[_group_of(name)]:
-            significant.append(per_channel[name])
-
+    significant = sorted(
+        name for name, peak in peaks.items()
+        if peak >= SIGNIFICANCE_FRACTION * dominant[_group_of(name)])
     if not significant:
         return Score(per_channel=per_channel, worst=_NODATA)
-    return Score(per_channel=per_channel,
-                 worst=max(significant, key=lambda c: c.rel_rms))
+    worst = max((per_channel[name] for name in significant),
+                key=lambda c: c.rel_rms)
+    return Score(per_channel=per_channel, worst=worst,
+                 significant=tuple(significant))
