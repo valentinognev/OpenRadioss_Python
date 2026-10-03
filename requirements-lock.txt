@@ -1,3 +1,22 @@
+# pyradioss — pinned dependency set.  TWO sections, two platforms; do not mix
+# them (the pins differ and a `-r` install of both is unsatisfiable).
+#
+# [A] below — the canonical Windows 11 dev box (AGENTS.md: Python 3.14.2 in
+#     .venv).  This is what `pip install -r requirements-lock.txt` resolves,
+#     and it is deliberately left untouched by the Phase 0 work: the optional
+#     `accel`/`mpi` extras are installed separately, never through here.
+#
+# [B] at the bottom — the shared Linux/Anaconda interpreter this program is
+#     validated on (Python 3.14.6, anaconda base), resolved by Task P0.7 on
+#     2026-10-03.  Only the OPTIONAL dependencies are recorded there, as
+#     `# pin:` lines, because they are what P0.7 had to resolve;
+#     tests/test_p0_optional_deps.py reads exactly those lines and fails if a
+#     pin drifts away from the importable version or if a recorded pin has no
+#     explicit NOT INSTALLED annotation for a dep that is absent.
+#
+# ---------------------------------------------------------------------------
+# [A] Windows 11 .venv (base install + pytest + the optional accel extra)
+# ---------------------------------------------------------------------------
 colorama==0.4.6
 iniconfig==2.3.0
 llvmlite==0.48.0
@@ -8,3 +27,24 @@ pluggy==1.6.0
 Pygments==2.20.0
 pytest==9.1.1
 scipy==1.18.0
+#
+# ---------------------------------------------------------------------------
+# [B] shared Linux interpreter (anaconda base, py3.14.6) — optional deps only
+# ---------------------------------------------------------------------------
+# interpreter: Python 3.14.6 (/home/valentin/anaconda), numpy 2.5.2,
+#             scipy 1.18.0, pytest 9.1.1 — base install unchanged (NumPy-only).
+#
+# pin: numba==0.68.0
+# pin: llvmlite==0.50.0
+# pin: mpi4py==4.1.2  -- NOT INSTALLED: no MPI runtime on this box.  The PyPI
+#   mpi4py 4.1.2 cp314 wheel ships BOTH MPI.mpich*.so and MPI.openmpi*.so and
+#   resolves libmpi.so.12 / libmpi.so.40 with dlopen at import time; neither
+#   MPICH nor Open MPI is installed (no mpicc/mpirun, no libmpi in
+#   /usr/lib/x86_64-linux-gnu, no conda mpi package), and there is no
+#   mpi4py-mpich (MPICH-bundled) distribution on PyPI.  Installing the plain
+#   wheel anyway would make `import mpi4py` raise OSError, which escapes the
+#   `except ImportError` seams in pyradioss/spmd/comm.py:402 and :488 — so it
+#   is deliberately NOT installed.  See
+#   .superpowers/sdd/01_phase0_oracle_and_licensing/task-7-report.md for what
+#   Phase 13 needs (an MPI implementation: `apt install mpich` / `libopenmpi-dev`,
+#   or `conda install -c conda-forge mpi4py mpich`, then this pin becomes live).

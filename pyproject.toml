@@ -15,11 +15,23 @@ dependencies = ["numpy>=1.22"]
 test = ["pytest>=7", "pytest-xdist>=3", "scipy>=1.8"]
 # the optional M7 accelerated backend (pyradioss/accel): the base install
 # stays NumPy-only; select with PYRADIOSS_BACKEND=numba or -backend numba
+# P0.7 (2026-10-03): the floor stays 0.59 (the M7-era minimum, unchanged on
+# purpose — bumping it would drop interpreters that used to work).  Verified
+# installed + kernel-compiling on the shared Linux box at numba 0.68.0 /
+# llvmlite 0.50.0 / numpy 2.5.2, and on the Windows .venv at numba 0.66.0
+# (both recorded in requirements-lock.txt).  numba 0.68 declares
+# numpy<2.6,>=1.22, so the accel extra does NOT force a numpy downgrade.
 accel = ["numba>=0.59"]
 # the SPMD domain decomposition (pyradioss/spmd): real MPI processes under
 # `mpirun -np N pyradioss-engine -np N ...` need mpi4py (+ an MPI library);
 # without it `-np N` still runs the N domains as threads of one process
 # (pyradioss/spmd/comm.py ThreadComm), so it stays optional.
+# P0.7: mpi4py alone is NOT enough — the PyPI wheel dlopens libmpi.so.12
+# (MPICH) or libmpi.so.40 (Open MPI) at import, so an MPI implementation must
+# be present too (`apt install mpich`, or `conda install -c conda-forge
+# mpi4py mpich`).  Installing the wheel with no MPI runtime makes
+# `import mpi4py` raise OSError, which the `except ImportError` seams in
+# pyradioss/spmd/comm.py do not catch.
 mpi = ["mpi4py>=3.1"]
 # the M8 implicit solver (pyradioss/implicit): SciPy is REQUIRED for implicit
 # runs (sparse assembly + SuperLU) but OPTIONAL for the explicit solver, so it
