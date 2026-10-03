@@ -2,11 +2,17 @@
 """Toolchain probe for building/running the Fortran OpenRadioss "oracle".
 
 Phase 0 (P0.1) of the oracle effort: before any Fortran build is attempted we
-record what this Linux box actually provides -- gfortran (and its version),
-cmake, make, a *working* OpenMP runtime, python3, docker -- plus whether the
-extlib download host is reachable.  The result lands in
-``tools/validation_data/toolchain_probe.json`` so a later failure to build can
-be attributed to the toolchain instead of guessed at.
+record what this Linux box actually provides -- gfortran (its own version and
+the whole ``--version`` banner it printed), cmake, make, a *working* OpenMP
+runtime, python3, docker -- plus whether the extlib download host is reachable.
+The result lands in ``tools/validation_data/toolchain_probe.json`` so a later
+failure to build can be attributed to the toolchain instead of guessed at.
+
+Every recorded value is a property of the MACHINE: a tool resolved on PATH, a
+capability the probe exercised, or a reachability answer.  None of them is a
+property of the checkout or of the interpreter that happened to run the probe,
+because a record that changes when the worktree moves is a record of the
+worktree, not of the build machine.
 
 ``openmp_ok`` is decided by COMPILING AND RUNNING a minimal OpenMP Fortran
 program, never by grepping ``-fopenmp`` out of a makefile: a compiler can
@@ -30,8 +36,8 @@ both are load-bearing:
   cannot rewrite history, and ``git status`` staying clean is evidence that the
   suite verified the record instead of refreshing it.
 * **A difference is reported with the repair, never alone.**  :func:`explain`
-  names every differing key, classifies it (toolchain vs run-local), and
-  quotes :data:`REFRESH_COMMAND`.  The check itself is
+  names every differing key with both values and quotes
+  :data:`REFRESH_COMMAND`.  The check itself is
   ``tests/test_p0_toolchain.py``; this module measures, it does not rule.
 
 Usage::
@@ -69,25 +75,32 @@ REFRESH_COMMAND = ".venv/bin/python -m tools.oracle.toolchain_probe"
 
 #: Every key the record is required to carry.  A record missing one cannot be
 #: compared key-by-key, so it is rejected outright rather than half-verified.
+#: The shape is ``<tool>`` + ``<tool>_version`` + (for the compiler)
+#: ``<tool>_banner``: the path the build invokes, the version it reports, and
+#: for gfortran the whole first line it printed, because the version alone does
+#: not say which *packaging* of the compiler produced it.
 RECORD_KEYS = (
     "gfortran",
     "gfortran_version",
+    "gfortran_banner",
     "cmake",
     "cmake_version",
     "make",
     "openmp_ok",
     "python3",
+    "python3_version",
     "docker",
     "network_ok",
 )
 
-#: Keys whose value is a property of *the interpreter that ran the probe*
-#: rather than of the machine's toolchain.  ``python3`` is ``sys.executable``:
-#: it names the venv the probe ran under, which moves with the checkout.  It is
-#: still compared like every other key -- the split only decides how a drift is
-#: *explained*, so an agent can tell "my compiler moved" from "I ran the suite
-#: under a different interpreter" without reading the diff.
-RUN_LOCAL_KEYS = ("python3",)
+#: Every key is a property of the MACHINE -- a tool resolved on PATH, a
+#: capability, or a reachability answer -- and none is a property of the
+#: checkout or of the interpreter that ran the probe.  That is load-bearing:
+#: ``python3`` used to hold ``sys.executable``, which made the record
+#: checkout-local and made the gate fail whenever the suite ran under a
+#: different venv, i.e. it reported "the toolchain moved" when nothing the build
+#: uses had moved.  tests/test_p0_toolchain.py holds the invariant; do not add a
+#: key whose value names the repository, the virtualenv or ``sys.executable``.
 
 OMP_SOURCE = """program t
 integer i
@@ -124,16 +137,36 @@ def _version(exe, flag="--version"):
     return out.strip().splitlines()[0].strip()
 
 
+def _gcc_version(banner):
+    """The compiler's OWN version out of a ``--version`` first line.
+
+    GCC prints the packaging in parentheses and its own version after it::
+
+        GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+        gfortran (GCC) 4.8.5 20150623 (Red Hat 4.8.5-44)
+
+    so the version is the first token made up *entirely* of dot-separated
+    digits.  Requiring every part to be numeric is what separates it from the
+    Debian package version ``13.3.0-6ubuntu2~24.04.1`` -- whose first two parts
+    are digits, which is exactly how the previous parse came to record a
+    truncated package string as the compiler's version.  A bare date such as
+    Red Hat's ``20150623`` has no dot and is skipped for the same reason.
+
+    Falls back to the whole first line when no token qualifies: an exotic
+    banner then records itself verbatim rather than an empty string, which the
+    gate can still compare.
+    """
+    for token in banner.replace("(", " ").replace(")", " ").split():
+        parts = token.split(".")
+        if len(parts) >= 2 and all(part.isdigit() for part in parts):
+            return token
+    return banner
+
+
 def _gfortran_version(exe):
-    """'15.2.0' out of 'GNU Fortran (GCC) 15.2.0 ...' -- else the raw 1st line."""
+    """``13.3.0`` out of ``GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0``."""
     first = _version(exe)
-    if not first:
-        return ""
-    for tok in first.replace("(", " ").replace(")", " ").split():
-        parts = tok.split(".")
-        if len(parts) >= 2 and all(p.isdigit() for p in parts[:2]):
-            return ".".join(parts[:3]) if len(parts) >= 3 else ".".join(parts[:2])
-    return first
+    return _gcc_version(first) if first else ""
 
 
 def probe_openmp(gfortran):
@@ -174,17 +207,30 @@ def probe_network():
 
 
 def probe():
-    """Return the toolchain inventory of this machine."""
+    """Return the toolchain inventory of this machine.
+
+    ``python3`` is the interpreter the ORACLE BUILD invokes -- ``shutil.which``
+    of the name upstream hardcodes on non-Windows
+    (``starter/CMakeLists.txt:18`` / ``engine/CMakeLists.txt``: ``set(PYTHON_EXEC
+    "python3")``), resolved from PATH exactly as cmake resolves it.  It is
+    deliberately NOT ``sys.executable``: this probe can be run by any
+    interpreter, and recording the one that happened to run it would put the
+    checkout and its virtualenv into a record whose job is to describe the
+    build machine.
+    """
     gfortran = _which("gfortran")
     cmake = _which("cmake")
+    python3 = _which("python3")
     return {
         "gfortran": gfortran or "",
         "gfortran_version": _gfortran_version(gfortran),
+        "gfortran_banner": _version(gfortran),
         "cmake": cmake or "",
         "cmake_version": _version(cmake),
         "make": _which("make") or "",
         "openmp_ok": probe_openmp(gfortran),
-        "python3": sys.executable,
+        "python3": python3 or "",
+        "python3_version": _version(python3),
         "docker": _which("docker") or "",
         "network_ok": probe_network(),
     }
@@ -243,17 +289,18 @@ def differences(recorded, fresh):
 
 
 def explain(diffs):
-    """Render drift lines with each key's class named, plus the fix."""
-    out = []
-    for line in diffs:
-        key = line.split(":", 1)[0]
-        kind = ("run-local, moves with the interpreter that ran the probe"
-                if key in RUN_LOCAL_KEYS else "toolchain")
-        out.append(f"  [{kind}] {line}")
-    if out:
-        out.append("")
-        out.append(f"Refresh the record with:  {REFRESH_COMMAND}")
-    return "\n".join(out)
+    """Render the drift, then the command that repairs it.
+
+    No per-key classification: every key is a machine fact now (see the note
+    beside ``RECORD_KEYS``), so a difference is a difference and the list of
+    them is the whole diagnosis.
+    """
+    if not diffs:
+        return ""
+    return "\n".join(f"  {line}" for line in diffs + [
+        "",
+        f"Refresh the record with:  {REFRESH_COMMAND}",
+    ])
 
 
 def main(argv=None):

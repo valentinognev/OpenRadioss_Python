@@ -8,7 +8,7 @@ Fortran program -- grepping a flag string proves nothing about the runtime.
 Mirrors the Linux environment contract in $OR_SRC/INSTALL.md:34-42.
 
 ``tools/validation_data/toolchain_probe.json`` is a COMMITTED FACT, so this
-module is its gate.  Three properties are load-bearing and each has a test:
+module is its gate.  Four properties are load-bearing and each has a test:
 
 * **the suite verifies, it never refreshes.**  The probe's read side
   (:func:`probe`, :func:`read_record`, :func:`differences`) writes nothing, and
@@ -21,6 +21,13 @@ module is its gate.  Three properties are load-bearing and each has a test:
 * **drift fails, and the failure names the repair.**  The record is compared
   key-by-key against a fresh probe; the assertion quotes ``REFRESH_COMMAND``
   instead of only reporting a difference.
+* **every value is the machine's, and says so.**  A recorded value may not name
+  the checkout, the virtualenv or the interpreter that ran the probe --
+  ``test_the_record_holds_no_checkout_local_value``.  ``python3`` is the name
+  upstream's cmake hardcodes (``starter/CMakeLists.txt:18``), resolved from
+  PATH, not ``sys.executable``.  ``gfortran_version`` is the compiler's own
+  dotted version, not the packaging in its banner
+  (``test_the_recorded_gfortran_version_is_the_compilers_own_version``).
 * **the skip surface is one narrow, env-controlled predicate.**  The record
   names absolute paths of a machine, so it is checked where the oracle is
   installed -- the box whose toolchain built it -- and skipped elsewhere (a CI
@@ -32,6 +39,9 @@ module is its gate.  Three properties are load-bearing and each has a test:
   structural checks (the record exists, parses and carries every declared key)
   run on every machine, and the live claims below run everywhere too.
 """
+
+import pathlib
+import sys
 
 import pytest
 
@@ -88,6 +98,73 @@ def test_probe_reports_required_tools():
         f"gfortran_version {fresh['gfortran_version']!r} is not a GCC major in "
         f"11..15; the probe parsed {fresh['gfortran']!r} --version into it"
     )
+
+
+def test_the_recorded_gfortran_version_is_the_compilers_own_version():
+    """``gfortran_version`` must be the version, not the packaging.
+
+    GCC prints the packaging in parentheses and its own version after it --
+    ``GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0`` -- and the parse
+    used to take the first token with two leading numeric parts, which is the
+    Debian *package* version.  The record therefore held ``13.3.0-6ubuntu2~24``
+    under a key called ``gfortran_version``: a truncated package string that
+    satisfied the project's ``startswith`` 11..15 rule by accident, and that no
+    reader would recognise as the compiler's version.
+
+    Three properties, all checkable here:
+      * digits and dots only, so a packaging suffix can never reappear;
+      * a whitespace-delimited token of the banner the compiler printed, so the
+        version is quoted from the compiler and not invented;
+      * the plan's own 11..15 rule holds on the RECORDED string.
+    """
+    tp = _probe_module()
+    record = tp.read_record()
+    version = record["gfortran_version"]
+    banner = record["gfortran_banner"]
+
+    assert version and all(c.isdigit() or c == "." for c in version), (
+        f"recorded gfortran_version {version!r} is not a bare dotted number; "
+        f"the banner it came from is {banner!r}")
+    assert version in banner.split(), (
+        f"recorded gfortran_version {version!r} is not a token of the banner "
+        f"the compiler printed, {banner!r}")
+    assert version.startswith(("11", "12", "13", "14", "15")), (
+        f"recorded gfortran_version {version!r} does not satisfy the project's "
+        f"rule (plan/01_phase0_oracle_and_licensing.md:172): a GCC major in "
+        f"11..15")
+    assert tp.probe()["gfortran_version"] == version, (
+        "the recorded version and the measured one disagree -- the gate in "
+        f"test_the_committed_record_matches_a_fresh_probe reports the drift")
+
+
+def test_the_record_holds_no_checkout_local_value():
+    """Every recorded value must be a property of the machine, not of the tree.
+
+    ``python3`` used to hold ``sys.executable``, i.e. the venv of whichever
+    checkout ran the suite.  That made the record change when the worktree
+    moved -- a record of the checkout, not of the build machine -- and made the
+    gate report "the toolchain moved" when nothing the oracle build invokes had
+    moved.  The repair is a key the build actually resolves (``shutil.which`` of
+    the ``python3`` upstream hardcodes), and this test is what stops a future
+    key from reintroducing the shape.
+    """
+    tp = _probe_module()
+    record = tp.read_record()
+    # Only genuinely checkout-local prefixes.  ``sys.base_prefix`` is NOT one of
+    # them: /usr is the system interpreter prefix, and /usr/bin/cmake is exactly
+    # the kind of value this record exists to hold.
+    local = (str(tp.REPO_ROOT), sys.prefix)
+    offenders = [
+        f"{key}={value!r} names {needle}"
+        for key, value in sorted(record.items())
+        for needle in local
+        if needle and needle in str(value)
+    ]
+    assert not offenders, (
+        f"{RECORD_REL} records checkout-local values, so it describes the "
+        f"worktree and not the build machine: {'; '.join(offenders)}. Record "
+        f"what the BUILD resolves (shutil.which of the name it invokes), never "
+        f"sys.executable or a path under the repository.")
 
 
 def test_openmp_is_decided_by_compiling_not_by_reading_a_flag():
@@ -188,7 +265,7 @@ def test_refreshing_is_an_explicit_act_that_writes_the_record(tmp_path,
     assert str(target) in out, f"main() did not name the file it wrote: {out!r}"
 
 
-def test_a_drift_report_names_the_key_the_class_and_the_repair():
+def test_a_drift_report_names_every_differing_key_and_the_repair():
     """The failure text is part of the contract: it must be actionable without
     reading the probe's source."""
     tp = _probe_module()
@@ -199,7 +276,9 @@ def test_a_drift_report_names_the_key_the_class_and_the_repair():
 
     assert drift == ["gfortran: recorded '/gone/gfortran', "
                      "measured '/usr/bin/gfortran'"], drift
-    assert "[toolchain] gfortran:" in report, report
+    assert "gfortran: recorded '/gone/gfortran', " \
+           "measured '/usr/bin/gfortran'" in report, report
     assert tp.REFRESH_COMMAND in report, report
     assert tp.REFRESH_COMMAND.endswith("tools.oracle.toolchain_probe"), (
         f"the quoted repair {tp.REFRESH_COMMAND!r} does not name the module")
+    assert tp.explain([]) == "", "an empty drift must not print a repair"
