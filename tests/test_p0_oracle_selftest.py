@@ -114,37 +114,11 @@ _HINT = (
 
 # ---------------------------------------------------------------------------
 # Oracle discovery -- pyradioss.paths is the single resolver (plan 00 §4.1);
-# the DISABLED/REQUIRED gating matches tests/test_p0_oracle_build.py.
+# the live-oracle gate itself lives in tests/test_p0_oracle_build.py (one
+# definition, imported by every oracle test module, so the three cannot drift).
 # ---------------------------------------------------------------------------
 
-def _oracle_or_skip(reason: str):
-    """One place for the DISABLED / REQUIRED / plain-skip decision.
-
-    ``PYRADIOSS_ORACLE_DISABLED=1`` always wins (an operator asked for silence),
-    then ``PYRADIOSS_ORACLE_REQUIRED=1`` turns the absence into a failure (the
-    Phase 0 exit gate sets it), and otherwise the test skips with an actionable
-    reason -- the same precedence ``tests/test_p0_oracle_build.py`` uses.
-    """
-    if ORACLE_DISABLED:
-        pytest.skip("PYRADIOSS_ORACLE_DISABLED=1")
-    if ORACLE_REQUIRED:
-        pytest.fail(f"{reason} and PYRADIOSS_ORACLE_REQUIRED=1 is set: {_HINT}")
-    pytest.skip(f"oracle not built ({reason}; {_HINT}); set "
-                f"PYRADIOSS_ORACLE_REQUIRED=1 to enforce")
-
-
-def _require_oracle():
-    """Skip when the oracle is absent, fail when the gate demands it."""
-    from pyradioss import paths
-
-    try:
-        starter, engine = paths.or_starter(), paths.or_engine()
-    except FileNotFoundError as exc:
-        _oracle_or_skip(f"the oracle binaries do not resolve ({exc})")
-        return
-    if starter.is_file() and engine.is_file():
-        return
-    _oracle_or_skip(f"the oracle binaries are missing ({starter}, {engine})")
+from tests.test_p0_oracle_build import _require_live_oracle  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +144,7 @@ def reference_runs(tmp_path_factory):
     1.2 s of solver time in total (starter 0.30 s, engine 0.08 s each), so it
     stays in the default tier -- no ``@pytest.mark.slow``.
     """
-    _require_oracle()
+    _require_live_oracle()
     from tools.oracle.oracle_selftest import run_reference
 
     base = tmp_path_factory.mktemp("oracle_smoke")

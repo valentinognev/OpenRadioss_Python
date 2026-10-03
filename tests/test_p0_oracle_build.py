@@ -3,8 +3,11 @@
 Three layers, in decreasing order of "always applies":
 
 1. Binary assertions (``test_oracle_binaries_exist``, ``test_oracle_binary_runs``)
-   SKIP with an explicit reason while the oracle has not been built, and FAIL
-   when ``PYRADIOSS_ORACLE_REQUIRED=1`` (the Phase 0 exit gate sets it).  They
+   SKIP with an explicit, actionable reason while the oracle is not configured
+   on this box -- not only when the binaries are missing but also when the
+   writable mirror or its ``libhm_reader`` is, because a binary without the
+   reader library exists and still dies with a loader error -- and FAIL when
+   ``PYRADIOSS_ORACLE_REQUIRED=1`` (the Phase 0 exit gate sets it).  They
    used to fail unconditionally, which turned the whole fast tier red for
    every other agent in the repo.
 2. Acquisition assertions (``test_build_script_is_valid_bash``,
@@ -82,24 +85,141 @@ PROVENANCE = REPO / "tools" / "validation_data" / "oracle_provenance.json"
 ORACLE_DISABLED = os.environ.get("PYRADIOSS_ORACLE_DISABLED") == "1"
 ORACLE_REQUIRED = os.environ.get("PYRADIOSS_ORACLE_REQUIRED") == "1"
 
-_HINT = (
-    "run tools/oracle/mirror_and_fetch.sh (acquires extlib) then "
-    "tools/oracle/build_oracle.sh"
-)
+
+# ---------------------------------------------------------------------------
+# The live-oracle gate -- the ONE definition, imported by the other two oracle
+# test modules (tests/test_p0_oracle_selftest.py,
+# tests/test_p0_harness_portable.py) rather than copied, so a future edit
+# cannot leave the three out of step.  P0.14: a fast tier that is documented as
+# a bare `pytest -q -m "not slow"` was red on any shell that had not exported
+# OR_SRC/OR_BUILD, because "the oracle is not configured here" was expressed as
+# a loader error (exit 127, libhm_reader_linux64.so) or a FileNotFoundError out
+# of a fixture.  Same convention as tests/test_p0_mirror.py
+# ("OR_BUILD not configured; mirror not created"), applied consistently.
+#
+# What it probes, and why each item: `$OR_SRC/INSTALL.md:110` fixes the two
+# installed executable names; `INSTALL.md:34-42` derives RAD_CFG_PATH and
+# LD_LIBRARY_PATH from OPENRADIOSS_PATH, i.e. from $OR_BUILD, and
+# LD_LIBRARY_PATH=$OPENRADIOSS_PATH/extlib/hm_reader/linux64/ is what holds the
+# libhm_reader the starter's `-v` calls HM_BUILD_ID out of
+# (`starter/source/starter/execargcheck.F:1200-1201`).  Binaries can therefore
+# exist while no run is possible, so the two executables alone are not the
+# question -- the writable mirror and its reader library are part of it.
+#
+# What it deliberately does NOT do: run a binary, read a listing, or compare a
+# digest.  It is a PRESENCE probe, nothing more, so an oracle that is configured
+# but broken (bad loader path, truncated binary, drifted T01 digest) passes the
+# gate and the test FAILS -- loudly, as a failure.  A gate that skipped on any
+# wrongness would turn every real regression into a yellow test.
+# ---------------------------------------------------------------------------
 
 
-def _require_oracle():
-    """Skip when the oracle is absent, fail when the gate demands it."""
-    if STARTER.is_file() and ENGINE.is_file():
+def _oracle_probe_entries(runtime_env):
+    """``(label, env_var, resolver)`` for every prerequisite probed here.
+
+    ``env_var`` is the variable that names the resource, or ``""`` when the
+    resource is derived rather than pointed at directly; the gate uses it only
+    to tell "unset, nothing discoverable" (skip) from "exported but wrong"
+    (fail), so it must name a real variable or be empty.
+    """
+    from pyradioss import paths
+
+    entries = [
+        ("the starter binary", "OR_STARTER", paths.or_starter),
+        ("the engine binary", "OR_ENGINE", paths.or_engine),
+    ]
+    if runtime_env:
+        entries.append(("the writable mirror", "OR_BUILD", paths.or_build))
+        entries.append(("the hm_reader shared library", "", _hm_reader_lib))
+    return entries
+
+
+def _hm_reader_lib():
+    """The oracle's ``libhm_reader``, or raise the way ``pyradioss.paths`` does.
+
+    ``pyradioss.paths`` resolves paths only; the reader library is one of the
+    harness's five oracle keys (``tools.validate_vs_fortran.oracle_paths``), so
+    that is where it is asked for.  Returning ``None`` from that resolver means
+    "absent", which is a skip here -- never a pass.
+    """
+    from tools.validate_vs_fortran import oracle_paths
+
+    found = oracle_paths().get("hm_reader_lib")
+    if not found:
+        raise FileNotFoundError(
+            "hm_reader_lib not found: no libhm_reader under "
+            "$OR_BUILD/extlib/hm_reader, so neither solver can be started "
+            "($OR_SRC/INSTALL.md:39 LD_LIBRARY_PATH)"
+        )
+    return Path(found)
+
+
+def _oracle_fix_hint():
+    """The one actionable sentence every skip / fail reason carries."""
+    return ("export OR_SRC=<the OpenCourant checkout>, OR_ROOT=<install prefix>, "
+            "OR_BUILD=<writable mirror>, then run "
+            "tools/oracle/mirror_and_fetch.sh followed by "
+            "tools/oracle/build_oracle.sh (plan/00_ORCHESTRATION.md §4.1)")
+
+
+def _oracle_diagnostic(exc):
+    """The useful line of a resolver failure: its hint, else its head."""
+    lines = [line for line in str(exc).strip().splitlines() if line.strip()]
+    return lines[-1] if lines else type(exc).__name__
+
+
+def _oracle_missing_list(missing):
+    return "; ".join(f"{label} ({_oracle_diagnostic(exc)})"
+                     for label, exc in missing)
+
+
+def _require_live_oracle(runtime_env=True):
+    """Skip unless a runnable oracle is configured here; fail when it is wrong.
+
+    ``runtime_env=True`` (the default, and what every test that LAUNCHES a
+    solver wants) additionally requires the writable mirror and its reader
+    library.  ``runtime_env=False`` gates on the two executables alone, for a
+    test that only inspects the binaries (an ELF/RPATH cross-check) and would
+    otherwise lose its coverage to a partially built oracle -- binaries present,
+    extlib not yet fetched, which is a real intermediate state.
+
+    Precedence, unchanged from the per-module gates this replaces:
+    ``PYRADIOSS_ORACLE_DISABLED=1`` silences the absent/misconfigured case,
+    ``PYRADIOSS_ORACLE_REQUIRED=1`` turns the absence into a failure, and a
+    **stale export** is always a failure -- a variable that is set but resolves
+    to nothing is a mistake on this box (``pyradioss.paths._resolve`` already
+    warns about exactly that), and skipping it would hide the mistake.
+    """
+    absent, stale = [], []
+    for label, env_var, resolve in _oracle_probe_entries(runtime_env):
+        try:
+            found = Path(resolve())
+        except FileNotFoundError as exc:
+            (stale if env_var and os.environ.get(env_var) else absent).append(
+                (label, exc))
+            continue
+        if not found.exists():  # pragma: no cover - defensive
+            absent.append((label, FileNotFoundError(f"{found} is not there")))
+    if not (absent or stale):
         return
     if ORACLE_DISABLED:
         pytest.skip("PYRADIOSS_ORACLE_DISABLED=1")
+    if stale:
+        pytest.fail(
+            f"the oracle environment is exported but does not resolve -- "
+            f"{_oracle_missing_list(stale)} | fix: {_oracle_fix_hint()}"
+        )
     if ORACLE_REQUIRED:
         pytest.fail(
-            f"oracle binaries missing ({STARTER}, {ENGINE}) and "
-            f"PYRADIOSS_ORACLE_REQUIRED=1 is set: {_HINT}"
+            f"the oracle is not configured on this box -- "
+            f"{_oracle_missing_list(absent)} and PYRADIOSS_ORACLE_REQUIRED=1 is "
+            f"set | fix: {_oracle_fix_hint()}"
         )
-    pytest.skip(f"oracle not built ({_HINT}); set PYRADIOSS_ORACLE_REQUIRED=1 to enforce")
+    pytest.skip(
+        f"the oracle is not configured on this box -- "
+        f"{_oracle_missing_list(absent)} | fix: {_oracle_fix_hint()} | set "
+        f"PYRADIOSS_ORACLE_REQUIRED=1 to make this a failure instead of a skip"
+    )
 
 
 def _runtime_env():
@@ -127,7 +247,7 @@ def _runtime_env():
 
 
 def test_oracle_binaries_exist():
-    _require_oracle()
+    _require_live_oracle(runtime_env=False)
     for binary in (STARTER, ENGINE):
         assert binary.is_file(), f"oracle binary missing: {binary}"
         assert os.access(binary, os.X_OK), f"oracle binary not executable: {binary}"
@@ -149,7 +269,12 @@ def test_oracle_binaries_exist():
     ids=["starter", "engine"],
 )
 def test_oracle_binary_runs(binary, banner, platform, tmp_path):
-    _require_oracle()
+    # Only the starter needs the runtime environment: its -v path calls
+    # HM_BUILD_ID out of libhm_reader (execargcheck.F:1200-1201, asserted
+    # below), so only it dies without $OR_BUILD/extlib/hm_reader.  The engine's
+    # -v never touches the reader, so gating it on the reader would take away
+    # a check this test can still make on a partially built oracle.
+    _require_live_oracle(runtime_env=binary == STARTER)
     proc = subprocess.run(
         [str(binary), "-v"],
         cwd=tmp_path,
@@ -311,7 +436,7 @@ def test_oracle_starter_reads_a_multi_part_deck(tmp_path):
         the vendored tensile deck with explicit /PART/2 and /PART/3 blocks, so
         three distinct part ids must survive the round trip through the adapter.
     """
-    _require_oracle()
+    _require_live_oracle()
     decks = [
         (REPO / "examples" / "tensile_bar" / "TENSILE_0000.rad",
          {1: "steel bar"}),
@@ -435,7 +560,7 @@ def test_provenance_shims_are_live():
     shims = data.get("extlib_shims") or []
     if not shims:
         return
-    _require_oracle()
+    _require_live_oracle(runtime_env=False)
 
     checked = 0
     for shim in shims:
@@ -478,7 +603,7 @@ def test_linked_adapters_are_present_in_the_binary():
     linked = [s for s in (data.get("extlib_shims") or []) if s.get("linked_into_binary")]
     if not linked:
         return
-    _require_oracle()
+    _require_live_oracle(runtime_env=False)
 
     assert STARTER.is_file(), f"oracle starter missing: {STARTER}"
     blob = STARTER.read_bytes()

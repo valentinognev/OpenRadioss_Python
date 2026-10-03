@@ -117,9 +117,6 @@ ORACLE_ENV_VARS = (
 ORACLE_REQUIRED = os.environ.get("PYRADIOSS_ORACLE_REQUIRED") == "1"
 ORACLE_DISABLED = os.environ.get("PYRADIOSS_ORACLE_DISABLED") == "1"
 
-_HINT = ("run tools/oracle/mirror_and_fetch.sh then "
-         "tools/oracle/build_oracle.sh")
-
 #: The five keys the brief's interface fixes.
 ORACLE_KEYS = ("starter", "engine", "th_to_csv", "h3d_lib", "hm_reader_lib")
 
@@ -194,19 +191,13 @@ POSIX_MACHINE_PATH = re.compile(
 FORBIDDEN_IN_HARNESS = (r"C:\OpenRadioss", "Intel\\\\oneAPI")
 
 
-def _require_oracle():
-    """Skip when the oracle is absent; fail when the Phase 0 gate demands it."""
-    from tools import validate_vs_fortran as V
-    resolved = V.oracle_paths()
-    if resolved["starter"] and resolved["engine"]:
-        return
-    if ORACLE_DISABLED:
-        pytest.skip("PYRADIOSS_ORACLE_DISABLED=1")
-    if ORACLE_REQUIRED:
-        pytest.fail(f"oracle binaries missing and PYRADIOSS_ORACLE_REQUIRED=1 "
-                     f"is set: {_HINT}")
-    pytest.skip(f"oracle not built ({_HINT}); set "
-                f"PYRADIOSS_ORACLE_REQUIRED=1 to enforce")
+# ---------------------------------------------------------------------------
+# Oracle discovery -- pyradioss.paths is the single resolver (plan 00 §4.1);
+# the live-oracle gate itself lives in tests/test_p0_oracle_build.py (one
+# definition, imported by every oracle test module, so the three cannot drift).
+# ---------------------------------------------------------------------------
+
+from tests.test_p0_oracle_build import _require_live_oracle  # noqa: E402
 
 
 @pytest.fixture
@@ -461,7 +452,7 @@ def test_known_posix_machine_defaults_are_still_real():
 # --------------------------------------------------------------------------
 
 def test_oracle_paths_returns_the_built_binaries():
-    _require_oracle()
+    _require_live_oracle()
     from tools import validate_vs_fortran as V
     resolved = V.oracle_paths()
     assert tuple(resolved) == ORACLE_KEYS
@@ -485,7 +476,7 @@ def test_oracle_paths_follows_the_paths_resolver_not_its_own_default():
     Two independent resolvers would be two orderings to keep in step; the
     harness must be a consumer of ``pyradioss.paths``, never a rival.
     """
-    _require_oracle()
+    _require_live_oracle(runtime_env=False)
     from tools import validate_vs_fortran as V
     resolved = V.oracle_paths()
     assert Path(resolved["starter"]) == paths.or_starter()
@@ -650,7 +641,7 @@ def test_fortran_env_is_upstreams_block_and_refuses_h3d(monkeypatch):
     caller's shell would reintroduce the hazard, so the harness deletes it
     even when the caller exported it.
     """
-    _require_oracle()
+    _require_live_oracle()
     from tools import validate_vs_fortran as V
     monkeypatch.setenv("RAD_H3D_PATH", "/should/not/be/here")
     env = V.fortran_env()
@@ -931,7 +922,7 @@ def test_the_real_oracle_binaries_rpath_is_read_correctly():
     Only meaningful when the oracle exists and ``readelf`` is installed; the
     parser itself is covered hermetically by the synthetic-ELF test above.
     """
-    _require_oracle()
+    _require_live_oracle(runtime_env=False)
     from tools import validate_vs_fortran as V
     if not shutil.which("readelf"):
         pytest.skip("readelf not installed; the synthetic-ELF test covers the "
