@@ -7,8 +7,18 @@ The differential-validation evidence files (``inventory.json``,
 ``parity_m41.json``, ``coverage_results_m41.json``) are keyed by a
 hand-collected list of ``case_id`` strings, and nothing on disk says which
 *bytes* those cases were.  A green parity table therefore cannot prove which
-deck it ran.  The manifest closes that gap: one record per starter deck under
-``pyradioss.paths.rd_decks_dir()``, carrying
+deck it ran.
+
+What the manifest does about it, precisely: it hashes every starter deck it
+covers and records the hash **next to** the verdict, so from now on a run can
+prove which bytes it used.  It does **not** retroactively bind the *existing*
+M41 verdicts to those bytes — those were measured on a session scratchpad
+extract that no longer exists (see ``PROVENANCE_CAVEAT``), which is why every
+record carries ``parity_run_deck_bytes_verified: false``.  The gap is closed
+for future runs; the historical rows stay unbound until a parity run records
+the deck it ran.
+
+One record per starter deck under ``pyradioss.paths.rd_decks_dir()``, carrying
 
 * ``deck`` / ``hashed_file`` / ``sha256`` / ``size_bytes`` — what was covered
   and exactly which bytes were hashed (``hashed_file`` is ``deck`` for every
@@ -403,22 +413,42 @@ def build(root: str, source: Optional[str] = None) -> dict:
     return doc
 
 
+#: Header keys ``--check`` compares: the rules a reader quotes are part of the
+#: contract, so deleting or rewording one is drift, not cosmetics.
+PROSE_KEYS = ("hash_algorithm", "hashed_file_rule", "envelope_rule",
+              "bytes_verified_rule", "joins", "notes")
+
+
 def _diff(committed: dict, fresh: dict) -> List[str]:
     """Differences ``--check`` must report.
 
-    Compared: the schema, the corpus **fingerprint**, the counts and the
-    records — everything that describes what the corpus contains.  Ignored on
-    purpose: ``generated`` (a timestamp) and the ``corpus_root`` provenance
-    keys ``source`` / ``vendored`` / ``resolved_at_generation`` (properties of
-    *this invocation and this checkout*, not of the corpus).  Comparing them
-    would make ``--check`` fail on any checkout at a different path.
+    Compared: the schema, the corpus **fingerprint**, the header prose (the
+    rule strings a reader quotes — ``envelope_rule``, ``bytes_verified_rule``,
+    the notes, including the envelope-qualification note generated from the
+    records), the counts and the records — everything that describes what the
+    corpus contains and what the manifest claims about it.  Ignored on purpose:
+    ``generated`` (a timestamp) and the ``corpus_root`` provenance keys
+    ``source`` / ``vendored`` / ``resolved_at_generation`` (properties of *this
+    invocation and this checkout*, not of the corpus).  Comparing them would
+    make ``--check`` fail on any checkout at a different path.
     """
     out: List[str] = []
     if committed.get("schema") != fresh.get("schema"):
         out.append("schema differs")
-    if (committed.get("corpus_root") or {}).get("fingerprint") != \
-            (fresh.get("corpus_root") or {}).get("fingerprint"):
-        out.append("corpus fingerprint differs (different decks or bytes)")
+    fingerprint_moved = (
+        (committed.get("corpus_root") or {}).get("fingerprint")
+        != (fresh.get("corpus_root") or {}).get("fingerprint"))
+    if fingerprint_moved:
+        out.append(
+            "corpus fingerprint differs: "
+            f"{(committed.get('corpus_root') or {}).get('fingerprint')} -> "
+            f"{(fresh.get('corpus_root') or {}).get('fingerprint')} "
+            "(different decks or bytes; every record's corpus_fingerprint "
+            "moves with it, which is this one fact, not 75)")
+    for key in PROSE_KEYS:
+        if committed.get(key) != fresh.get(key):
+            out.append(f"header {key} differs (it states a rule a reader "
+                       "quotes — re-generate or restore it)")
     for key in ("counts", "decks"):
         if committed.get(key) == fresh.get(key):
             continue
@@ -432,10 +462,18 @@ def _diff(committed: dict, fresh: dict) -> List[str]:
         for deck in sorted(set(new) - set(old)):
             out.append(f"deck added: {deck}")
         for deck in sorted(set(old) & set(new)):
-            if old[deck] != new[deck]:
-                changed = [k for k in sorted(set(old[deck]) | set(new[deck]))
-                           if old[deck].get(k) != new[deck].get(k)]
-                out.append(f"deck changed: {deck} ({', '.join(changed)})")
+            if old[deck] == new[deck]:
+                continue
+            changed = [k for k in sorted(set(old[deck]) | set(new[deck]))
+                       if old[deck].get(k) != new[deck].get(k)]
+            # The corpus fingerprint rides on every record, so a one-byte
+            # corpus change would otherwise print 75 identical lines and bury
+            # the deck that actually moved.  Report it once, above.
+            if fingerprint_moved and "corpus_fingerprint" in changed:
+                changed.remove("corpus_fingerprint")
+                if not changed:
+                    continue
+            out.append(f"deck changed: {deck} ({', '.join(changed)})")
     return out
 
 

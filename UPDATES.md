@@ -1,5 +1,46 @@
 # Updates
 
+## 1.1.2 - P0.8 fix round 2: the manifest says only what it can support
+
+- **Docs (M5)** `tools/build_rd_decks_manifest.py`'s header claim "the manifest
+  closes that gap" was **false** and contradicted its own `PROVENANCE_CAVEAT`:
+  the manifest binds *future* runs to bytes; the M41 verdicts stay bound to a
+  scratchpad extract that no longer exists (hence
+  `parity_run_deck_bytes_verified: false` everywhere). Rewritten to say
+  exactly that. `UPDATES.md`'s I2 bullet no longer claims "all six" in-envelope
+  decks skip the five control families (5 do; the 6th skips `/TH/BRIC` alone,
+  and none reports `ERROR`), and "21-field" became 24.
+- **Fix (N1)** the loader's *undocumented extra field* rejection is now covered:
+  `test_loader_rejects_an_undocumented_record_field` (+ the missing-field and
+  unknown-schema mirrors). Neutering the branch used to leave the suite green.
+- **Fix (N2)** `--check` now compares the header prose — `hash_algorithm`,
+  `hashed_file_rule`, `envelope_rule`, `bytes_verified_rule`, `joins`, `notes`
+  (`PROSE_KEYS`), including the envelope-qualification note generated from the
+  records. Deleting or rewording a rule a reader quotes is drift; it used to
+  pass silently.
+- **Fix (N3)** `resolve_manifest_record(rec)` **requires**
+  `corpus_fingerprint`: a hand-built record without it used to bypass the
+  corpus guard in silence — the one input shape where the I1 protection
+  switched off unnoticed. It is now an explicit `ValueError`, with an explicit
+  `require_fingerprint=False` opt-out that waives the corpus *binding* only
+  (the file is still re-hashed).
+- **Fix (N4)** a one-byte corpus change no longer prints 75 `deck changed`
+  lines: the corpus-level fact is stated once ("corpus fingerprint differs:
+  X -> Y … every record's `corpus_fingerprint` moves with it, which is this one
+  fact, not 75") and per-deck lines list only genuine per-deck fields.
+- **Behaviour change (R1)** the whole-corpus tests now skip only when
+  `rd_decks_dir()` is a corpus the manifest does **not** describe. A
+  **byte-identical** copy elsewhere (`PYRADIOSS_RD_DECKS`) is recognised by the
+  fingerprint, so the tests RUN and pass there. A *different* extract skips
+  them but fails the never-skipped
+  `test_live_corpus_is_the_corpus_the_manifest_describes`, which names both
+  fingerprints and the command that re-hashes — eight silent skips are no
+  longer possible.
+- **Tests** `tests/test_p0_manifest.py` 46 (was 30). Mutation-checked on
+  copies in `/tmp/opencode`: an extra record key, a deleted
+  `bytes_verified_rule`/`envelope_rule`/`notes`, and a record built without
+  `corpus_fingerprint` are each rejected.
+
 ## 1.1.1 - P0.8 fix round 1: records bound to their corpus, envelope qualified
 
 - **Fix (I1)** a manifest record is now bound to the corpus it was hashed from:
@@ -15,10 +56,13 @@
   `coverage_hard_skips`, `coverage_blockers` and `coverage_degrade_warnings`
   from `coverage_results_m41.json`. This matters because `coverage_verdict`
   counts only NON-control skips: a `SKIPS(2)` row hides five control-class
-  families, and all six in-envelope decks skip `/ANALY`, `/DEF_SHELL`,
-  `/DEF_SOLID`, `/IOFLAG`, `/SPMD` (class `control`) plus `/TH/SHEL`,
-  `/TH/RBODY` (soft). `in_envelope_reason` now names them, so the envelope
-  claim cannot be read unqualified.
+  families. Five of the six in-envelope decks (BATOZ Sf_0.6/0.8/0.9, QEPH
+  Sf_0.8/0.9) report `SKIPS(2)` while skipping **seven** families —
+  `/ANALY`, `/DEF_SHELL`, `/DEF_SOLID`, `/IOFLAG`, `/SPMD` (class `control`)
+  plus `/TH/RBODY`, `/TH/SHEL` (soft); the sixth
+  (`RD-V-0700/…/HEXA_ELEM_SOLID_18`) reports `SKIPS(1)` and skips `/TH/BRIC`
+  alone. No in-envelope deck reports `ERROR`. `in_envelope_reason` now names
+  each deck's skips, so the envelope claim cannot be read unqualified.
 - **Fix (I3)** new per-record `parity_run_deck_bytes_verified` /
   `coverage_run_deck_bytes_verified`, **false on all 75**: the M41 sweep ran
   from a session scratchpad that no longer exists
@@ -33,9 +77,10 @@
   provenance (`generated`, `corpus_root.source` / `.vendored` /
   `.resolved_at_generation`), so it is portable: a byte-identical corpus at any
   path verifies clean, while a changed deck still fails.
-- **Fix (M2)** `MANIFEST_FIELDS` is now the complete 21-field record schema
-  (was missing `parity_provenance` and `inventory_classification_strict`, and
-  the loader only complained about *missing* fields, never about *extra* ones).
+- **Fix (M2)** `MANIFEST_FIELDS` is now the complete record schema —
+  24 fields (was 15: it omitted `parity_provenance` and
+  `inventory_classification_strict`, and the loader only complained about
+  *missing* fields, never about *extra* ones).
 - **Fix (M3)** the manifest tests' skip condition is derived from
   `paths.rd_decks_dir()` vs this checkout's `tests/data/rd_decks`, not from the
   manifest header, plus a never-skipped `test_manifest_file_exists()` — a

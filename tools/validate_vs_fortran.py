@@ -275,7 +275,8 @@ def corpus_fingerprint(root: str) -> str:
 
 
 def resolve_manifest_record(rec: dict, root: Optional[str] = None, *,
-                            verify: bool = True) -> str:
+                            verify: bool = True,
+                            require_fingerprint: bool = True) -> str:
     """Resolve one record's ``hashed_file`` inside a corpus, refusing a corpus
     it was not hashed from.
 
@@ -286,8 +287,20 @@ def resolve_manifest_record(rec: dict, root: Optional[str] = None, *,
     to a different file that happens to share the relative name.  With
     ``verify`` (the default) the resolved file is also re-hashed and must match
     the record's ``sha256``.
+
+    A record with **no** ``corpus_fingerprint`` is an error, not a bypass: it
+    is the one input shape for which the corpus binding cannot be checked, so
+    it has to be said out loud.  ``require_fingerprint=False`` is the explicit
+    opt-out for a hand-built record, and it waives the corpus BINDING only —
+    ``verify`` still re-hashes the file.
     """
     expected = rec.get("corpus_fingerprint")
+    if not expected and require_fingerprint:
+        raise ValueError(
+            f"record {rec.get('deck')!r} carries no corpus_fingerprint, so the "
+            "corpus it was hashed from cannot be checked — pass "
+            "require_fingerprint=False only for a record you built yourself, "
+            "knowing the binding is then unchecked")
     target_root = os.path.abspath(root) if root else manifest_corpus_root()
     if expected:
         actual = corpus_fingerprint(target_root)
