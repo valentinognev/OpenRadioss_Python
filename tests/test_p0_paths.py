@@ -33,6 +33,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 
 import pytest
@@ -66,6 +67,36 @@ def _cfg_schema_dir(base: Path, version: str = "radioss2022") -> Path:
     root = base / "config" / "CFG"
     (root / version / "MAT").mkdir(parents=True)
     return root
+
+
+def _source_tree(base: Path) -> Path:
+    """A minimal but *real* upstream source tree.
+
+    Two markers, both tracked at the root of every OpenRadioss checkout
+    (``git ls-files INSTALL.md CMakeLists.txt`` in ``$OR_SRC``): ``INSTALL.md``,
+    the file this module already quotes for upstream's own environment block
+    (``$OR_SRC/INSTALL.md:34-42``, ``:44-50``, ``:110``), and the root
+    ``CMakeLists.txt`` whose ``project (OpenRadioss)`` + ``add_subdirectory``
+    gate (``$OR_SRC/CMakeLists.txt:5-6,19-31``) makes the tree buildable --
+    the same shape of marker :func:`paths.is_or_mirror` requires of a mirror.
+
+    Real matters for the same reason as :func:`_cfg_tree`: a test that made an
+    empty directory would be testing the *absence* of a check.
+    """
+    base.mkdir(parents=True)
+    (base / "INSTALL.md").write_text("# environment settings under Linux\n")
+    (base / "CMakeLists.txt").write_text("project (OpenRadioss)\n")
+    return base
+
+
+def _mirror(base: Path) -> Path:
+    """A directory that passes :func:`paths.is_or_mirror` --
+    ``CMakeLists.txt`` plus ``extlib/hm_reader``, the two gates
+    ``tools/oracle/build_oracle.sh:169,175`` enforces."""
+    base.mkdir(parents=True, exist_ok=True)
+    (base / "CMakeLists.txt").write_text("# mirror\n")
+    (base / "extlib" / "hm_reader").mkdir(parents=True)
+    return base
 
 
 def _prefix(tmp_path: Path, name: str = "prefix") -> Path:
@@ -271,15 +302,23 @@ def test_or_src_falls_back_to_the_upstream_checkout_beside_the_repo(
     ``/home/valentin/Projects/OpenRadioss/OpenCourant``, a sibling of the
     checkout, not of ``$OR_ROOT``).
 
-    ``hm_cfg_dir()`` has resolved through this very candidate since P0.6, so
-    the resolver already knew the layout for one resource and not for the other;
+    ``hm_cfg_dir()`` has resolved through this very candidate since P0.6, so the
+    resolver already knew the layout for one resource and not for the other;
     ``$OR_SRC`` was the one that did not, and two tests skipped on it in a bare
-    shell for that reason alone."""
+    shell for that reason alone.
+
+    The directory is built with the markers
+    :func:`paths.is_or_source_tree` requires (P0 review, Finding 3): this
+    candidate is one the module *guessed*, so it has to prove itself, and an
+    empty ``OpenCourant`` here would now be refused -- which would leave this
+    test passing (or failing) for a reason that has nothing to do with the
+    fallback it is pinning.  The empty-directory refusal is
+    ``test_a_directory_named_like_the_checkout_but_empty_is_not_or_src``.
+    """
     fake_repo = tmp_path / "wt" / "repo"
     fake_repo.mkdir(parents=True)
     monkeypatch.setattr(paths, "_REPO_ROOT", fake_repo)
-    upstream = fake_repo.parent / "OpenCourant"
-    upstream.mkdir()
+    upstream = _source_tree(fake_repo.parent / "OpenCourant")
     assert paths.or_src() == upstream
 
 
@@ -290,11 +329,15 @@ def test_the_repo_adjacent_source_never_shadows_the_contract_candidates(
     Rule 1 (env), rule 2 (sibling-of-``$OR_ROOT``) and rule 3 (the Windows
     compatibility path) each outrank the extra candidate.  Every competing
     candidate is built here, so only the ordering decides; transposing the new
-    candidate into place 1 must break this test."""
+    candidate into place 1 must break this test.
+
+    The adjacent checkout carries the markers ``is_or_source_tree`` requires
+    (Finding 3) -- an empty one could not be bound at all, which would make
+    every assertion below pass no matter where the candidate sits.
+    """
     fake_repo = tmp_path / "wt" / "repo"
     fake_repo.mkdir(parents=True)
-    adjacent = fake_repo.parent / "OpenCourant"
-    adjacent.mkdir()
+    adjacent = _source_tree(fake_repo.parent / "OpenCourant")
     win = tmp_path / "C_OpenRadioss"
     win.mkdir()
     exported = tmp_path / "exported"
@@ -321,6 +364,12 @@ def test_the_repo_adjacent_source_never_shadows_the_contract_candidates(
     paths.reload()
     assert paths.or_src() == win
     assert paths.or_src() not in (adjacent, tmp_path / "OpenCourant")
+    # the extra candidate is not vacuous here: with the contract candidates out
+    # of the way it *is* the answer, so the ordering above decided something.
+    monkeypatch.setattr(paths, "_WIN_ROOT", tmp_path / "no-windows-here")
+    monkeypatch.setattr(paths, "_dev_or_root", lambda: tmp_path / "no-prefix")
+    paths.reload()
+    assert paths.or_src() == adjacent
 
 
 def test_or_src_failure_enumerates_the_repo_adjacent_candidate(
@@ -356,27 +405,52 @@ def test_or_root_falls_back_to_the_home_prefix(monkeypatch, tmp_path):
     assert paths.or_root() == tmp_path / "OpenRadioss_or"
 
 
-def test_env_variable_pointing_at_a_missing_path_is_skipped(monkeypatch, tmp_path):
-    """Rule 1 is *set AND existing*: a stale env var must not win — and it
-    must say so."""
+def test_env_variable_pointing_at_a_missing_path_is_refused_not_skipped(
+        monkeypatch, tmp_path):
+    """Rule 1 is *set AND existing*, and a value that is neither must not be
+    used -- must not be **silently** used.
+
+    Realigned (P0 review, whole-branch Finding 2): this test used to require the
+    stale export to be *warned about and stepped over*, which is the
+    silently-degrading path ``plan/00_ORCHESTRATION.md`` §9.1 item 9 rejects and
+    ``plan/01_phase0_oracle_and_licensing.md:720`` contradicts ("a *stale
+    export* -> fail, not skip").  Nothing was dropped: the sibling that used to
+    be reached by the fallthrough is now pinned as what an **unset** ``OR_SRC``
+    resolves to, and the loud failure is asserted in its place.
+    """
     root = _prefix(tmp_path)
     upstream = tmp_path / "OpenCourant"
     upstream.mkdir()
     monkeypatch.setenv("OR_SRC", str(tmp_path / "gone"))
     monkeypatch.setenv("OR_ROOT", str(root))
     with pytest.warns(RuntimeWarning, match="OR_SRC"):
-        assert paths.or_src() == upstream
+        with pytest.raises(FileNotFoundError) as e:
+            paths.or_src()
+    msg = str(e.value)
+    assert "[env OR_SRC]" in msg and str(tmp_path / "gone") in msg
+    # ... and the same layout resolves for a shell that exports nothing
+    monkeypatch.delenv("OR_SRC")
+    paths.reload()
+    assert paths.or_src() == upstream
 
 
-def test_a_set_but_missing_variable_is_reported_not_silently_skipped(
+def test_a_set_but_missing_variable_is_reported_not_silently_replaced(
         monkeypatch, tmp_path):
     """Minor 7: a stale ``PYRADIOSS_RD_DECKS`` used to vanish without a
     trace, so a validation run could cover the small vendored corpus while
-    the log claimed the full extract."""
+    the log claimed the full extract.
+
+    Realigned (Finding 2): it now aborts, and the vendored corpus it would have
+    covered with is named in the failure as a location not taken."""
     monkeypatch.setenv("PYRADIOSS_RD_DECKS", str(tmp_path / "gone"))
     with pytest.warns(RuntimeWarning, match="PYRADIOSS_RD_DECKS"):
-        resolved = paths.rd_decks_dir()
-    assert resolved == REPO_ROOT / "tests" / "data" / "rd_decks"
+        with pytest.raises(FileNotFoundError) as e:
+            paths.rd_decks_dir()
+    msg = str(e.value)
+    assert "PYRADIOSS_RD_DECKS not found" in msg
+    assert str(tmp_path / "gone") in msg
+    assert str(REPO_ROOT / "tests" / "data" / "rd_decks") in msg
+    assert "not tried" in msg
 
 
 def test_a_set_cfg_variable_with_no_schemas_is_rejected_and_reported(
@@ -664,6 +738,194 @@ def test_a_set_but_missing_or_root_is_not_reported_as_unset(monkeypatch, tmp_pat
     assert "OR_ROOT is unset" not in nested
     assert "not set in the environment" in nested    # RAD_CFG_PATH, not OR_ROOT
     assert f"{tmp_path / 'gone'}" in nested
+
+
+# ---------------------------------------------------------------------------
+# a stale EXPORT is loud -- and a guessed candidate must prove what it is
+#
+# Two separate contracts, both §4.1, both previously violated by the same
+# habit of "warn and carry on":
+#
+# 1. **Rule 1 is "set and existing", and rule 4 is the point.**  An operator who
+#    exports ``OR_ROOT=/tmp/not-the-root`` has said "not the default"; replacing
+#    that with ``~/OpenRadioss_or`` is a *silent degradation* -- the review
+#    rejection ``plan/00_ORCHESTRATION.md`` §9.1 item 9 names ("a warning where
+#    the Fortran would abort") and the interface
+#    ``plan/01_phase0_oracle_and_licensing.md:720`` states ("a *stale export* ->
+#    fail, not skip").  A stale export is a mistake on this box, so it aborts
+#    and the abort names every location it did *not* take.
+# 2. **A candidate this module GUESSED must look like the resource.**  The
+#    mirror already proves this (:func:`paths.is_or_mirror`); the source tree
+#    did not, so ``<repo>/../OpenCourant`` bound *any* same-named directory --
+#    including an empty one -- which is worse than not resolving at all.
+#
+# Every test below builds the fallback that a silent fallthrough would have
+# used, so none of them can pass by finding nothing to fall through to.
+# ---------------------------------------------------------------------------
+
+def test_a_stale_or_root_export_is_refused_and_names_what_it_did_not_take(
+        monkeypatch, tmp_path):
+    """The Finding-2 shape: ``OR_ROOT=/tmp/not-the-root`` with the dev-box
+    prefix present and able to answer.
+
+    ``_dev_or_root`` is pointed at a directory that *exists*, so the pre-fix
+    behaviour -- warn, then resolve to it -- would have returned a green
+    ``or_root()``.  The whole point is that a stale export is not replaced.
+    """
+    dev = tmp_path / "OpenRadioss_or"
+    dev.mkdir()
+    monkeypatch.setattr(paths, "_dev_or_root", lambda: dev)
+    monkeypatch.setattr(paths, "_REPO_ROOT", tmp_path / "no-repo-here")
+    bogus = tmp_path / "not-the-root"
+    monkeypatch.setenv("OR_ROOT", str(bogus))
+    with pytest.warns(RuntimeWarning, match="OR_ROOT"):
+        with pytest.raises(FileNotFoundError) as e:
+            paths.or_root()
+    msg = str(e.value)
+    assert "OR_ROOT not found" in msg
+    assert "[env OR_ROOT]" in msg and str(bogus) in msg
+    # the location a silent fallthrough would have used is named as NOT taken
+    assert str(dev) in msg
+    assert "not tried" in msg
+
+
+def test_a_stale_or_build_export_is_refused_even_with_a_real_mirror_beside_it(
+        monkeypatch, tmp_path):
+    """The Finding-1 root cause, at the resolver level.
+
+    ``tools/oracle/oracle_env.sh`` exports ``LD_LIBRARY_PATH``, so the oracle
+    *runs* against a mirror the resolver silently substituted for the exported
+    ``OR_BUILD`` -- a parity run validating a tree nobody asked for.  The mirror
+    below really passes :func:`paths.is_or_mirror`, so only the stale export can
+    stop it from being used.
+    """
+    mirror = _mirror(tmp_path / "OpenRadioss_build")
+    monkeypatch.setattr(paths, "_dev_or_build", lambda: mirror)
+    monkeypatch.setattr(paths, "_REPO_ROOT", tmp_path / "no-repo-here")
+    bogus = tmp_path / "not-a-mirror"
+    monkeypatch.setenv("OR_BUILD", str(bogus))
+    monkeypatch.setenv("OR_ROOT", str(_prefix(tmp_path)))
+    with pytest.warns(RuntimeWarning, match="OR_BUILD"):
+        with pytest.raises(FileNotFoundError) as e:
+            paths.or_build()
+    msg = str(e.value)
+    assert "OR_BUILD not found" in msg
+    assert "[env OR_BUILD]" in msg and str(bogus) in msg
+    assert str(mirror) in msg and "not tried" in msg
+
+
+def test_a_stale_export_still_enumerates_every_candidate(monkeypatch, tmp_path):
+    """Aborting on the stale export must not shrink §4.1 rule 4: the operator
+    still sees the whole search, with the unreached locations marked as such."""
+    monkeypatch.setattr(paths, "_REPO_ROOT", tmp_path / "no-repo-here")
+    monkeypatch.setenv("OR_SRC", str(tmp_path / "gone"))
+    with pytest.warns(RuntimeWarning, match="OR_SRC"):
+        with pytest.raises(FileNotFoundError) as e:
+            paths.or_src()
+    msg = str(e.value)
+    assert "Tried:" in msg
+    for origin in ("env OR_SRC", "$OR_ROOT/../OpenCourant",
+                   "C:\\OpenRadioss", "<repo>/../OpenCourant"):
+        assert origin in msg, f"{origin} missing from:\n{msg}"
+    assert msg.index("[env OR_SRC]") < \
+        msg.index("[$OR_ROOT/../OpenCourant]") < \
+        msg.index("[C:\\OpenRadioss]") < \
+        msg.index("<repo>/../OpenCourant")
+    assert "4 candidate locations" in msg
+    assert str(tmp_path / "gone") in msg
+    # the locations the abort never reached say so -- pre-fix all four were
+    # "tried", three of them wrongly, from a resolver that carried on.  The
+    # fourth (``$OR_ROOT/../OpenCourant``) could not even be constructed
+    # because ``OR_ROOT`` did not resolve, and keeps its nested note instead.
+    assert msg.count("not tried") == 2
+    assert "OR_ROOT unresolved; its own candidates:" in msg
+
+
+def test_an_unset_variable_still_falls_through_without_a_warning(
+        monkeypatch, tmp_path):
+    """The other half of the policy: a variable that is *not* set takes no part
+    in the search, so a fresh shell still resolves through the candidate chain.
+
+    ``simplefilter("error")`` is the assertion: rule 1 must not even *mention*
+    an unset variable, or a shell with nothing configured would read as broken.
+    """
+    root = _prefix(tmp_path)
+    sibling = tmp_path / "OpenCourant"
+    sibling.mkdir()
+    monkeypatch.setenv("OR_ROOT", str(root))
+    monkeypatch.delenv("OR_SRC", raising=False)
+    paths.reload()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        assert paths.or_src() == sibling
+
+
+def test_a_stale_corpus_export_does_not_silently_become_the_vendored_one(
+        monkeypatch, tmp_path):
+    """Minor 7, strengthened: a stale ``PYRADIOSS_RD_DECKS`` used to vanish
+    without a trace, so a validation run could cover the small vendored corpus
+    while the log claimed the full extract.  It now aborts instead."""
+    monkeypatch.setenv("PYRADIOSS_RD_DECKS", str(tmp_path / "gone"))
+    with pytest.warns(RuntimeWarning, match="PYRADIOSS_RD_DECKS"):
+        with pytest.raises(FileNotFoundError) as e:
+            paths.rd_decks_dir()
+    msg = str(e.value)
+    assert "[env PYRADIOSS_RD_DECKS]" in msg
+    assert str(tmp_path / "gone") in msg
+    # the vendored corpus is named -- as a location deliberately NOT taken
+    assert "tests/data/rd_decks (vendored)" in msg
+
+
+def test_a_directory_named_like_the_checkout_but_empty_is_not_or_src(
+        monkeypatch, tmp_path):
+    """Finding 3: ``<repo>/../OpenCourant`` is *this module's guess* about what
+    sits beside the checkout, so it must prove it -- an empty directory that
+    merely shares the name is not the upstream tree.
+
+    The reason in the message must be the shape, not existence: ``"does not
+    exist"`` about a directory that does exist is the misleading diagnostic
+    this test exists to catch.
+    """
+    fake_repo = tmp_path / "wt" / "repo"
+    fake_repo.mkdir(parents=True)
+    empty = fake_repo.parent / "OpenCourant"
+    empty.mkdir()
+    monkeypatch.setattr(paths, "_REPO_ROOT", fake_repo)
+    with pytest.raises(FileNotFoundError) as e:
+        paths.or_src()
+    msg = str(e.value)
+    assert str(empty) in msg
+    assert "not an OpenRadioss source tree" in msg
+    assert "does not exist" not in msg.split(str(empty))[1].splitlines()[0]
+
+
+def test_a_partly_populated_checkout_beside_the_repo_is_not_or_src(
+        monkeypatch, tmp_path):
+    """One marker is not two: a directory carrying ``INSTALL.md`` but no root
+    ``CMakeLists.txt`` is a partial checkout, not the source tree."""
+    fake_repo = tmp_path / "wt" / "repo"
+    fake_repo.mkdir(parents=True)
+    partial = fake_repo.parent / "OpenCourant"
+    partial.mkdir()
+    (partial / "INSTALL.md").write_text("# environment settings\n")
+    monkeypatch.setattr(paths, "_REPO_ROOT", fake_repo)
+    with pytest.raises(FileNotFoundError) as e:
+        paths.or_src()
+    assert str(partial) in str(e.value)
+
+
+def test_is_or_source_tree_separates_a_checkout_from_a_same_named_directory(
+        tmp_path):
+    """The predicate itself, on the filesystem: empty, partial and full."""
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert paths.is_or_source_tree(empty) is False
+    partial = tmp_path / "partial"
+    partial.mkdir()
+    (partial / "INSTALL.md").write_text("# environment settings\n")
+    assert paths.is_or_source_tree(partial) is False
+    assert paths.is_or_source_tree(_source_tree(tmp_path / "full")) is True
+    assert paths.is_or_source_tree(tmp_path / "absent") is False
 
 
 # ---------------------------------------------------------------------------

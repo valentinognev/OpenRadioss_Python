@@ -32,9 +32,18 @@ Every candidate is existence-checked against a **resource-specific
 predicate**, never against "the string looks like a path": for
 :func:`hm_cfg_dir` a directory only counts if it really carries the cfg
 schemas (see :func:`is_cfg_tree`).  A wrong-but-existing directory is worse
-than a missing one, and a *set but missing* environment variable is
-reported with a :func:`warnings.warn` so a validation run cannot quietly
-cover a smaller corpus than it claims.
+than a missing one, and a *set but wrong* environment variable is **not**
+stepped over: it is announced with :func:`warnings.warn` and the resolution
+aborts, naming the variable, its value, and every location it did *not* take
+(:func:`_unreached`).  Stepping over it was the last silently-degrading path
+left here — ``plan/00_ORCHESTRATION.md`` §9.1 item 9 rejects it,
+``plan/01_phase0_oracle_and_licensing.md:720`` states the rule ("a *stale
+export* -> fail, not skip") — and it had teeth: with
+``tools/oracle/oracle_env.sh`` sourced (it exports ``LD_LIBRARY_PATH``) a
+stale ``OR_BUILD`` gave a **green** oracle run against a mirror the operator
+had not asked for.  An *unset* variable is unchanged: it takes no part in the
+search, so a fresh shell with nothing configured still resolves through the
+candidate chain.
 
 Candidates beyond the contract, and their exact position
 -------------------------------------------------------
@@ -62,9 +71,18 @@ the checkout *is* — did not resolve in a bare shell, which cost two test skips
 the one §4.1's own dev-box column records as ``OR_SRC`` —
 ``/home/valentin/Projects/OpenRadioss/OpenCourant`` — which is a sibling of the
 **repository checkout**, not of ``$OR_ROOT``, so rule 2 cannot reach it here.
-It is existence-checked like the cfg-tree sibling of the same name;
-``tests/test_p0_paths.py`` pins that it resolves, that rules 1/2/3 each outrank
-it, and that the rule-4 failure still enumerates all four origins in order.
+It is checked like the cfg-tree sibling of the same name **and**, being a
+candidate this module *guessed* rather than was told, like the mirror:
+:func:`is_or_source_tree` requires the two files tracked at the root of every
+OpenRadioss checkout (``INSTALL.md``, the root ``CMakeLists.txt``), so a
+directory that merely carries the name ``OpenCourant`` — an empty one, a
+half-made one — is refused instead of bound.  An empty directory that binds as
+``$OR_SRC`` is worse than no candidate at all: it converts a loud, actionable
+"OR_SRC not found" into a mysterious failure inside whatever reads the tree.
+``tests/test_p0_paths.py`` pins that it resolves when it carries the markers,
+that rules 1/2/3 each outrank it, that an empty one does not satisfy the
+resolver, and that the rule-4 failure still enumerates all four origins in
+order.
 
 ``$OR_BUILD`` (the writable mirror) is itself absent from §4.1's table, so its
 whole candidate list is "beyond the contract"; it carries the same dev-box
@@ -74,9 +92,12 @@ prefix's ``source/`` is not where the mirror is on this box, and without the
 default the mirror resolved nowhere and every consumer of its ``extlib``
 (``th_to_csv``, the h3d writer, ``libhm_reader``) degraded to a skip.  Because
 it is the one candidate here that the module *guessed* rather than was told, it
-is existence-checked with :func:`is_or_mirror` — the two gates
+is checked with :func:`is_or_mirror` — the two gates
 ``tools/oracle/build_oracle.sh:169,175`` enforces — and a directory that
-merely shares the name is rejected rather than returned.
+merely shares the name is rejected rather than returned.  The two shape checks
+are the same mechanism, for the same reason, on the two guessed candidates:
+a configured location (``$OR_SRC``/``$OR_BUILD`` set by hand) is only checked
+for existence, because §4.1 rule 1 makes it the maintainer's decision.
 
 So the candidate order for ``hm_cfg_dir`` is: ``$PYRADIOSS_HM_CFG``,
 ``$RAD_CFG_PATH`` (upstream's own spelling, ``INSTALL.md:39``),
@@ -131,6 +152,7 @@ __all__ = [
     "is_cfg_schema_dir",
     "is_cfg_tree",
     "is_or_mirror",
+    "is_or_source_tree",
     "CFG_VERSION_DIR_RE",
 ]
 
@@ -215,7 +237,9 @@ class _Candidate:
     §4.1 rule 1 is deliberately permissive about a variable the maintainer set
     by hand: second-guessing a configured path is this resolver's opportunity to
     be wrong in a way that is much harder to see than refusing a directory it
-    merely guessed at.
+    merely guessed at.  ``why`` is the human reason a ``predicate`` refuses,
+    quoted verbatim in the failure and in the warning; it must say what the
+    location *would* have to carry, never "does not exist".
     """
 
     origin: str
@@ -223,6 +247,7 @@ class _Candidate:
     note: str = ""
     env_var: str = ""
     predicate: Optional[Callable[[Path], bool]] = None
+    why: str = ""
 
 
 @dataclass(frozen=True)
@@ -316,6 +341,43 @@ def is_or_mirror(path) -> bool:
     return p.joinpath("extlib", "hm_reader").is_dir()
 
 
+#: The verbatim reason each shape check reports, quoted in the failure and in
+#: the warning — so the message says what the location would have had to carry
+#: rather than that it "does not exist" (it does; it is just not the resource).
+MIRROR_WHY = ("an OpenRadioss mirror (needs CMakeLists.txt and "
+              "extlib/hm_reader; the two gates build_oracle.sh:169,175 "
+              "enforces)")
+SOURCE_TREE_WHY = ("an OpenRadioss source tree (needs INSTALL.md and the "
+                   "root CMakeLists.txt; the two files tracked at the root of "
+                   "every checkout, git ls-files INSTALL.md CMakeLists.txt)")
+
+
+def is_or_source_tree(path) -> bool:
+    """True when ``path`` really is the upstream OpenRadioss **source tree**.
+
+    Two markers, both tracked at the root of every OpenRadioss checkout
+    (``git ls-files INSTALL.md CMakeLists.txt`` in ``$OR_SRC``):
+
+    * ``INSTALL.md`` — the file this module already quotes for upstream's own
+      environment block (``$OR_SRC/INSTALL.md:34-42``, the Windows spelling at
+      ``:44-50``, and the installed binary names at ``:110``).  A tree without
+      it is not the source tree those citations describe.
+    * the root ``CMakeLists.txt`` — ``project (OpenRadioss)`` plus the
+      ``add_subdirectory`` gate for ``starter``/``engine``
+      (``$OR_SRC/CMakeLists.txt:5-6,19-31``), i.e. the tree is buildable.
+
+    Applied only to a *discovered* location, the same rule
+    :func:`is_or_mirror` follows: ``$OR_SRC`` set by hand stays a plain "does it
+    exist" check (§4.1 rule 1), a configured path is the maintainer's decision,
+    while a directory **this module guessed** (``<repo>/../OpenCourant``) must
+    prove what it is.  An empty or same-named directory is worse than no
+    candidate at all: it turns a loud, actionable "OR_SRC not found" into a
+    mysterious failure inside whatever reads the tree.
+    """
+    p = Path(str(path))
+    return (p / "INSTALL.md").is_file() and (p / "CMakeLists.txt").is_file()
+
+
 def _norm(path: Path) -> Path:
     """Collapse ``..`` lexically so a returned path compares equal to the
     location a maintainer would type."""
@@ -324,46 +386,85 @@ def _norm(path: Path) -> Path:
 
 def _resolve(name: str, candidates: Sequence[_Candidate],
              exists: Callable[[Path], bool],
-             kind: str = "directory") -> Path:
+             kind: str = "directory",
+             needs: str = "") -> Path:
     """Return the first candidate the predicate accepts; else raise loudly.
 
     A candidate may carry its own ``predicate`` (a *discovered* location that
-    must prove what it is -- see :func:`is_or_mirror`); it replaces the
-    resource-level ``exists`` for that candidate alone.
+    must prove what it is -- see :func:`is_or_mirror` and
+    :func:`is_or_source_tree`); it replaces the resource-level ``exists`` for
+    that candidate alone.  ``needs`` names what the *resource-level* check
+    demands, so a rejection says why rather than claiming a directory that is
+    really there "does not exist".
 
-    A variable that *is* set but points at nothing usable is announced with
-    :func:`warnings.warn` — otherwise a stale ``PYRADIOSS_RD_DECKS`` lets a
-    validation run cover the small vendored corpus while the log claims the
-    full extract.
+    **A variable that is set but resolves to nothing is terminal** (§4.1 rule 1
+    read together with rule 4, and ``plan/01_phase0_oracle_and_licensing.md:720``
+    "a *stale export* -> fail, not skip").  It is announced with
+    :func:`warnings.warn` -- a caller that swallows the exception still sees the
+    cause -- and the resolution then raises instead of stepping over it: a stale
+    ``PYRADIOSS_RD_DECKS`` used to leave a validation run covering the small
+    vendored corpus while the log claimed the full extract, and a stale
+    ``OR_BUILD`` let a parity run validate whatever dev-box mirror happened to
+    be lying next to the checkout.  The abort still names **every** candidate,
+    the unreached ones marked "not tried", so rule 4 loses nothing.  An
+    *unset* variable takes no part in the search and the chain falls through
+    normally: a fresh shell with nothing configured resolves, as §4.1 intends.
     """
     cached = _CACHE.get(name)
     if cached is not None:
         return cached
     tried: List[_Tried] = []
-    for cand in candidates:
+    for pos, cand in enumerate(candidates):
         if cand.path is None:
             tried.append(_Tried(cand, cand.note or "unresolved"))
             continue
         accepted = cand.predicate or exists
         if not accepted(cand.path):
-            if cand.predicate is not None:
-                reason = (f"{_norm(cand.path)}: not an OpenRadioss mirror "
-                          f"(needs CMakeLists.txt and extlib/hm_reader; the "
-                          f"two gates build_oracle.sh:169,175 enforces)")
-            else:
-                reason = f"{_norm(cand.path)}: {kind} does not exist"
+            tried.append(_Tried(cand, _why_not(cand, kind, needs)))
             if cand.env_var:
                 warnings.warn(
-                    f"{cand.env_var} is set to {cand.path} but that {kind} "
-                    f"does not exist — ignored; pyradioss is falling "
-                    f"through to the next candidate location",
+                    f"{cand.env_var} is set to {cand.path} but that is not "
+                    f"{_what_it_must_be(cand, kind, needs)} — refusing to "
+                    f"resolve {name} from another location; unset "
+                    f"{cand.env_var} or point it at the right one",
                     RuntimeWarning, stacklevel=3)
-            tried.append(_Tried(cand, reason))
+                raise missing_resource(
+                    name, tried + _unreached(candidates[pos + 1:], cand.env_var))
             continue
         resolved = _norm(cand.path)
         _CACHE[name] = resolved
         return resolved
     raise missing_resource(name, tried)
+
+
+def _what_it_must_be(cand: _Candidate, kind: str, needs: str) -> str:
+    """The phrase a rejection reason and its warning share: what the location
+    has to be for the resource to be found there — the candidate's own ``why``
+    when it carries a shape check, else the resource's ``needs``, else the
+    plain ``kind``."""
+    return cand.why or needs or f"a {kind}"
+
+
+def _why_not(cand: _Candidate, kind: str, needs: str) -> str:
+    """Why this candidate was rejected.
+
+    No path prefix — :func:`_render` already prints the resolved location — and
+    never "does not exist" about a directory that does exist: the misleading
+    diagnostic this exists to prevent is a wrong reason, not a missing one.
+    """
+    return f"not {_what_it_must_be(cand, kind, needs)}"
+
+
+def _unreached(rest: Sequence[_Candidate], env_var: str) -> List[_Tried]:
+    """The candidates an abort never looked at, marked as such.
+
+    §4.1 rule 4 is "name every attempted location"; refusing to continue leaves
+    locations *un*attempted, and saying which is what keeps the diagnostic
+    complete instead of leaving the operator to guess what was left out.
+    """
+    stop = f"not tried: {env_var} was exported and did not resolve"
+    return [_Tried(c, c.note or stop) if c.path is None
+            else _Tried(c, stop) for c in rest]
 
 
 def _under_or_root(origin: str, *parts: str) -> _Candidate:
@@ -414,16 +515,21 @@ def or_src() -> Path:
        (``/home/valentin/Projects/OpenRadioss/OpenCourant``, a sibling of the
        checkout rather than of ``$OR_ROOT``).  Beyond the contract, and last,
        so it can never shadow a contract candidate — the same placement
-       ``hm_cfg_dir()`` has had for this layout since P0.6.  It is existence-
-       checked and nothing more: a *discovered* directory is only accepted when
-       it exists, and rule 4 still fires, naming all four, when none does.
+       ``hm_cfg_dir()`` has had for this layout since P0.6.  It is the one
+       location here **this module guessed**, so it must prove what it is
+       (:func:`is_or_source_tree`; the same mechanism, and the same reason, as
+       :func:`is_or_mirror` on the mirror): a directory that merely shares the
+       name is refused, because binding one turns a loud "OR_SRC not found"
+       into a mysterious failure inside whatever reads the tree.  Rule 4 still
+       fires, naming all four, when none of them does.
     """
     return _resolve("OR_SRC", [
         _env_candidate("OR_SRC"),
         _under_or_root("$OR_ROOT/../OpenCourant", "..", _UPSTREAM_DIRNAME),
         _Candidate(str(_WIN_ROOT), _WIN_ROOT),
         _Candidate("<repo>/../OpenCourant (upstream checkout beside this repo)",
-                   _checkout_upstream()),
+                   _checkout_upstream(), predicate=is_or_source_tree,
+                   why=SOURCE_TREE_WHY),
     ], Path.is_dir)
 
 
@@ -465,7 +571,7 @@ def or_build() -> Path:
         _env_candidate("OR_BUILD"),
         _under_or_root("$OR_ROOT/source (writable mirror)", "source"),
         _Candidate("~/OpenRadioss_build (dev-box default)", dev,
-                   predicate=is_or_mirror),
+                   predicate=is_or_mirror, why=MIRROR_WHY),
     ], Path.is_dir)
 
 
@@ -522,7 +628,7 @@ def hm_cfg_dir() -> Path:
                    "" if derived else "$OR_SRC did not resolve"),
         _Candidate("$OR_SRC/hm_cfg_files (upstream checkout beside this repo)",
                    _checkout_hm_cfg()),
-    ], is_cfg_tree)
+    ], is_cfg_tree, needs="CFG tree (config/CFG/radioss<version>)")
 
 
 def rd_decks_dir() -> Path:

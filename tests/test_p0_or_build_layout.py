@@ -295,15 +295,37 @@ def test_the_candidate_list_is_pinned():
     ]
 
 
-def test_a_set_but_missing_or_build_warns_before_falling_through(monkeypatch,
+def test_a_set_but_missing_or_build_is_refused_not_stepped_over(monkeypatch,
                                                                  tmp_path):
-    """Stale export: warn, then keep searching -- never a silent skip."""
+    """Stale export: loud, never a silent skip.
+
+    Realigned by the P0 whole-branch review (Finding 2, the Critical behind
+    Finding 1): this test required the *warn-then-step-over* behaviour, which is
+    the silently-degrading path ``plan/00_ORCHESTRATION.md`` §9.1 item 9
+    rejects and ``plan/01_phase0_oracle_and_licensing.md:720`` contradicts ("a
+    *stale export* -> fail, not skip").  With ``LD_LIBRARY_PATH`` exported by
+    ``tools/oracle/oracle_env.sh`` the oracle then *ran* against the mirror
+    substituted here, so a bogus ``OR_BUILD`` produced a green run.
+
+    Nothing was dropped: the mirror below is still the answer for a shell that
+    exports nothing, which is now asserted explicitly instead of by accident.
+    """
     mirror = _mirror(tmp_path / "OpenRadioss_build")
-    monkeypatch.setenv("OR_BUILD", str(tmp_path / "gone"))
     monkeypatch.setattr(paths, "_dev_or_build", lambda: mirror)
+    monkeypatch.setenv("OR_BUILD", str(tmp_path / "gone"))
     paths.reload()
     with pytest.warns(RuntimeWarning, match="OR_BUILD"):
-        assert paths.or_build() == mirror
+        with pytest.raises(FileNotFoundError) as exc:
+            paths.or_build()
+    message = str(exc.value)
+    assert message.startswith("OR_BUILD not found:"), message
+    assert "[env OR_BUILD]" in message and str(tmp_path / "gone") in message
+    # the mirror a silent fallthrough would have used is named as NOT taken
+    assert str(mirror) in message and "not tried" in message
+    # ... and an unset variable still resolves through the same candidate
+    monkeypatch.delenv("OR_BUILD")
+    paths.reload()
+    assert paths.or_build() == mirror
 
 
 def test_or_build_never_resolves_to_the_read_only_source_tree(monkeypatch,
