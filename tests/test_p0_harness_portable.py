@@ -87,9 +87,11 @@ What is asserted, and why each shape
 
 from __future__ import annotations
 
+import ast
 import inspect
 import os
 import re
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -159,6 +161,34 @@ DELIBERATE_NON_SWEEP = {
         "recorded evidence from the historical Windows sweeps - a JSON "
         "record of what ran where; rewriting it would falsify the provenance",
 }
+
+#: The drive-letter sweep above is *shape* shaped, so a machine-specific
+#: POSIX path slips through it.  These are the literals that exist today, both
+#: predating this task and both in files it does not own.  The table is a
+#: **ratchet**, not an amnesty: any *other* literal in those files — or in any
+#: other file — fails the test below.  The exemption is per literal, not per
+#: file, so a new path added to an excused file cannot hide behind it.
+KNOWN_POSIX_MACHINE_DEFAULTS = {
+    "oracle/toolchain_probe.py": {
+        "reason": "$OR_SRC falls back to a fixed checkout path; owned by the "
+                  "toolchain task, under tools/oracle/ which P0.9 may not edit",
+        "paths": ("/home/valentin",),
+    },
+    "profile_cycle.py": {
+        "reason": "a profiling scratch directory composed from TEMP plus a "
+                  "mangled Windows profile name and a session UUID; a per-run "
+                  "artefact of the M39 profiling session, not a repository "
+                  "resource",
+        "paths": ("C--Users-pmqua-PycharmProjects-OpenRadioss-Python",),
+    },
+}
+
+#: What counts as a machine-specific POSIX default in a ``tools/*.py`` source:
+#: an absolute home directory (matched to the user, not the whole path — the
+#: user *is* the machine), or an encoded Windows profile directory.
+POSIX_MACHINE_PATH = re.compile(
+    r"/(?:home|Users)/[A-Za-z0-9_.-]+"         # /home/someone, /Users/someone
+    r"|C--Users-[A-Za-z0-9_.-]+")               # "C--Users-…" as a path part
 
 #: The exact assertions the brief's Step 1 makes, kept verbatim in spirit.
 FORBIDDEN_IN_HARNESS = (r"C:\OpenRadioss", "Intel\\\\oneAPI")
@@ -351,6 +381,79 @@ def test_deliberate_windows_literal_exemptions_are_still_needed():
     for path in DELIBERATE_NON_SWEEP:
         head = path.split("*")[0].rstrip("/")
         assert (REPO / head).exists(), f"{path} is declared out of scope but absent"
+
+
+def _machine_paths_in_code(src: Path) -> set:
+    """The machine-specific path literals in ``src``'s *code* (not prose).
+
+    A docstring naming a measured layout is context, not a default, so the
+    docstring line ranges are dropped before scanning — with ``ast``, which
+    knows where they are instead of guessing from the quotes.  Comments are
+    dropped for the same reason.
+    """
+    text = src.read_text(encoding="utf-8", errors="replace")
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:                           # not our file to judge
+        return set()
+    skip = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) \
+                and isinstance(node.value.value, str):
+            skip.update(range(node.lineno, node.value.end_lineno + 1))
+    code_only = "\n".join(line for i, line in enumerate(text.splitlines(), 1)
+                          if i not in skip and not line.lstrip().startswith("#"))
+    return set(POSIX_MACHINE_PATH.findall(code_only))
+
+
+def test_no_new_machine_specific_posix_path_in_tools():
+    """Ratchet: no machine path in ``tools/*.py`` beyond the named literals.
+
+    The drive-letter sweep is shape shaped, so a POSIX absolute path walks
+    straight past it — which is how ``tools/oracle/toolchain_probe.py:41`` and
+    ``tools/profile_cycle.py:102`` survived round 1.  Both are in files this
+    task does not own, so their exact literals are *named* in
+    :data:`KNOWN_POSIX_MACHINE_DEFAULTS` rather than edited.  The point of this
+    test is that the next one fails, in the same file or a new one.  Delete a
+    literal and its entry together.
+    """
+    problems = []
+    for src in sorted(TOOLS.rglob("*.py")):
+        relative = str(src.relative_to(TOOLS))
+        found = _machine_paths_in_code(src)
+        known = KNOWN_POSIX_MACHINE_DEFAULTS.get(relative)
+        if found and known is None:
+            problems.append(f"{src.relative_to(REPO)}: unrecorded {sorted(found)}")
+            continue
+        if known is None:
+            continue
+        extra = sorted(found - set(known["paths"]))
+        if extra:
+            problems.append(
+                f"{src.relative_to(REPO)}: new machine path(s) {extra} in a "
+                f"file that already has a recorded one — resolve them through "
+                f"the environment, or extend the entry with a reason")
+        gone = sorted(set(known["paths"]) - found)
+        if gone:
+            problems.append(
+                f"{src.relative_to(REPO)}: recorded machine path(s) {gone} are "
+                f"gone — delete the KNOWN_POSIX_MACHINE_DEFAULTS entry so the "
+                f"ratchet stays honest")
+    assert problems == [], ("machine-specific absolute paths in tools/*.py: "
+                           + "; ".join(problems))
+
+
+def test_known_posix_machine_defaults_are_still_real():
+    """Each named exception names a file that exists and still carries it."""
+    for name, entry in KNOWN_POSIX_MACHINE_DEFAULTS.items():
+        src = TOOLS / name
+        assert src.is_file(), f"{name} is named as a known offender but absent"
+        assert entry["reason"].strip(), f"{name} is named without a reason"
+        assert entry["paths"], f"{name} is named without a path"
+        found = _machine_paths_in_code(src)
+        for path in entry["paths"]:
+            assert path in found, (
+                f"{name} was recorded as carrying {path!r} but does not")
 
 
 # --------------------------------------------------------------------------
@@ -615,6 +718,49 @@ def test_fortran_env_drops_a_poisoned_loader_path_entry(tmp_path, monkeypatch):
     assert str(poisoned) in message and "h3d" in message.lower()
 
 
+def test_h3d_search_path_vars_covers_the_windows_path_trial():
+    """On Windows the fourth trial reads ``PATH`` — so ``PATH`` is scrubbed.
+
+    ``h3d_dl.c``'s Windows ``h3dlib_load_`` (``:313``) has the same four trials
+    as the POSIX one, and its fourth takes the search path straight out of the
+    environment: ``GetEnvironmentVariable("PATH", …)`` at ``:356``,
+    ``SetDllDirectory`` at ``:357``, ``LoadLibrary`` at ``:358``.  The
+    platform is a **parameter**, not a ``skip``: a Windows-only route that
+    cannot be exercised from a POSIX box is a route nobody tests.
+    """
+    from tools import validate_vs_fortran as V
+    assert V.h3d_search_path_vars("nt")[0] == "PATH"
+    assert "PATH" in V.h3d_search_path_vars("nt")
+    assert "PATH" not in V.h3d_search_path_vars("posix")
+    assert V.h3d_search_path_vars() == V.h3d_search_path_vars(os.name)
+
+
+def test_fortran_env_scrubs_a_poisoned_path_element_on_windows(tmp_path,
+                                                                monkeypatch):
+    """A hazardous ``PATH`` element is dropped; the rest of ``PATH`` survives.
+
+    Policy, stated because it is a judgement: ``PATH`` also carries every
+    ordinary tool a run may shell out to, so stripping it wholesale would
+    break the run in a way that looks like a broken oracle.  Only the
+    elements that actually hold the writer go, and the warning names them.
+    """
+    from tools import validate_vs_fortran as V
+    poisoned = tmp_path / "poisoned"
+    poisoned.mkdir()
+    (poisoned / "h3dwriter.dll").write_bytes(b"MZ not really")
+    honest = tmp_path / "honest"
+    honest.mkdir()
+    (honest / "where.exe").write_bytes(b"MZ not really")
+    with pytest.warns(RuntimeWarning) as caught:
+        env = V.fortran_env(base={"PATH": os.pathsep.join(
+            [str(honest), str(poisoned)])}, platform="nt")
+    entries = env["PATH"].split(os.pathsep)
+    assert str(poisoned) not in entries, "h3d_dl.c:356 would still find it"
+    assert str(honest) in entries, "an ordinary tool directory must survive"
+    message = "\n".join(str(w.message) for w in caught)
+    assert str(poisoned) in message and "PATH" in message
+
+
 def test_fortran_env_refuses_a_reader_dir_that_holds_the_h3d_writer(tmp_path):
     """The reader directory the harness *adds* is checked too.
 
@@ -668,8 +814,142 @@ def test_run_fortran_refuses_a_workdir_holding_the_h3d_writer(tmp_path,
     assert launched == [], "a solver was launched from a poisoned directory"
 
 
+def _synthetic_elf(path, rpath_entries, tag=15):
+    """A minimal but *real* 64-bit little-endian ELF carrying an RPATH.
+
+    Built by hand because the point is that ``elf_search_paths`` reads the
+    dynamic section correctly — a fixture that merely reuses the parser would
+    prove nothing, and depending on a built oracle would make the test skip on
+    most boxes.  One ``PT_LOAD`` covering the whole file, one ``PT_DYNAMIC``
+    at 0x800, the string table at 0x1000, and ``DT_STRTAB`` / ``DT_STRSZ`` /
+    one ``DT_RPATH``/``DT_RUNPATH`` entry.
+    """
+    import struct
+    dynamic_off, strtab_off = 0x800, 0x1000
+    load_vaddr = 0x400000
+    # one DT_RPATH string holding a colon-separated list, as the format is
+    # defined — not several strings
+    body = ":".join(rpath_entries).encode() + b"\0" + b"NEEDED-name\0"
+    file_size = strtab_off + len(body)
+    dyn = b"".join(struct.pack("<QQ", t, v) for t, v in
+                   ((5, load_vaddr + strtab_off), (10, len(body)), (tag, 0)))
+    dyn += struct.pack("<QQ", 0, 0)                 # DT_NULL terminates
+    ident = b"\x7fELF" + bytes([2, 1, 1, 0]) + b"\0" * 8
+    header = ident + struct.pack(
+        "<HHIQQQIHHHHHH", 2, 0x3E, 1, 0, 64, 0, 0, 64, 56, 2, 0, 0, 0)
+    phdrs = (struct.pack("<IIQQQQQQ", 1, 5, 0, load_vaddr, load_vaddr,
+                         file_size, file_size, 0x1000)
+             + struct.pack("<IIQQQQQQ", 2, 6, dynamic_off,
+                           load_vaddr + dynamic_off, 0, len(dyn), len(dyn), 8))
+    blob = bytearray(header + phdrs)
+    blob += b"\0" * (dynamic_off - len(blob))
+    blob += dyn
+    blob += b"\0" * (strtab_off - len(blob))
+    blob += body
+    assert len(blob) == file_size
+    Path(path).write_bytes(bytes(blob))
+    return str(path)
+
+
+def test_elf_search_paths_reads_the_dynamic_section(tmp_path):
+    """RPATH and RUNPATH, ``$ORIGIN`` expanded, junk answered with ``[]``.
+
+    Parsed straight from the ELF rather than by shelling out to ``readelf``:
+    a validation run must not depend on binutils being installed, and a
+    process spawn per case is a hot path this does not need (a few seeks).
+    """
+    from tools import validate_vs_fortran as V
+    binary = tmp_path / "oracle_bin"
+    _synthetic_elf(binary, ["/opt/conda/lib", "/opt/other/lib"])
+    assert V.elf_search_paths(binary) == ["/opt/conda/lib", "/opt/other/lib"]
+
+    runpath = tmp_path / "runpath_bin"
+    _synthetic_elf(runpath, ["/opt/runpath"], tag=29)
+    assert V.elf_search_paths(runpath) == ["/opt/runpath"]
+
+    origin = tmp_path / "origin_bin"
+    _synthetic_elf(origin, ["$ORIGIN/../lib", "${ORIGIN}/lib"])
+    origin_dir = str(origin.parent)
+    assert V.elf_search_paths(origin) == [
+        os.path.normpath(os.path.join(origin_dir, "..", "lib")),
+        os.path.normpath(os.path.join(origin_dir, "lib"))]
+
+    # no dynamic section, not an ELF, unreadable: a probe that raises would
+    # be worse than one that reports nothing
+    assert V.elf_search_paths(str(tmp_path / "missing")) == []
+    assert V.elf_search_paths(__file__) == []
+    (tmp_path / "plain").write_text("not an elf\n", encoding="utf-8")
+    assert V.elf_search_paths(str(tmp_path / "plain")) == []
+
+
+def test_binary_rpath_hazards_names_a_poisoned_rpath(tmp_path):
+    """A writer visible in the binary's RPATH is reported, and the run refused.
+
+    glibc searches ``DT_RPATH`` **before** ``LD_LIBRARY_PATH`` — the reviewer
+    proved it with a purpose-built ELF pair — so a stale
+    ``libh3dwriter.so`` in a prefix the binary carries is dlopen'd by the bare
+    trial (``h3d_dl.c:660-666``) whatever the harness exports.  Measured on
+    the oracle built for this box, both binaries carry
+    ``DT_RPATH=/home/valentin/anaconda/lib``: a conda prefix that has nothing
+    to do with the oracle, i.e. exactly the machine-specific leakage this
+    task exists to remove.
+    """
+    from tools import validate_vs_fortran as V
+    prefix = tmp_path / "conda_lib"
+    prefix.mkdir()
+    starter = _synthetic_elf(tmp_path / "starter_linux64_gf", [str(prefix)])
+    engine = _synthetic_elf(tmp_path / "engine_linux64_gf", [str(prefix)])
+    oracle = {"starter": starter, "engine": engine, "th_to_csv": None,
+              "h3d_lib": None, "hm_reader_lib": None}
+    assert V.binary_rpath_hazards(oracle) == [], (
+        "an empty RPATH directory is not a hazard")
+
+    (prefix / "libh3dwriter.so").write_bytes(b"\x7fELF not really")
+    hazards = V.binary_rpath_hazards(oracle)
+    assert len(hazards) == 2, "both binaries carry the hazard"
+    assert str(prefix) in hazards[0] and "DT_RPATH" in hazards[0]
+
+    with pytest.warns(RuntimeWarning) as caught:
+        V.fortran_env(oracle=oracle)
+    assert any("DT_RPATH" in str(w.message) for w in caught)
+
+    launched = []
+    monkey_run = V.run_cmd
+    try:
+        V.run_cmd = lambda *a, **k: launched.append(a)
+        info = V.run_fortran("case", "CASE", __file__, __file__,
+                             str(tmp_path / "wd"), "none", oracle)
+    finally:
+        V.run_cmd = monkey_run
+    assert info["status"] == "h3d-writer-in-rpath", info
+    assert launched == [], "a solver was launched with an RPATH hazard"
+
+
+def test_the_real_oracle_binaries_rpath_is_read_correctly():
+    """Cross-check the parser against ``readelf`` on the actual binaries.
+
+    Only meaningful when the oracle exists and ``readelf`` is installed; the
+    parser itself is covered hermetically by the synthetic-ELF test above.
+    """
+    _require_oracle()
+    from tools import validate_vs_fortran as V
+    if not shutil.which("readelf"):
+        pytest.skip("readelf not installed; the synthetic-ELF test covers the "
+                    "parser")
+    for key in ("starter", "engine"):
+        binary = V.oracle_paths()[key]
+        proc = subprocess.run(["readelf", "-d", binary], capture_output=True,
+                              text=True, timeout=120)
+        assert proc.returncode == 0, proc.stderr
+        expected = []
+        for line in proc.stdout.splitlines():
+            if "(RPATH)" in line or "(RUNPATH)" in line:
+                expected += re.findall(r"\[([^\]]*)\]", line)[0].split(":")
+        assert V.elf_search_paths(binary) == [e for e in expected if e], (
+            f"{binary}: parser disagrees with readelf")
+
+
 def test_fortran_env_uses_the_platform_path_separator():
-    """``;`` is a Windows separator; a POSIX loader would not split on it."""
     from tools import validate_vs_fortran as V
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

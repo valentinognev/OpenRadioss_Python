@@ -99,19 +99,26 @@ The runtime environment the harness builds is upstream's own
 deliberate omission and one deliberate deletion, both recorded in
 ``tools/validation_data/oracle_provenance.json``:
 
-* ``RAD_H3D_PATH`` is **deleted** from the environment, not set — and so
-  are the other three ways ``h3dlib_load_`` looks for the writer
-  (``$OR_SRC/common_source/output/h3d/h3d_build_cpp/h3d_dl.c:616-923``:
-  ``:623-632`` the variable, ``:634-644`` ``getcwd()``, ``:647-658``
-  ``$ALTAIR_HOME/hwsolvers/common/bin/$ARCH``, ``:660-666`` the loader's
-  search path).  With the reachable writer reachable by any of them, a run
-  reaches NORMAL TERMINATION and writes silently wrong H3D files; with all
-  four closed ``h3d_dl.c:920-922`` sets ``*IERROR = 1`` and
+* the h3d writer is kept out of reach **as far as an environment can do
+  it**.  ``RAD_H3D_PATH`` is *deleted* rather than set, and so are the other
+  places ``h3dlib_load_`` looks: ``$ALTAIR_HOME/hwsolvers/common/bin/$ARCH``
+  (``$OR_SRC/common_source/output/h3d/h3d_build_cpp/h3d_dl.c:647-658``; the
+  Windows branch at ``:339-353`` reads the same two variables) and the loader
+  search path (``:660-666`` POSIX, and on Windows ``PATH`` at ``:356``); the
+  scratch directory is checked too, because it is the solvers' cwd
+  (``:634-644``).  With the reachable writer reachable by any of them, a run
+  reaches NORMAL TERMINATION and writes silently wrong H3D files; with them
+  closed ``h3d_dl.c:920-922`` sets ``*IERROR = 1`` and
   ``engine/source/output/h3d/h3d_results/genh3d.F:728-732`` aborts with
-  MSGID 274.  H3D is refused loudly; T01, A-files, RESTART and the listing
-  are unaffected, and only those are admissible parity evidence
-  (``oracle_provenance.json`` ``admissible_parity_evidence``).  See
-  :func:`fortran_env` and :func:`run_fortran`, which close them.
+  MSGID 274.  Two routes are **not** closeable and are reported rather than
+  claimed closed: a system-wide install (``ld.so`` cache / default
+  directories) and the binaries' own ``DT_RPATH``, which glibc searches
+  *before* ``LD_LIBRARY_PATH``.  The harness reads the RPATH out of the ELF
+  and refuses the run when the writer is visible there.  T01, A-files,
+  RESTART and the listing are unaffected either way, and only those are
+  admissible parity evidence (``oracle_provenance.json``
+  ``admissible_parity_evidence``).  See :func:`fortran_env` for the route
+  table and :func:`run_fortran` for the two refusals.
 * the Intel-MPI / oneAPI entries of the historical Windows launch are gone:
   the Linux oracle is the OpenMP build, and an inherited ``KMP_*`` from the
   caller's shell still reaches the solver because the environment is copied.
@@ -395,7 +402,8 @@ def th_to_csv_argv(converter: str, t01: str) -> List[str]:
 
 
 def fortran_env(oracle: Optional[Dict[str, Optional[str]]] = None,
-                base: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+                base: Optional[Dict[str, str]] = None,
+                platform: Optional[str] = None) -> Dict[str, str]:
     """The oracle's runtime environment: ``$OR_SRC/INSTALL.md:34-42``.
 
     ``base`` (default: this process's environment) is copied first, so a
@@ -418,39 +426,60 @@ def fortran_env(oracle: Optional[Dict[str, Optional[str]]] = None,
       (``INSTALL.md:41``) and the single-thread cap that keeps a validation
       run's wall clock meaningful.
 
-    **The h3d writer is unreachable — all four of upstream's routes, not one.**
-    ``$OR_SRC/common_source/output/h3d/h3d_build_cpp/h3d_dl.c:616-923`` is
-    ``h3dlib_load_`` and it tries four places, in order:
+    **The h3d writer: what the harness closes, and what it cannot.**  Upstream
+    looks for the writer in more than one place, and the two branches differ.
+    ``$OR_SRC/common_source/output/h3d/h3d_build_cpp/h3d_dl.c`` has two
+    definitions of ``h3dlib_load_`` — ``#ifdef _WIN32`` at ``:312`` and
+    ``#elif 1`` at ``:615`` — each with four trials:
 
-    ============  ====================================================
-    ``:623-632``  ``$RAD_H3D_PATH/<h3dlib>``
-    ``:634-644``  ``<getcwd()>/<h3dlib>`` — the working directory
-    ``:647-658``  ``$ALTAIR_HOME/hwsolvers/common/bin/$ARCH/<h3dlib>``
-    ``:660-666``  a bare ``dlopen(<h3dlib>)``, i.e. the loader's default
-                  search path, which ``LD_LIBRARY_PATH`` feeds
-    ============  ====================================================
+    =========  ======================================================  ==========
+    lines      route                                                 closed by
+    =========  ======================================================  ==========
+    ``:623-632``  ``$RAD_H3D_PATH/<h3dlib>`` (Windows: ``:320-328``)    popped
+    ``:634-644``  ``getcwd()/<h3dlib>`` (Windows: ``:329-337``)        run_fortran
+    ``:647-658``  ``$ALTAIR_HOME/hwsolvers/common/bin/$ARCH/<h3dlib>``  popped
+                  (Windows: ``:338-353``, same two variables)
+    ``:660-666``  bare ``dlopen(<h3dlib>)`` from the loader path;       scrubbed
+                  Windows reads ``PATH`` explicitly at ``:356``
+                  (``SetDllDirectory`` ``:357``, ``LoadLibrary`` ``:358``,
+                  trial ``:354-359``)
+    =========  ======================================================  ==========
 
     (``h3dlib`` is ``libh3dwriter.so`` on POSIX, ``h3dwriter.dll`` on
-    Windows — ``h3d_dl.c:63`` / ``:58``.)  Deleting only ``RAD_H3D_PATH``
-    therefore leaves three live routes: an inherited ``ALTAIR_HOME``/``ARCH``
-    pair, and any ``LD_LIBRARY_PATH`` entry whose directory carries the
-    writer.  All of them defeat the refusal, and a run that loads the writer
-    reaches NORMAL TERMINATION and writes silently **wrong** H3D files
-    (``oracle_provenance.json`` ``extlib.version_gaps.enforcement``).  So this
-    function drops the two variables, drops every poisoned search-path entry
-    (loudly, naming each one), and refuses to prepend a reader directory that
-    holds the writer.  With all four routes closed ``h3dhandle`` stays NULL,
-    ``*IERROR = 1`` (``:920-922``), and
+    Windows — ``h3d_dl.c:63`` / ``:58``.)  Note that the Windows fourth trial
+    is *commented* ``$LD_LIBRARY_PATH settings`` at ``:355`` while the code
+    below it reads ``PATH``: the label is upstream's, the behaviour is not,
+    which is why scrubbing ``PATH`` is not optional on that platform.
+
+    **Policy on a search path: only the hazardous elements are dropped.**
+    ``PATH`` also carries every ordinary tool the run may need, so stripping
+    it wholesale would break the run in a way that looks like a broken
+    oracle; the rest of the path is kept untouched and the warning names
+    exactly what went.
+
+    **Two routes remain open, and no environment variable can close either.**
+    (1) A ``libh3dwriter.so`` installed **system-wide** — the ``ld.so`` cache
+    or a default directory — is found by ``:660-666`` regardless.  (2) The
+    binaries' own ``DT_RPATH``/``DT_RUNPATH``: glibc searches ``DT_RPATH``
+    **before** ``LD_LIBRARY_PATH``, and measured on the oracle built for this
+    box both binaries carry ``DT_RPATH=/home/valentin/anaconda/lib`` — a conda
+    prefix with nothing to do with the oracle.  :func:`binary_rpath_hazards`
+    reads that out of the ELF and reports it; :func:`run_fortran` then refuses
+    the run, which is the only honest outcome for a hazard that cannot be
+    scrubbed.
+
+    With every closeable route closed the writer stays unreachable,
+    ``h3dhandle`` remains NULL, ``*IERROR = 1`` (``:920-922``), and
     ``$OR_SRC/engine/source/output/h3d/h3d_results/genh3d.F:728-732`` turns
     that into MSGID 274 + ``ARRET(2)`` — h3d refused loudly, while T01,
     A-files, RESTART and the listing stay admissible
     (``oracle_provenance.json`` ``admissible_parity_evidence``).
 
-    One route is outside an environment's control and is stated rather than
-    pretended away: a ``libh3dwriter.so`` installed **system-wide** (ld.so
-    cache / default directories) is found by ``:660-666`` no matter what this
-    function does.  The working-directory route is the harness's own choice,
-    so :func:`run_fortran` refuses a scratch directory containing the writer.
+    ``platform`` selects which loader semantics to assume (``"nt"`` or
+    ``"posix"``), defaulting to the running one.  It exists because the
+    Windows route cannot be exercised from a POSIX box otherwise — and
+    ``os.name`` is not monkeypatchable in a test, because ``pathlib`` builds
+    its class from it at import time.
     """
     if oracle is None:
         oracle = oracle_paths()
@@ -459,10 +488,13 @@ def fortran_env(oracle: Optional[Dict[str, Optional[str]]] = None,
     env.pop("RAD_H3D_PATH", None)
     env.pop("ALTAIR_HOME", None)
     env.pop("ARCH", None)
-    # h3d_dl.c:660-666 (trial 4) — drop the search-path entries that hold the
-    # writer, saying which, instead of quietly running with a live route.
-    for var in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):
+    # h3d_dl.c:660-666 (POSIX) / :355-359 (Windows, which reads PATH) —
+    # drop the search-path entries that hold the writer, saying which,
+    # instead of quietly running with a live route.
+    for var in h3d_search_path_vars(platform):
         _scrub_h3d_search_path(env, var)
+    for hazard in binary_rpath_hazards(oracle):
+        warnings.warn(hazard, RuntimeWarning, stacklevel=2)
     build = None
     try:
         build = paths.or_build()
@@ -491,13 +523,177 @@ def fortran_env(oracle: Optional[Dict[str, Optional[str]]] = None,
                 f"it from there); the oracle run will fail loudly instead of "
                 f"writing wrong H3D files",
                 RuntimeWarning, stacklevel=2)
-        elif os.name == "nt":
+        elif (os.name if platform is None else platform) == "nt":
             env["PATH"] = os.pathsep.join(
                 [reader_dir, env.get("PATH", "")]).strip(os.pathsep)
         else:
             env["LD_LIBRARY_PATH"] = os.pathsep.join(
                 [reader_dir, env.get("LD_LIBRARY_PATH", "")]).strip(os.pathsep)
     return env
+
+
+def h3d_search_path_vars(platform: Optional[str] = None) -> Tuple[str, ...]:
+    """The environment variables the platform's loader search is taken from.
+
+    Upstream's fourth h3d trial is a plain ``dlopen(h3dlib)`` on POSIX
+    (``h3d_dl.c:660-666``), which the loader answers from
+    ``LD_LIBRARY_PATH``; on Windows the same trial reads ``PATH`` explicitly
+    (``h3d_dl.c:356`` ``GetEnvironmentVariable("PATH", …)``, ``:357``
+    ``SetDllDirectory``, ``:358`` ``LoadLibrary``).  So the variable to scrub
+    is platform-dependent, and that is a parameter rather than a ``skip``:
+    the Windows route has to be testable from a POSIX box.
+    """
+    name = os.name if platform is None else platform
+    if name == "nt":
+        return ("PATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH")
+    return ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH")
+
+
+#: ``DT_RPATH`` / ``DT_RUNPATH`` dynamic tags (ELF gABI; ``<elf.h>``).
+_DT_NULL, _DT_RPATH, _DT_RUNPATH = 0, 15, 29
+
+
+def elf_search_paths(path) -> List[str]:
+    """The ``DT_RPATH`` / ``DT_RUNPATH`` directories of an ELF binary.
+
+    Parsed straight from the file — the program headers give the dynamic
+    section, the dynamic section gives the string-table address, and a
+    ``PT_LOAD`` maps that virtual address to a file offset.  A handful of
+    seeks, no subprocess, so it is safe in a per-case code path; shelling out
+    to ``readelf`` per run would make the harness depend on binutils being
+    installed and would put a process spawn on the hot path.
+
+    ``$ORIGIN`` (the binary's own directory, glibc's dynamic token) is expanded
+    and the result normalised, because an unexpanded ``$ORIGIN`` — or an
+    un-normalised ``$ORIGIN/../lib`` — would hide the very directory a reader
+    needs to check and print a path nobody would type.  Returns ``[]`` for a
+    non-ELF or unreadable file rather than raising: this is a hazard probe,
+    and a probe that crashes the run is worse than one that reports nothing.
+    """
+    try:
+        with open(path, "rb") as fh:
+            header = fh.read(64)
+            if len(header) < 64 or header[:4] != b"\x7fELF":
+                return []
+            is64 = header[4] == 2
+            endian = "little" if header[5] == 1 else "big"
+            if is64:
+                phoff = int.from_bytes(header[32:40], endian)
+                phentsize = int.from_bytes(header[54:56], endian)
+                phnum = int.from_bytes(header[56:58], endian)
+            else:
+                phoff = int.from_bytes(header[28:32], endian)
+                phentsize = int.from_bytes(header[42:44], endian)
+                phnum = int.from_bytes(header[44:46], endian)
+            if not phoff or not phnum or phentsize < (56 if is64 else 32):
+                return []
+            fh.seek(phoff)
+            table = fh.read(phnum * phentsize)
+            loads, dynamic = [], None
+            for i in range(phnum):
+                ph = table[i * phentsize:(i + 1) * phentsize]
+                if len(ph) < phentsize:
+                    return []
+                p_type = int.from_bytes(ph[0:4], endian)
+                if is64:
+                    p_offset = int.from_bytes(ph[8:16], endian)
+                    p_vaddr = int.from_bytes(ph[16:24], endian)
+                    p_filesz = int.from_bytes(ph[32:40], endian)
+                else:
+                    p_offset = int.from_bytes(ph[4:8], endian)
+                    p_vaddr = int.from_bytes(ph[8:12], endian)
+                    p_filesz = int.from_bytes(ph[16:20], endian)
+                if p_type == 1:                      # PT_LOAD
+                    loads.append((p_vaddr, p_offset, p_filesz))
+                elif p_type == 2:                    # PT_DYNAMIC
+                    dynamic = (p_offset, p_filesz)
+            if dynamic is None:
+                return []
+            step = 16 if is64 else 8
+            fh.seek(dynamic[0])
+            raw = fh.read(dynamic[1])
+            strtab_vaddr, strsz, wanted = None, None, []
+            for off in range(0, len(raw) - step + 1, step):
+                width = 8 if is64 else 4
+                tag = int.from_bytes(raw[off:off + width], endian,
+                                     signed=False)
+                if tag == 0:                          # DT_NULL: end of array
+                    break
+                val = int.from_bytes(raw[off + width:off + 2 * width], endian)
+                if tag == 5:                          # DT_STRTAB
+                    strtab_vaddr = val
+                elif tag == 10:                       # DT_STRSZ
+                    strsz = val
+                elif tag in (_DT_RPATH, _DT_RUNPATH):
+                    wanted.append(val)
+            if not wanted or strtab_vaddr is None:
+                return []
+            strtab_off = None
+            for vaddr, offset, filesz in loads:
+                if vaddr <= strtab_vaddr < vaddr + filesz:
+                    strtab_off = offset + (strtab_vaddr - vaddr)
+                    break
+            if strtab_off is None:
+                return []
+            fh.seek(strtab_off)
+            blob = fh.read(strsz or 4096)
+    except OSError:
+        return []
+    out: List[str] = []
+    origin = str(Path(path).resolve().parent)
+    for index in wanted:
+        start = index
+        while 0 <= start < len(blob) and blob[start] != 0:
+            start += 1
+        if not 0 <= start <= len(blob):
+            continue
+        for element in blob[index:start].decode("utf-8", "replace").split(":"):
+            if not element:
+                continue
+            for token in ("${ORIGIN}", "$ORIGIN"):
+                element = element.replace(token, origin)
+            out.append(os.path.normpath(element))
+    return out
+
+
+def binary_rpath_hazards(oracle: Optional[Dict[str, Optional[str]]] = None
+                         ) -> List[str]:
+    """Hazard lines for any oracle binary whose RPATH holds the h3d writer.
+
+    The fifth route, and the one no environment variable can close: glibc
+    searches a ``DT_RPATH`` **before** ``LD_LIBRARY_PATH``, so a stale
+    ``libh3dwriter.so`` dropped into a prefix the binaries carry in their
+    RPATH is found by the bare ``dlopen(h3dlib)`` trial
+    (``h3d_dl.c:660-666``) no matter what this harness exports.  Measured on
+    the oracle built for this box: both binaries carry
+    ``DT_RPATH=/home/valentin/anaconda/lib`` — a conda prefix that has
+    nothing to do with the oracle, i.e. exactly the machine-specific leakage
+    this harness exists to remove.
+
+    Policy: **report and let the driver refuse.** :func:`fortran_env` warns
+    (an environment builder must not raise); :func:`run_fortran` refuses the
+    run, because unlike a stray ``PATH`` entry this one cannot be scrubbed —
+    the honest outcome is a loud stop, not a run that silently writes wrong
+    H3D files.
+    """
+    if oracle is None:
+        oracle = oracle_paths()
+    hazards = []
+    for key in ("starter", "engine"):
+        binary = oracle.get(key)
+        if not binary:
+            continue
+        poisoned = _dirs_holding_h3d_writer(elf_search_paths(binary))
+        if poisoned:
+            hazards.append(
+                f"{binary} carries DT_RPATH/DT_RUNPATH entry "
+                f"{', '.join(poisoned)}, which holds the ABI-incompatible h3d "
+                f"writer; glibc searches DT_RPATH before LD_LIBRARY_PATH, so "
+                f"h3d_dl.c:660-666 would dlopen it and a run would write "
+                f"silently wrong H3D files. No environment change can close "
+                f"this — remove the writer from that prefix, or rebuild the "
+                f"oracle without that RPATH.")
+    return hazards
 
 
 def _dirs_holding_h3d_writer(entries) -> List[str]:
@@ -1188,6 +1384,12 @@ def run_fortran(name: str, runname: str, deck0: str, deck1: str,
     refused here — before anything is launched — as an
     ``h3d-writer-in-workdir`` status; :func:`fortran_env` closes the other
     three routes.
+
+    A **fifth** route is checked before that and cannot be closed at all:
+    the binaries' own ``DT_RPATH``/``DT_RUNPATH`` (:func:`binary_rpath_hazards`
+    reads it out of the ELF; glibc searches it *before*
+    ``LD_LIBRARY_PATH``).  A poisoned entry there is an
+    ``h3d-writer-in-rpath`` refusal, because no environment change reaches it.
     """
     if oracle is None:
         oracle = oracle_paths()
@@ -1198,6 +1400,14 @@ def run_fortran(name: str, runname: str, deck0: str, deck1: str,
                 "error": f"the oracle {absent} is not available; see "
                          f"pyradioss.paths and oracle_paths() for every "
                          f"location that was tried"}
+    # The one route no environment can close: glibc searches DT_RPATH before
+    # LD_LIBRARY_PATH, so a stale writer in a prefix the binary carries in its
+    # RPATH is dlopen'd regardless of what we export.  Refuse before a single
+    # file is written.
+    rpath_hazards = binary_rpath_hazards(oracle)
+    if rpath_hazards:
+        return {"mode": shim, "dir": None, "status": "h3d-writer-in-rpath",
+                "error": " | ".join(rpath_hazards)}
     rd = os.path.join(workdir, "fortran", name)
     shutil.rmtree(rd, ignore_errors=True)
     os.makedirs(rd)
@@ -1340,16 +1550,35 @@ def run_pyradioss(name: str, runname: str, deck0: str, deck1: str,
 # ----------------------------------------------------------------------------
 
 #: Fortran-side statuses that end in ``FORTRAN-FAIL``, mapped to the subtag
-#: the class carries.  ``None`` means the BARE class, and only the two
-#: pre-existing statuses may say ``None``: ``tools/validation_data/parity_m41.json``
-#: rows read ``FORTRAN-FAIL`` and must keep matching a future sweep.
+#: the class carries.  ``None`` means the BARE class.
+#:
+#: The real invariant, stated correctly (an earlier version of this comment
+#: claimed ``parity_m41.json`` carries ``FORTRAN-FAIL`` rows — it does not):
+#: **the class vocabulary of a published ``parity_m<NN>.json`` must not
+#: shift.**  Its census is ``PORT-ONLY(implicit):27, DEVIATION:25, MATCH:10,
+#: SKIPPED-SLOW:7, PYRADIOSS-FAIL:7, NO-CHANNELS:4,
+#: PORT-ONLY(starter-reject):1`` — zero ``FORTRAN-FAIL``, so those two entries
+#: keep the bare string because it is what this harness has always printed for
+#: them and because every recorded sweep is joined on the class.  Changing
+#: either to a subtagged form would break that join.
+#:
+#: **Known gap, recorded not closed:** that census has four ``NO-CHANNELS``
+#: rows and this harness has no way to emit that class — the "both sides ran,
+#: but no channel overlapped" case below writes a bare ``FORTRAN-FAIL`` with
+#: ``error="no overlapping channels"``.  Emitting ``NO-CHANNELS`` is a
+#: one-line change and is deliberately NOT made here: the verdict logic is out
+#: of scope for this task, and a published-evidence class change is a
+#: controller decision.  The mapping below is where it goes when that
+#: decision is made.
 FORTRAN_FAIL_SUBTAGS = {
     "engine-fail": None,
     "th2csv-fail": None,
     "th2csv-missing": "th2csv-missing",
     "oracle-unavailable": "oracle-unavailable",
     "h3d-writer-in-workdir": "h3d-writer-in-workdir",
+    "h3d-writer-in-rpath": "h3d-writer-in-rpath",
 }
+
 
 def find_examples(only: Optional[List[str]]) -> List[Tuple[str, str, str, str]]:
     """[(name, runname, deck0, deck1)] sorted explicit-first."""
@@ -1423,14 +1652,16 @@ def parity(args) -> int:
                                 else "PORT-ONLY(starter-reject)")
             elif f["status"] in FORTRAN_FAIL_SUBTAGS:
                 # ``engine-fail`` and ``th2csv-fail`` keep the BARE class they
-                # have always had: tools/validation_data/parity_m41.json is
-                # keyed on those strings and must stay comparable.  The
-                # statuses this harness could not produce before (the
-                # converter absent, a solver unresolvable, an h3d writer in
-                # the working directory) get an ADDITIVE subtag, exactly like
-                # the existing ``PORT-ONLY(implicit)`` convention, so a reader
-                # of the console table is not left to guess whether a solver
-                # failed or the converter was never installed.
+                # have always had: a published parity_m<NN>.json is joined on
+                # its class vocabulary, which must not shift (see
+                # FORTRAN_FAIL_SUBTAGS).  The statuses this harness could not
+                # produce before (the converter absent, a solver
+                # unresolvable, an h3d writer reachable through the working
+                # directory or the binaries' RPATH) get an ADDITIVE subtag,
+                # exactly like the existing ``PORT-ONLY(implicit)``
+                # convention, so a reader of the console table is not left to
+                # guess whether a solver failed or the converter was never
+                # installed.
                 subtag = FORTRAN_FAIL_SUBTAGS[f["status"]]
                 row["class"] = f"FORTRAN-FAIL({subtag})" if subtag \
                     else "FORTRAN-FAIL"

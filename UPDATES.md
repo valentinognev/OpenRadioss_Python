@@ -1,5 +1,56 @@
 # Updates
 
+## 1.3.2 - P0.9 fix round 2: the h3d claim, corrected; PATH on Windows; RPATH read from the ELF
+
+Reviewer round 1 on `tools/validate_vs_fortran.py` returned SPEC ok / QUALITY
+changes-requested with two Important items, both inside the h3d-hardening
+scope, plus two honesty/format minors. Two further POSIX path defaults were
+correctly identified as **not** this task's files.
+
+- **Corrected — the round-1 entry overclaimed.** It said "all **four** of
+  upstream's h3d dlopen routes are now closed". Two routes were still open:
+  a **system-wide** `libh3dwriter.so` (the `ld.so` cache or a default
+  directory — found by `h3d_dl.c:660-666` whatever an environment does) and
+  the binaries' own **`DT_RPATH`/`DT_RUNPATH`**, which glibc searches
+  *before* `LD_LIBRARY_PATH`. Both are now stated in the module docstring,
+  `fortran_env`, `run_fortran` and `UPDATES.md`, instead of being implied
+  closed.
+- **Fixed — `PATH` was never scrubbed, and on Windows it is upstream's fourth
+  trial.** The Windows `h3dlib_load_` (`h3d_dl.c:313`) has the same four
+  trials and its fourth reads `PATH` explicitly
+  (`GetEnvironmentVariable("PATH", …)` `:356`, `SetDllDirectory` `:357`,
+  `LoadLibrary` `:358`). `h3d_search_path_vars(platform)` now returns `PATH`
+  first on `nt`, and `fortran_env` scrubs it. **Policy: only hazardous
+  elements are dropped** — `PATH` also carries the ordinary tools a run
+  needs, so the rest is kept untouched and the warning names exactly what
+  went. The helper is platform-parameterised rather than skipped, so the
+  Windows route is testable from POSIX.
+- **Fixed — the fifth route is now checked, and the machine-specific prefix
+  is named out loud.** New `elf_search_paths()` reads `DT_RPATH`/`DT_RUNPATH`
+  straight out of the ELF (program headers → dynamic section → string table,
+  `$ORIGIN` expanded; a few seeks, no subprocess, so it is safe per case) and
+  `binary_rpath_hazards()` reports any entry whose directory holds the
+  writer. `fortran_env` warns; `run_fortran` **refuses** the run
+  (`h3d-writer-in-rpath`) because no environment change can close it.
+  Measured on this box: both oracle binaries carry
+  `DT_RPATH=/home/valentin/anaconda/lib`, which the parser reproduces
+  exactly (cross-checked against `readelf -d`).
+- **Corrected — the `parity_m41.json` citation was false.** The comment
+  claimed its rows read `FORTRAN-FAIL`; they do not. The real invariant, now
+  stated: *the class vocabulary of a published `parity_m<NN>.json` must not
+  shift*. The file's census also carries **4 `NO-CHANNELS` rows this harness
+  cannot emit** — recorded as a known gap with its one-line remedy and the
+  reason it is not applied here (verdict logic is out of scope for this task;
+  a published-evidence class change is a controller decision).
+- **Format** one blank line before `find_examples`, matching the file.
+- **Scope, stated accurately:** the literal sweep in
+  `tests/test_p0_harness_portable.py` is *drive-letter* shaped. Two live
+  POSIX defaults exist in `tools/` and are **not** owned by this task
+  (`tools/oracle/toolchain_probe.py:41` — `$OR_SRC` default;
+  `tools/profile_cycle.py:102-105` — a `TEMP`-composed scratch path). A
+  `KNOWN_POSIX_MACHINE_DEFAULTS` ratchet now fails on any *new* one, with
+  those two named, so the claim is "no new machine path", not "none".
+
 ## 1.3.1 - P0.5 fix round 1: four honesty corrections in the golden record
 
 Reviewer round 1 on `tools/oracle/oracle_selftest.py` +
@@ -105,15 +156,18 @@ Four honesty-layer defects fixed, none in the solver path:
   resource is reported as `None` + a warning listing every candidate
   (`paths.missing_resource`), and `parity` exits 2 with the full diagnostic
   rather than writing a results file with nothing compared in it.
-- **Fixed** all **four** of upstream's h3d dlopen routes are now closed, not
-  one: `h3dlib_load_` (`h3d_dl.c:616-923`) tries `$RAD_H3D_PATH` (`:623-632`),
-  the working directory (`:634-644`), `$ALTAIR_HOME/hwsolvers/common/bin/$ARCH`
+- **Fixed** the h3d writer is now kept out of reach along **every route an
+  environment can close** — the earlier version of this entry claimed "all
+  four", which was false; see the 1.3.2 entry for the correction. On POSIX
+  `h3dlib_load_` (`h3d_dl.c:616-923`) tries `$RAD_H3D_PATH` (`:623-632`), the
+  working directory (`:634-644`), `$ALTAIR_HOME/hwsolvers/common/bin/$ARCH`
   (`:647-658`) and a bare `dlopen` fed by the loader path (`:660-666`). The
   harness drops the three variables, drops (and loudly names) any
   `LD_LIBRARY_PATH` entry holding the writer, refuses to prepend a reader
   directory that holds it, and refuses a scratch directory that holds it.
-  With all four closed the writer stays unreachable and `genh3d.F:728-732`
-  turns `*IERROR = 1` (`:920-922`) into the loud MSGID 274 refusal.
+  With the closeable routes closed the writer stays unreachable and
+  `genh3d.F:728-732` turns `*IERROR = 1` (`:920-922`) into the loud MSGID 274
+  refusal.
 - **Fixed** `tools/benchmark_rad_db.py` and `tools/compare_t01_tab1.py` no
   longer hardcode a harvested-corpus path or a per-session scratchpad; both
   take an environment variable (`RAD_EXAMPLES_DB`, `TAB1_BASE_DIR`) and fail
