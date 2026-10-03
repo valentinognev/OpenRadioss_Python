@@ -401,14 +401,35 @@ def test_provenance_only_claims_verified_evidence():
         assert entry["deck"], f"{channel}: no deck named"
 
 
+def _shim_source(shim):
+    """Resolve the repo-owned source file a shim entry declares.
+
+    ``provided_by`` is prose -- "<file in the repo> -> <path in the mirror>" --
+    so it must NOT be reduced with ``Path(...).name``: that takes the LAST
+    component, which for the compiled adapters is the archive
+    (``libp0extlibshims.a``), not the source.  Doing so made every check below
+    skip exactly the four adapters the liveness net exists to protect, and a
+    deliberately bogus ``liveness_marker`` still passed.  The explicit
+    ``source`` field is authoritative; ``provided_by`` is only a fallback.
+    """
+    declared = shim.get("source")
+    if not declared:
+        match = re.search(r"[\w./-]+\.[ch]", shim.get("provided_by", "") or "")
+        declared = match.group(0) if match else None
+    if not declared:
+        return None
+    path = Path(declared)
+    return path if path.is_absolute() else REPO / path
+
+
 def test_provenance_shims_are_live():
-    """No dead adapter may be declared as a safety net.
+    """Every declared shim must resolve to a real file that really declares it.
 
     ``p0_h3d_writer_adapter.c`` once claimed to refuse h3d output; it never ran,
     because ``h3d_dl.c:984-1000`` already defines the same two wrappers, so the
-    archive member was never pulled in and ``strings`` found no trace of it.
-    Each declared C adapter must therefore leave a marker in the binary that
-    actually uses it.
+    archive member was never pulled in and ``strings`` found no trace of it.  A
+    shim that cannot be resolved to a source file, or that resolves to a file
+    which does not mention the symbol, is just as dead.
     """
     data = json.loads(PROVENANCE.read_text())
     shims = data.get("extlib_shims") or []
@@ -416,12 +437,21 @@ def test_provenance_shims_are_live():
         return
     _require_oracle()
 
+    checked = 0
     for shim in shims:
-        provided = shim.get("provided_by", "")
-        src = REPO / "tools" / "oracle" / "extlib_shims" / Path(provided).name
-        if not src.is_file():
-            continue  # provided by an upstream file, not by us
+        src = _shim_source(shim)
+        if shim.get("linked_into_binary"):
+            # a linked adapter with no resolvable source cannot be checked, and
+            # an unchecked adapter is exactly the dead-code case we are hunting
+            assert src is not None and src.is_file(), (
+                f"{shim['symbol']}: linked_into_binary is declared but no source "
+                f"file could be resolved (source={shim.get('source')!r}, "
+                f"provided_by={shim.get('provided_by')!r})"
+            )
+        if src is None or not src.is_file():
+            continue
         body = src.read_text()
+        checked += 1
         # every identifier the entry names must really be in the file (an entry
         # may name several, e.g. "Hyper3DElementBegin / Hyper3DElement2Begin")
         stopwords = {"prototypes", "shim", "macro", "declaration", "header"}
@@ -431,22 +461,42 @@ def test_provenance_shims_are_live():
             assert ident in body, (
                 f"{shim['symbol']} is declared but {src.name} does not mention {ident}"
             )
+    assert checked == len(shims), (
+        f"only {checked} of {len(shims)} declared shims resolved to a source file"
+    )
+
+
+def test_linked_adapters_are_present_in_the_binary():
+    """The guarantee the provenance text claims, checked mechanically.
+
+    A C adapter is compiled into ``libp0extlibshims.a`` and linked into the
+    starter.  If its diagnostic marker is absent from the binary, the archive
+    member was never pulled in and the adapter is dead code -- the failure mode
+    that hid the h3d writer adapter.
+    """
+    data = json.loads(PROVENANCE.read_text())
+    linked = [s for s in (data.get("extlib_shims") or []) if s.get("linked_into_binary")]
+    if not linked:
+        return
+    _require_oracle()
+
+    assert STARTER.is_file(), f"oracle starter missing: {STARTER}"
+    blob = STARTER.read_bytes()
+    if not blob:  # pragma: no cover - defensive
+        blob = subprocess.run(
+            ["strings", str(STARTER)], capture_output=True, text=True
+        ).stdout.encode()
+
+    for shim in linked:
         marker = shim.get("liveness_marker")
-        if shim.get("linked_into_binary"):
-            assert marker, (
-                f"{shim['symbol']}: linked_into_binary is set but no "
-                "liveness_marker given"
-            )
-            blob = STARTER.read_bytes() if STARTER.is_file() else b""
-            if not blob:
-                proc = subprocess.run(
-                    ["strings", str(STARTER)], capture_output=True, text=True
-                )
-                blob = proc.stdout.encode()
-            assert marker.encode() in blob, (
-                f"{shim['symbol']}: marker {marker!r} is NOT in the starter "
-                f"binary -- the adapter is dead code, not a safety net"
-            )
+        assert marker, (
+            f"{shim['symbol']}: linked_into_binary is set but no liveness_marker "
+            "is declared"
+        )
+        assert marker.encode() in blob, (
+            f"{shim['symbol']}: marker {marker!r} is NOT in the starter binary "
+            "-- the adapter is dead code, not a safety net"
+        )
 
 
 def test_oracle_env_refuses_the_incompatible_h3d_writer():

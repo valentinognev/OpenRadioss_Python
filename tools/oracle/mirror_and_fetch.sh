@@ -272,10 +272,20 @@ if [ -n "$OR_EXTLIB_LOCAL" ]; then
   # Maintainer-supplied extlib: no network, no docker.
   src_extlib="$OR_EXTLIB_LOCAL"
   [ -d "$src_extlib/extlib" ] && src_extlib="$src_extlib/extlib"
-  [ -d "$src_extlib" ] || {
-    echo "!!! OR_EXTLIB_LOCAL=$OR_EXTLIB_LOCAL holds no extlib/ directory" >&2
+  if [ ! -d "$src_extlib" ]; then
+    echo "!!! OR_EXTLIB_LOCAL=$OR_EXTLIB_LOCAL is not a directory" >&2
     exit 1
-  }
+  fi
+  # A directory that exists but holds no extlib content is a mistake worth
+  # catching HERE, not ten lines later inside verify_extlib.  Two markers are
+  # enough to tell an extlib tree from anything else; verify_extlib remains the
+  # authority on the full list.
+  if [ ! -d "$src_extlib/hm_reader" ] && [ ! -d "$src_extlib/h3d" ]; then
+    echo "!!! OR_EXTLIB_LOCAL=$OR_EXTLIB_LOCAL is a directory but holds no extlib" >&2
+    echo "    (no hm_reader/ and no h3d/ inside it).  Point it at the directory" >&2
+    echo "    that CONTAINS 'extlib/', or at the extlib/ directory itself." >&2
+    exit 1
+  fi
   echo "--- Installing extlib from OR_EXTLIB_LOCAL=$src_extlib"
   rm -rf "$OR_BUILD/extlib"
   cp -a "$src_extlib" "$OR_BUILD/extlib"

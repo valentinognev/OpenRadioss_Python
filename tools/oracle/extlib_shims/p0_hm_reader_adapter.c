@@ -256,8 +256,9 @@ void cpp_get_include_file_by_index(const int *is_dyna, const int *include_index,
  *         call cpp_is_part_with_elements(part_id, is_part_with_elements)
  *     No interface block: a plain Fortran external call, so the symbol is
  *     `cpp_is_part_with_elements_` (lowercase + one underscore) and both
- *     arguments arrive by reference.  `logical(c_bool)` is a 4-byte integer
- *     holding 0/1.
+ *     arguments arrive by reference.  `logical(c_bool)` is ONE byte, not an
+ *     int -- see the "ONE BYTE" note below, which is the whole subtlety of
+ *     this function and the cause of the bug this adapter once had.
  *
  *   starter/source/model/assembling/hm_read_part.F:210-232
  *       IS_FILLED = .FALSE.
@@ -282,8 +283,7 @@ void cpp_get_include_file_by_index(const int *is_dyna, const int *include_index,
  * set (hm_read_part.F:210) -- i.e. "no elements", never a fabricated "yes".
  *
  * ONE BYTE, NOT AN int -- this is the whole subtlety of this function.
- * `logical(c_bool)` is a FOUR-byte... no: gfortran gives `logical(c_bool)`
- * KIND = 1 and STORAGE_SIZE = 1, verified with
+ * gfortran gives `logical(c_bool)` KIND = 1 and STORAGE_SIZE = 1, verified with
  *   print *, kind(b), storage_size(b)/8      ->  1  1
  * So the caller's IS_FILLED (hm_read_part.F:131) occupies ONE byte, and the
  * adapter must write exactly one byte through the pointer.  An earlier version

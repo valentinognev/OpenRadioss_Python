@@ -216,7 +216,8 @@
       "linked_into_binary": true,
       "liveness_marker": "[p0_hm_reader_adapter]",
       "implemented_on": "libhm_reader_linux64.so v59 primitives GlobalModelSDIGetIncludesList(char**) and GlobalModelSDICountIncludeFiles(int*), resolved by dlsym from their mangled names; reference semantics in reader/source/solver_interface/source/cfg_reading/GlobalModelSdi.cpp:2666-2693 and cpp_get_include_files_list.cpp:33-45",
-      "trust_statement": "the include-file list of the starter .out does NOT match a pristine oracle: measured on a Radioss-format deck with `#include \"qadiags.inc\"`, the v59 pair reports 0 includes (no INCLUDE FILES block at all), and an in-process check of GlobalModelSDIGetIncludesList (reviewer measurement) returns a non-NULL pointer to an EMPTY string, i.e. a count of 1 with a blank name. The adapter never invents a path (an unavailable name comes back blank, the value the caller already put there), but the block diverges from a pristine build; see admissible_parity_evidence['starter .out include-file list'] = no."
+      "trust_statement": "the include-file list of the starter .out does NOT match a pristine oracle: measured on a Radioss-format deck with `#include \"qadiags.inc\"`, the v59 pair reports 0 includes (no INCLUDE FILES block at all), and an in-process check of GlobalModelSDIGetIncludesList (reviewer measurement) returns a non-NULL pointer to an EMPTY string, i.e. a count of 1 with a blank name. The adapter never invents a path (an unavailable name comes back blank, the value the caller already put there), but the block diverges from a pristine build; see admissible_parity_evidence['starter .out include-file list'] = no.",
+      "source": "tools/oracle/extlib_shims/p0_hm_reader_adapter.c"
     },
     {
       "symbol": "cpp_get_number_of_include_files",
@@ -229,7 +230,8 @@
       "linked_into_binary": true,
       "liveness_marker": "[p0_hm_reader_adapter]",
       "implemented_on": "GlobalModelSDICountIncludeFiles(int*) (v59); reference semantics in reader/source/solver_interface/source/cfg_reading/cpp_get_number_of_include_files.cpp:31-43. This is also the one symbol where the cpp_* thunk cannot be used at all: its target takes ONE argument while the pinned source calls it with two",
-      "trust_statement": "fixes a real ABI mismatch: left alone, upstream's two-argument call writes the count through is_dyna (corrupting the caller's deck-flavour flag) and leaves num_includes at the 0 it was just given, so the include-file block silently disappears from every starter listing"
+      "trust_statement": "fixes a real ABI mismatch: left alone, upstream's two-argument call writes the count through is_dyna (corrupting the caller's deck-flavour flag) and leaves num_includes at the 0 it was just given, so the include-file block silently disappears from every starter listing",
+      "source": "tools/oracle/extlib_shims/p0_hm_reader_adapter.c"
     },
     {
       "symbol": "cpp_is_part_with_elements_",
@@ -243,7 +245,8 @@
       "liveness_marker": "[p0_hm_reader_adapter]",
       "implemented_on": "GlobalEntitySDICountElementsInPart(int*) (v59) plus GlobalEntitySDIGetId(int*,bool*) as a consistency check; reference semantics in reader/source/solver_interface/source/cfg_reading/GlobalModelSdi.cpp:2561-2585 and cpp_count_elements_in_part.cpp:36-49",
       "width_contract": "ONE byte. The caller's flag is `logical(c_bool)`, which gfortran gives kind 1 / storage_size 1 (verified with a probe program); an earlier int-sized store overwrote the three bytes above it -- in hm_read_part.F the part id -- and every /PART came out as 0 (MSGERROR 494 + 402). Gated by test_oracle_starter_reads_a_multi_part_deck, which runs both a vendored and a synthesized multi-part deck and requires 0 ERROR(S) / 0 WARNING(S) and the correct ids and titles.",
-      "trust_statement": "'does the /PART just read hold at least one element' is answered by the reader's own count of the currently-read entity, which is the contract hm_read_part.F relies on for message 178 and for the element-stack choice"
+      "trust_statement": "'does the /PART just read hold at least one element' is answered by the reader's own count of the currently-read entity, which is the contract hm_read_part.F relies on for message 178 and for the element-stack choice",
+      "source": "tools/oracle/extlib_shims/p0_hm_reader_adapter.c"
     },
     {
       "symbol": "cpp_sale_mesh_create_",
@@ -257,7 +260,8 @@
       "linked_into_binary": true,
       "liveness_marker": "[p0_hm_reader_adapter]",
       "implemented_on": "nothing: the v59 reader has no structured-ALE-mesh creator. The adapter sets message_value(38) = -1, the reader's own 'mesh not created' code",
-      "trust_statement": "any deck using /ALE/STRUCTURED_MESH fails loudly with upstream MSGERROR 3153 (s_ale_message.F90:210-215) instead of silently receiving a mesh of zeros; decks without the keyword never call it (hm_s_ale.F90:106-108)"
+      "trust_statement": "any deck using /ALE/STRUCTURED_MESH fails loudly with upstream MSGERROR 3153 (s_ale_message.F90:210-215) instead of silently receiving a mesh of zeros; decks without the keyword never call it (hm_s_ale.F90:106-108)",
+      "source": "tools/oracle/extlib_shims/p0_hm_reader_adapter.c"
     },
     {
       "symbol": "H3D_NF_FORMAT",
@@ -269,7 +273,8 @@
         "engine/source/output/h3d/h3d_build_cpp/c_h3d_create_nodal_scalar_datatype.cpp:139-140"
       ],
       "provided_by": "tools/oracle/extlib_shims/p0_h3d_api_shim.h",
-      "trust_statement": "compile-time only; the reachable libh3dwriter.so keeps the entry-point names, so the extra argument is passed and ignored. H3D output is refused at run time anyway (see extlib.version_gaps.enforcement)"
+      "trust_statement": "compile-time only; the reachable libh3dwriter.so keeps the entry-point names, so the extra argument is passed and ignored. H3D output is refused at run time anyway (see extlib.version_gaps.enforcement)",
+      "source": "tools/oracle/extlib_shims/p0_h3d_api_shim.h"
     },
     {
       "symbol": "h3dpublic_import.h",
@@ -280,7 +285,8 @@
         "common_source/output/h3d/h3d_build_cpp/h3dreader_dl.c:78-84"
       ],
       "provided_by": "tools/oracle/extlib_shims/h3dpublic_import.h",
-      "trust_statement": "/CHECKSUM_REPORT over H3D files is unavailable (no libh3dreader.so on this box); the checksum report over A-files/T01 is unaffected"
+      "trust_statement": "/CHECKSUM_REPORT over H3D files is unavailable (no libh3dreader.so on this box); the checksum report over A-files/T01 is unaffected",
+      "source": "tools/oracle/extlib_shims/h3dpublic_import.h"
     },
     {
       "symbol": "Hyper3DElementBegin / Hyper3DElement2Begin prototypes",
@@ -292,7 +298,8 @@
         "common_source/output/h3d/h3d_build_cpp/h3d_dl.c:1192-1223"
       ],
       "provided_by": "tools/oracle/extlib_shims/h3dpublic_export.h",
-      "trust_statement": "declarations only; nothing is implemented. The old callee is one parameter short, so the arguments after type_id shift -- one of the three reasons h3d is inadmissible"
+      "trust_statement": "declarations only; nothing is implemented. The old callee is one parameter short, so the arguments after type_id shift -- one of the three reasons h3d is inadmissible",
+      "source": "tools/oracle/extlib_shims/h3dpublic_export.h"
     },
     {
       "symbol": "Hyper3DDatatypeWrite / Hyper3DDatasetBegin prototypes",
@@ -303,7 +310,8 @@
         "engine/source/output/h3d/h3d_build_cpp/c_h3d_create_nodal_scalar_datatype.cpp:139-140"
       ],
       "provided_by": "tools/oracle/extlib_shims/h3dpublic_export.h",
-      "trust_statement": "declarations only; nothing is implemented. The pinned tree disagrees with itself about the H3D_NF_FORMAT position (call sites 6th/7th, wrappers last), which no header can repair"
+      "trust_statement": "declarations only; nothing is implemented. The pinned tree disagrees with itself about the H3D_NF_FORMAT position (call sites 6th/7th, wrappers last), which no header can repair",
+      "source": "tools/oracle/extlib_shims/h3dpublic_export.h"
     },
     {
       "symbol": "H3D_NOZLIB / H3D_NOSORT",
@@ -312,7 +320,8 @@
         "engine/source/output/h3d/h3d_build_cpp/c_h3d_open_file.cpp:240-241"
       ],
       "provided_by": "tools/oracle/extlib_shims/h3dpublic_export.h",
-      "trust_statement": "0 is the honest value: this h3d build can neither disable zlib nor skip the sort (extlib/h3d/includes/h3dpublic_defs.h:171-176 shows the reachable H3D_FileMode layout), and inventing bit patterns would set unrelated mode bits. Moot in practice, h3d being refused"
+      "trust_statement": "0 is the honest value: this h3d build can neither disable zlib nor skip the sort (extlib/h3d/includes/h3dpublic_defs.h:171-176 shows the reachable H3D_FileMode layout), and inventing bit patterns would set unrelated mode bits. Moot in practice, h3d being refused",
+      "source": "tools/oracle/extlib_shims/h3dpublic_export.h"
     }
   ],
   "admissible_parity_evidence": {
@@ -372,7 +381,13 @@
     "energy ledger (EN)": {
       "deck": "examples/tensile_bar/TENSILE_0001.rad (engine deck)",
       "msgerrors": 0,
-      "observed": "engine .out carries the I-ENERGY / K-ENERGY / EXT-WORK / TOTAL MASS / MAS.ERR table; internal + kinetic tracks external work (e.g. cycle 800: 0.1594 + 0.5616E-04 = 0.1596) and MAS.ERR is 0.000"
+      "observed": "engine .out carries the I-ENERGY / K-ENERGY / EXT-WORK / TOTAL MASS / MAS.ERR table; internal + kinetic tracks external work (e.g. cycle 800: I-ENERGY 0.1594 + K-ENERGY 0.00005616 = 0.15945616, against EXT-WORK 0.1596 -- a 9.0e-05 absolute difference, i.e. the ledger closes to the printed precision) and MAS.ERR is 0.000"
     }
+  },
+  "invocation": {
+    "starter": "examples/tensile_bar/TENSILE_0000.rad -> `starter_linux64_gf -i TENSILE_0000.rad -np 1` (the starter accepts -np; INSTALL.md:110 documents exactly this form)",
+    "engine": "`engine_linux64_gf -i TENSILE_0001.rad` -- NO -np. The engine's argument parser does not accept -np: it prints its usage and then dies with a segmentation violation (measured). Only -nt / -nthread work there.",
+    "warning": "do NOT copy the starter's `-np 1` to the engine. A harness that does will see a usage dump and a SIGSEGV, which looks like a broken oracle but is not.",
+    "why_recorded": "upstream behaviour, deliberately NOT 'fixed' here: execargcheck.F is upstream source and the mirror is a faithful copy"
   }
 }
