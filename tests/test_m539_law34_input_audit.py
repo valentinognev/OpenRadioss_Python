@@ -2,7 +2,9 @@
 
 Audits:
 1. CFG catalogue mapping & card layouts:
-   - C:\\OpenRadioss\\hm_cfg_files\\config\\CFG\\radioss110\\MAT\\matl34_boltzman.cfg attribute mapping
+   - <hm_cfg_files>/config/CFG/radioss110/MAT/matl34_boltzman.cfg attribute mapping
+     (hm_cfg_files is resolved by pyradioss.paths.hm_cfg_dir(), never a
+     hardcoded install prefix; see _cfg() below)
    - card_layouts.py field widths (strictly 20 columns for floats)
    - CfgCatalogue parsing into GenericMaterialRecord
 2. Deck writing and roundtrip reading:
@@ -33,8 +35,11 @@ import math
 import os
 import re
 import tempfile
+import warnings
+from pathlib import Path
 import pytest
 
+from pyradioss import paths as _paths
 from pyradioss.common.messages import MessageLog
 from pyradioss.input import card_layouts as cl
 from pyradioss.input.card_layouts import fmt_float
@@ -55,21 +60,63 @@ from pyradioss.starter.checks import _ALLOWED_LAWS, check_mat_law34, check_model
 from pyradioss.starter.initialization import build_element_groups, resolve_materials
 
 
+# ---------------------------------------------------------------------------
+# CFG card-schema tree location (the audited input of section 1)
+# ---------------------------------------------------------------------------
+# ``hm_cfg_files`` ships with OpenRadioss and is deliberately not vendored
+# (licence), so the CFG audits below need an external tree.  Where it lives is
+# decided by ONE resolver — ``pyradioss.paths.hm_cfg_dir()``, implementing
+# ``plan/00_ORCHESTRATION.md`` §4.1: ``$PYRADIOSS_HM_CFG`` / ``$RAD_CFG_PATH``,
+# then the sibling-of-build and Windows-compat layouts, then the checkout beside
+# this repository.  An earlier revision of this file hardcoded the Windows
+# install prefix ``C:\OpenRadioss\hm_cfg_files`` instead, so the whole section-1
+# class skipped on every non-Windows box and the audit silently stopped running
+# after the Linux migration.  Resolving instead of hardcoding is what makes
+# these 6 tests execute wherever the tree is present, with or without OR_SRC.
+try:
+    _HM_CFG_ROOT = _paths.hm_cfg_dir()
+    _HM_CFG_SKIP_REASON = ""
+except FileNotFoundError as exc:                        # genuinely absent
+    _HM_CFG_ROOT = None
+    # §4.1 rule 4 — the resolver's own diagnostic already lists every location
+    # it attempted, so publish that ONCE (import-time warning) instead of
+    # repeating 20 lines in the reason of all 6 skipped tests.  The skip reason
+    # itself follows the convention of tests/test_p0_mirror.py and
+    # tests/test_mat_reader.py: name the resource and the variable to set.
+    warnings.warn(f"hm_cfg_files CFG tree not resolved; the LAW34 CFG "
+                  f"audits will skip.\n{exc}", RuntimeWarning, stacklevel=2)
+    _HM_CFG_SKIP_REASON = (
+        "OpenRadioss hm_cfg_files CFG tree not found (not vendored) — set "
+        "PYRADIOSS_HM_CFG=<install prefix>/hm_cfg_files or upstream's "
+        "RAD_CFG_PATH; see plan/00_ORCHESTRATION.md §4.1"
+    )
+
+
+def _cfg(*parts: str) -> Path:
+    """A path inside the resolved CFG tree.
+
+    Only ever *called* by tests whose class-level skip guard already passed,
+    so ``_HM_CFG_ROOT`` is non-None whenever the returned path reaches the
+    filesystem; the fallback keeps import itself exception-free on a box
+    without the tree (where the class skips).
+    """
+    root = _HM_CFG_ROOT if _HM_CFG_ROOT is not None else Path(".")
+    return root.joinpath(*parts)
+
+
 # =============================================================================
 # 1. CFG Catalogue & Card Layout Audit
 # =============================================================================
 
-@pytest.mark.skipif(
-    not os.path.isdir(r"C:\OpenRadioss\hm_cfg_files"),
-    reason="C:\\OpenRadioss not available (CI / non-Windows)",
-)
+@pytest.mark.skipif(_HM_CFG_ROOT is None, reason=_HM_CFG_SKIP_REASON)
 class TestLaw34CfgCatalogueAudit:
-    """Audit C:\\OpenRadioss\\hm_cfg_files\\config\\CFG\\radioss110\\MAT\\matl34_boltzman.cfg
+    """Audit <hm_cfg_files>/config/CFG/radioss110/MAT/matl34_boltzman.cfg
 
-    and pyradioss/input/card_layouts.py.
+    and pyradioss/input/card_layouts.py.  The tree location comes from
+    pyradioss.paths.hm_cfg_dir(), so this class runs on any box that has it.
     """
 
-    CFG_PATH = r"C:\OpenRadioss\hm_cfg_files\config\CFG\radioss110\MAT\matl34_boltzman.cfg"
+    CFG_PATH = _cfg("config", "CFG", "radioss110", "MAT", "matl34_boltzman.cfg")
 
     def test_cfg_file_exists(self):
         """Verify matl34_boltzman.cfg exists in reference installation."""

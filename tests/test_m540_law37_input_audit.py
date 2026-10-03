@@ -4,8 +4,10 @@ Auditor 4: Input, Layout, CFG Catalogue & Deck Roundtrip Auditor.
 
 Audits:
 1. CFG card formats and layouts:
-   - C:\\OpenRadioss\\hm_cfg_files\\config\\CFG\\radioss110\\MAT\\matl37_biphas.cfg
-   - C:\\OpenRadioss\\hm_cfg_files\\config\\CFG\\radioss2018\\MAT\\matl37_biphas.cfg
+   - <hm_cfg_files>/config/CFG/radioss110/MAT/matl37_biphas.cfg
+   - <hm_cfg_files>/config/CFG/radioss2018/MAT/matl37_biphas.cfg
+     (hm_cfg_files is resolved by pyradioss.paths.hm_cfg_dir(), never a
+     hardcoded install prefix; see _cfg() below)
    - Verify exact 20-character column layouts (%20lg) for all physics attributes.
    - CfgCatalogue schema resolution and attribute types.
    - pyradioss/input/card_layouts.py constants, synonyms, and LAYOUTS dictionary registration.
@@ -44,10 +46,12 @@ import math
 import os
 import re
 import tempfile
+import warnings
 from pathlib import Path
 import pytest
 import numpy as np
 
+from pyradioss import paths as _paths
 from pyradioss.common.messages import MessageLog
 from pyradioss.input import card_layouts as cl
 from pyradioss.input.card_layouts import fmt_float, fmt_int
@@ -66,6 +70,50 @@ from pyradioss.materials.law37_biphas import build_law37
 from pyradioss.model.entities import Material, MatLaw37
 from pyradioss.model.model import Model
 from pyradioss.starter.checks import _ALLOWED_LAWS, check_mat_law37, check_model
+
+
+# ---------------------------------------------------------------------------
+# CFG card-schema tree location (the audited input of section 1)
+# ---------------------------------------------------------------------------
+# ``hm_cfg_files`` ships with OpenRadioss and is deliberately not vendored
+# (licence), so the CFG audits below need an external tree.  Where it lives is
+# decided by ONE resolver — ``pyradioss.paths.hm_cfg_dir()``, implementing
+# ``plan/00_ORCHESTRATION.md`` §4.1: ``$PYRADIOSS_HM_CFG`` / ``$RAD_CFG_PATH``,
+# then the sibling-of-build and Windows-compat layouts, then the checkout beside
+# this repository.  An earlier revision of this file hardcoded the Windows
+# install prefix ``C:\OpenRadioss\hm_cfg_files`` instead, so the whole section-1
+# class skipped on every non-Windows box and the audit silently stopped running
+# after the Linux migration.  Resolving instead of hardcoding is what makes
+# these 6 tests execute wherever the tree is present, with or without OR_SRC.
+try:
+    _HM_CFG_ROOT = _paths.hm_cfg_dir()
+    _HM_CFG_SKIP_REASON = ""
+except FileNotFoundError as exc:                        # genuinely absent
+    _HM_CFG_ROOT = None
+    # §4.1 rule 4 — the resolver's own diagnostic already lists every location
+    # it attempted, so publish that ONCE (import-time warning) instead of
+    # repeating 20 lines in the reason of all 6 skipped tests.  The skip reason
+    # itself follows the convention of tests/test_p0_mirror.py and
+    # tests/test_mat_reader.py: name the resource and the variable to set.
+    warnings.warn(f"hm_cfg_files CFG tree not resolved; the LAW37 CFG "
+                  f"audits will skip.\n{exc}", RuntimeWarning, stacklevel=2)
+    _HM_CFG_SKIP_REASON = (
+        "OpenRadioss hm_cfg_files CFG tree not found (not vendored) — set "
+        "PYRADIOSS_HM_CFG=<install prefix>/hm_cfg_files or upstream's "
+        "RAD_CFG_PATH; see plan/00_ORCHESTRATION.md §4.1"
+    )
+
+
+def _cfg(*parts: str) -> Path:
+    """A path inside the resolved CFG tree.
+
+    Only ever *called* by tests whose class-level skip guard already passed,
+    so ``_HM_CFG_ROOT`` is non-None whenever the returned path reaches the
+    filesystem; the fallback keeps import itself exception-free on a box
+    without the tree (where the class skips).
+    """
+    root = _HM_CFG_ROOT if _HM_CFG_ROOT is not None else Path(".")
+    return root.joinpath(*parts)
 
 
 def block_lines(text: str, header_prefix: str) -> list[str]:
@@ -90,15 +138,16 @@ def data_cards(lines: list[str]) -> list[str]:
 # 1. CFG Catalogue & Card Layout Audit
 # =============================================================================
 
-@pytest.mark.skipif(
-    not os.path.isdir(r"C:\OpenRadioss\hm_cfg_files"),
-    reason="C:\\OpenRadioss not available (CI / non-Windows)",
-)
+@pytest.mark.skipif(_HM_CFG_ROOT is None, reason=_HM_CFG_SKIP_REASON)
 class TestLaw37CfgCatalogueAudit:
-    """Audit reference CFG catalogue files and pyradioss/input/card_layouts.py."""
+    """Audit reference CFG catalogue files and pyradioss/input/card_layouts.py.
 
-    CFG_110 = r"C:\OpenRadioss\hm_cfg_files\config\CFG\radioss110\MAT\matl37_biphas.cfg"
-    CFG_2018 = r"C:\OpenRadioss\hm_cfg_files\config\CFG\radioss2018\MAT\matl37_biphas.cfg"
+    The tree location comes from pyradioss.paths.hm_cfg_dir(), so this class
+    runs on any box that has it.
+    """
+
+    CFG_110 = _cfg("config", "CFG", "radioss110", "MAT", "matl37_biphas.cfg")
+    CFG_2018 = _cfg("config", "CFG", "radioss2018", "MAT", "matl37_biphas.cfg")
 
     def test_cfg_files_exist(self):
         """Verify both radioss110 and radioss2018 CFG files exist in reference install."""
