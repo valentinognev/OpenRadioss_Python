@@ -26,12 +26,15 @@ accel = ["numba>=0.59"]
 # `mpirun -np N pyradioss-engine -np N ...` need mpi4py (+ an MPI library);
 # without it `-np N` still runs the N domains as threads of one process
 # (pyradioss/spmd/comm.py ThreadComm), so it stays optional.
-# P0.7: mpi4py alone is NOT enough — the PyPI wheel dlopens libmpi.so.12
-# (MPICH) or libmpi.so.40 (Open MPI) at import, so an MPI implementation must
-# be present too (`apt install mpich`, or `conda install -c conda-forge
-# mpi4py mpich`).  Installing the wheel with no MPI runtime makes
-# `import mpi4py` raise OSError, which the `except ImportError` seams in
-# pyradioss/spmd/comm.py do not catch.
+# P0.7: mpi4py alone is NOT enough — an MPI implementation must be present
+# too.  mpi4py is LAZY: `import mpi4py` succeeds with no MPI runtime at all
+# (verified on the 4.1.2 wheel), and libmpi is resolved on the first
+# `from mpi4py import MPI`, which raises RuntimeError("cannot load MPI
+# library") on mpi4py 4.x (ImportError on 3.x, not verified here).  So
+# `pip install mpi4py` on a box without MPICH/Open MPI adds a dependency
+# that cannot work; install one of `apt-get install mpich libopenmpi-dev` or
+# `conda install -c conda-forge mpich` first.  Until then `-np N` uses the
+# in-process ThreadComm path (pyradioss/spmd/comm.py).
 mpi = ["mpi4py>=3.1"]
 # the M8 implicit solver (pyradioss/implicit): SciPy is REQUIRED for implicit
 # runs (sparse assembly + SuperLU) but OPTIONAL for the explicit solver, so it

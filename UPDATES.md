@@ -1,5 +1,67 @@
 # Updates
 
+## 1.5.0 - P0.7: the optional backends are installable, and the box says which are
+
+`numba` and `mpi4py` were recorded as missing in `plan/00_ORCHESTRATION.md`
+§4.3, which left the M7/M40 accelerated backend and every `-np N` SPMD path
+untestable. numba is now installed on the shared Linux interpreter; mpi4py is
+deliberately NOT, and the lock says so in a form a test enforces.
+
+- **Installed** `numba==0.68.0` + `llvmlite==0.50.0` into the shared
+  interpreter (anaconda base, Python 3.14.6). `numpy 2.5.2`, `scipy 1.18.0`
+  and `pytest 9.1.1` are **unchanged** — numba 0.68 declares
+  `numpy<2.6,>=1.22`, so the accel extra needs no numpy downgrade, and
+  nothing pre-existing was upgraded or uninstalled. The 6
+  "numba is not installed" failures in `tests/test_m40_auto_backend.py` (5)
+  and `tests/test_m7_backends.py::test_numba_backend_provides_kernels` (1)
+  are gone: the pair is 30/30.
+- **Still optional.** `dependencies = ["numpy>=1.22"]`; `accel`/`mpi` extras
+  unchanged (`numba>=0.59`, `mpi4py>=3.1`) — the base install stays
+  NumPy-only, as `README.md` promises. Pinned by a test.
+- **New** `tests/test_p0_optional_deps.py`: reports a missing optional dep as
+  a SKIP (`pytest -rs` is the environment report) and **fails** when
+  `PYRADIOSS_ALLOW_MISSING_DEPS=0`; compiles and runs a real `hexa_pre`
+  kernel when numba is present; and checks every `# pin:` line in
+  `requirements-lock.txt` against the importable version — including
+  numpy/scipy/pytest and the interpreter — so a `pip install -U numpy` turns
+  the suite red instead of quietly making the lock a lie.
+- **`requirements-lock.txt`** now has an explicit `[B]` section for this
+  interpreter whose every number is a machine-verified `# pin:` line (section
+  `[A]`, the Windows .venv lock AGENTS.md documents, is untouched and stays
+  what `pip install -r` resolves). A pinned module that is absent must carry
+  a `NOT INSTALLED` note — enforced.
+- **The mpi4py gap, documented not papered over.** There is no MPI
+  implementation on this box (no `mpicc`/`mpirun`, no `libmpi`, no conda mpi
+  package), and the PyPI wheel carries no bundled runtime. Verified against
+  the *downloaded, not installed* 4.1.2 wheel: `import mpi4py` **succeeds**
+  with no MPI at all; libmpi is resolved on `from mpi4py import MPI`, which
+  raises `RuntimeError("cannot load MPI library")` on 4.x (3.x raises
+  `ImportError`; not verified here). Installing it anyway would buy nothing.
+  Phase 13 needs `apt-get install mpich libopenmpi-dev` + `pip install
+  mpi4py`, or `conda install -c conda-forge mpi4py mpich` — or it stays on
+  the in-process `ThreadComm` path, which is what `-np N` uses today.
+- **Hardened the optional-import seams** (out of map for P0.7, minimal):
+  `spmd.comm.Mpi4pyComm.__init__` had a bare `from mpi4py import MPI` with no
+  handler at all, and `mpi_world_size()` caught only `ImportError`, so the
+  4.x `RuntimeError` (or an `OSError` from an unloadable libmpi) would have
+  escaped to the driver. Both now handle the whole "no usable MPI" family;
+  `Mpi4pyComm()` raises one actionable error naming the fix instead of an
+  opaque import traceback.
+- **COST, disclosed.** With numba live, `tests/test_m7_backends.py` +
+  `tests/test_m40_auto_backend.py` run in **~250-400 s** instead of the ~2 s
+  the numba-absent box reported. The increase is **entirely inside the two
+  `@pytest.mark.slow` tests** (JIT compile + full cross-backend runs): the
+  non-slow part of the same two files is 2.6 s without numba and 8.4 s with
+  it, so the *fast tier* barely moves. Nothing was re-marked — the slow
+  marker is already correct, and marking live-coverage numba tests as slow
+  would only weaken the gate. Expect the first numba run after a clean
+  checkout to pay the JIT cost.
+- **Trap worth knowing:** `import pyradioss.accel.jit_kernels` succeeds
+  *without* numba (`jit_kernels/__init__.py` degrades `njit` to an identity
+  decorator), so it is NOT an availability probe — `HAS_NUMBA` built on it
+  never skips. The honest probe is `accel._load_numba_module`, which imports
+  numba itself; a test now pins both halves.
+
 ## 1.4.0 - P0.11: parity produces evidence without `th_to_csv`
 
 Phase 0 exists so later phases can produce differential parity evidence against

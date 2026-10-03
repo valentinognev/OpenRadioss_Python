@@ -399,7 +399,26 @@ class Mpi4pyComm(Comm):
     kind = "mpi"
 
     def __init__(self, comm=None):
-        from mpi4py import MPI  # noqa: F401 — optional dependency
+        try:
+            from mpi4py import MPI
+        except (ImportError, OSError, RuntimeError) as exc:
+            # P0.7: mpi4py is LAZY — `import mpi4py` succeeds with no MPI
+            # runtime at all; libmpi is resolved when `mpi4py.MPI` is first
+            # imported.  With mpi4py 4.x and no MPI library that import
+            # raises RuntimeError("cannot load MPI library") (measured on
+            # the 4.1.2 wheel, 2026-10-03); mpi4py 3.x raises ImportError
+            # from the missing/stub extension.  All three are "no usable
+            # MPI here", so turn them into ONE actionable error instead of
+            # an opaque traceback out of driver.run_engine_spmd:89-91.
+            raise RuntimeError(
+                "mpi4py's MPI module is not usable here "
+                f"({type(exc).__name__}: {exc}): either mpi4py is not "
+                "installed, or it is installed with no MPI library "
+                "reachable. Install an MPI implementation (e.g. "
+                "`apt-get install mpich`, or "
+                "`conda install -c conda-forge mpich`), or launch without "
+                "mpirun so the N domains run as threads of one process "
+                "(spmd.comm.ThreadComm).") from exc
         self._MPI = MPI
         if comm is None:
             # inipar.F ICAS=1: SPMD_COMM_WORLD = MPI_COMM_SPLIT(WORLD, colour=
@@ -478,7 +497,16 @@ class Mpi4pyComm(Comm):
 def mpi_world_size() -> int:
     """Size of ``MPI_COMM_WORLD`` if this process was started under
     mpirun with mpi4py importable, else 1 — without initializing MPI
-    when it is not needed (importing mpi4py.MPI initializes it)."""
+    when it is not needed (importing mpi4py.MPI initializes it).
+
+    P0.7: "no usable MPI" is three different exception types depending on
+    the mpi4py major version — ImportError (not installed, or 3.x's missing
+    extension), OSError (a libmpi that will not dlopen) and RuntimeError
+    (4.x's ABI finder: "cannot load MPI library").  All of them mean the
+    same thing HERE, namely "not running under a working MPI" — so all of
+    them fall back to 1, which makes driver.run_engine_spmd:89 take the
+    ThreadComm branch.  A bare ImportError handler leaked the other two.
+    """
     import os
     # the launchers set one of these before the process starts
     for var in ("OMPI_COMM_WORLD_SIZE", "PMI_SIZE", "MPI_LOCALNRANKS",
@@ -486,7 +514,7 @@ def mpi_world_size() -> int:
         if var in os.environ:
             try:
                 from mpi4py import MPI  # noqa: F401
-            except ImportError:
+            except (ImportError, OSError, RuntimeError):
                 return 1
             return MPI.COMM_WORLD.Get_size()
     return 1

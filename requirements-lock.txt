@@ -5,14 +5,23 @@
 #     .venv).  This is what `pip install -r requirements-lock.txt` resolves,
 #     and it is deliberately left untouched by the Phase 0 work: the optional
 #     `accel`/`mpi` extras are installed separately, never through here.
+#     [A] is DESCRIPTIVE, not machine-checked: no test compares it to the
+#     running interpreter.
 #
-# [B] at the bottom — the shared Linux/Anaconda interpreter this program is
-#     validated on (Python 3.14.6, anaconda base), resolved by Task P0.7 on
-#     2026-10-03.  Only the OPTIONAL dependencies are recorded there, as
-#     `# pin:` lines, because they are what P0.7 had to resolve;
-#     tests/test_p0_optional_deps.py reads exactly those lines and fails if a
-#     pin drifts away from the importable version or if a recorded pin has no
-#     explicit NOT INSTALLED annotation for a dep that is absent.
+# [B] at the bottom — the shared Linux interpreter this program is validated
+#     on (anaconda base, Python 3.14.6), resolved by Task P0.7 on 2026-10-03.
+#
+#     EVERY number in [B] is a `# pin: name==version` line, and every one of
+#     them is MACHINE-VERIFIED: tests/test_p0_optional_deps.py asserts each
+#     against the importable module (and against `platform.python_version()`
+#     for `python`), so a `pip install -U numpy` turns the suite red instead
+#     of silently making this file a lie.  A pin whose module is absent must
+#     carry an explicit `NOT INSTALLED` note — that annotation is enforced
+#     too.  Do NOT add prose version numbers to this file; add pins.
+#
+#     CAVEAT: numpy/scipy here are *conda* packages, so their `# pin:` line
+#     is descriptive of the interpreter, not an installable pip requirement
+#     (a `pip install -r` of this file would resolve [A]'s pins instead).
 #
 # ---------------------------------------------------------------------------
 # [A] Windows 11 .venv (base install + pytest + the optional accel extra)
@@ -29,22 +38,34 @@ pytest==9.1.1
 scipy==1.18.0
 #
 # ---------------------------------------------------------------------------
-# [B] shared Linux interpreter (anaconda base, py3.14.6) — optional deps only
+# [B] shared Linux interpreter (anaconda base) — machine-verified pins
 # ---------------------------------------------------------------------------
-# interpreter: Python 3.14.6 (/home/valentin/anaconda), numpy 2.5.2,
-#             scipy 1.18.0, pytest 9.1.1 — base install unchanged (NumPy-only).
-#
+# pin: python==3.14.6
+# pin: numpy==2.5.2
+# pin: scipy==1.18.0
+# pin: pytest==9.1.1
 # pin: numba==0.68.0
 # pin: llvmlite==0.50.0
-# pin: mpi4py==4.1.2  -- NOT INSTALLED: no MPI runtime on this box.  The PyPI
-#   mpi4py 4.1.2 cp314 wheel ships BOTH MPI.mpich*.so and MPI.openmpi*.so and
-#   resolves libmpi.so.12 / libmpi.so.40 with dlopen at import time; neither
-#   MPICH nor Open MPI is installed (no mpicc/mpirun, no libmpi in
-#   /usr/lib/x86_64-linux-gnu, no conda mpi package), and there is no
-#   mpi4py-mpich (MPICH-bundled) distribution on PyPI.  Installing the plain
-#   wheel anyway would make `import mpi4py` raise OSError, which escapes the
-#   `except ImportError` seams in pyradioss/spmd/comm.py:402 and :488 — so it
-#   is deliberately NOT installed.  See
-#   .superpowers/sdd/01_phase0_oracle_and_licensing/task-7-report.md for what
-#   Phase 13 needs (an MPI implementation: `apt install mpich` / `libopenmpi-dev`,
-#   or `conda install -c conda-forge mpi4py mpich`, then this pin becomes live).
+# pin: mpi4py==4.1.2  -- NOT INSTALLED (resolved-but-rejected, 2026-10-03):
+#   this box has no MPI implementation: no mpicc/mpirun on PATH, no libmpi in
+#   /usr/lib/x86_64-linux-gnu, no conda mpi package.  Verified against the
+#   downloaded (NOT installed) mpi4py 4.1.2 cp314 wheel:
+#     * `ldd mpi4py/MPI.mpich.cpython-314-x86_64-linux-gnu.so` -> libmpi.so.12
+#       => not found, i.e. the wheel carries NO bundled runtime;
+#     * `mpi4py/__init__.py` installs an ABI finder and does NOT load MPI, so
+#       `import mpi4py` SUCCEEDS with no MPI runtime; libmpi is resolved on
+#       the first `from mpi4py import MPI`, which raises RuntimeError
+#       ("cannot load MPI library") on 4.x.  (On mpi4py 3.x, whose extension
+#       is linked at build time, the equivalent failure is an ImportError --
+#       NOT verified on this box, no 3.x wheel was installed.)
+#   Hence installing the plain wheel buys nothing: with no libmpi,
+#   `pyradioss.spmd.comm.mpi_world_size()` returns 1 and `-np N` runs the
+#   domains as threads (ThreadComm) — exactly as before.  The import seams
+#   are now hardened for it anyway (comm.py:402 guards Mpi4pyComm.__init__,
+#   comm.py:495 mpi_world_size catches ImportError/OSError/RuntimeError).
+#   Phase 13 needs ONE of: `apt-get install mpich` / `libopenmpi-dev` then
+#   `pip install mpi4py`; or `conda install -c conda-forge mpi4py mpich`;
+#   or no MPI at all (ThreadComm).  Then delete the NOT INSTALLED note — the
+#   test fails while a pinned-but-absent dep carries one.
+#   (There is no MPICH-bundled `mpi4py-mpich` distribution on PyPI:
+#   "No matching distribution found for mpi4py-mpich".)
