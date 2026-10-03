@@ -87,10 +87,20 @@ def _scanned_sources() -> list[Path]:
       whatever box produced it.  A record of a foreign machine is legitimate
       there and is already held to this disk by
       ``tests/test_p0_oracle_provenance.py``.
-    * ``tests/`` — not this task's to hold; the duplicate of the RPATH claim is
-      in ``tests/test_p0_harness_portable.py`` (another owner).  Adding
-      ``sorted(REPO.glob("tests/**/*.py"))`` here is the one-line step that
-      extends the rule to test modules.
+    * ``tests/`` — RE-MEASURED 2026-10-03 (P0.15 fix round 1) after
+      ``32c8603`` removed the stale RPATH duplicate that originally forced this
+      exclusion, by running all three rules over ``tests/**/*.py`` (1040
+      modules).  The remaining hits are 9, and **none of them is a stale claim**:
+      2 are the ``/home/someone`` / ``/Users/someone`` placeholders in another
+      task's own detector regex (``test_p0_harness_portable.py:187``, honest
+      placeholders for what a pattern matches), 5 are that file's and
+      ``test_p0_toolchain.py``'s deliberate quotations of the pre-migration
+      record, and 2 are this file's own self-test fixtures.  So widening today
+      means flagging honest placeholders and honest history in files this task
+      does not own — a gate that cries wolf.  The exclusion therefore STAYS;
+      widening it is a separate decision for the owners of those two modules
+      (add ``sorted(REPO.glob("tests/**/*.py"))`` here, and exempt this file as
+      the scanner, which by construction quotes what it hunts).
     * ``/opt`` and ``/usr`` roots.  ``/opt/OpenRadioss`` is upstream's own
       documented prefix and ``/usr/bin/cmake`` is the system toolchain; neither
       is a per-machine fact.  A per-machine fact in this repo is ``$HOME``-shaped
@@ -136,6 +146,59 @@ def _lines(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8", errors="replace").splitlines()
 
 
+def _quoted_example_lines(lines: list[str]) -> set[int]:
+    """0-based indices of QUOTED material, as opposed to prose.
+
+    A reST literal block — a line ending in ``::`` followed by lines indented
+    deeper than the opener — or a fenced block quotes text verbatim.  In this
+    repo that shape is where a *sample of what a tool prints* lives, and a
+    sample is not a claim about anything:
+    ``tools/oracle/toolchain_probe.py:143-146`` is ``_gcc_version``'s
+    docstring showing what it parses::
+
+        GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+        gfortran (GCC) 4.8.5 20150623 (Red Hat 4.8.5-44)
+
+    Line 145 is this box's compiler and line 146 is a Red Hat banner quoted
+    from nowhere near it.  Without this distinction the version rule flagged
+    the example as a stale fact about this box, which is the classic failure
+    mode of a rot scanner: it cannot tell a sentence from a specimen, and it
+    cries wolf until the specimen is deleted.
+
+    The exemption is deliberately narrow, because a wide one is just a
+    loophole: the opener must really end in ``::`` (or be a fence), membership
+    requires blank-or-deeper indentation, the opener line itself stays PROSE
+    (it is a sentence: "GCC prints the packaging in parentheses and its own
+    version after it::"), and the region ends at the first non-blank line that
+    is indented no deeper than the opener.  So an ordinary sentence — a version
+    written in a comment or a docstring line — is never exempt, including one
+    written directly below an example block.
+    """
+    quoted: set[int] = set()
+    open_indent: int | None = None
+    fence: str | None = None
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip())
+        if fence is not None:
+            quoted.add(index)
+            if stripped.startswith(fence):
+                fence = None
+            continue
+        if stripped.startswith("```"):
+            fence = stripped[:3]
+            quoted.add(index)
+            continue
+        if open_indent is not None:
+            if not stripped or indent > open_indent:
+                quoted.add(index)
+                continue
+            open_indent = None
+        if stripped.endswith("::"):
+            open_indent = indent
+    return quoted
+
+
 def _label_window(lines: list[str], index: int) -> str:
     """The claim's own line plus :data:`LABEL_WINDOW_LINES` lines below it."""
     return "\n".join(lines[index:index + 1 + LABEL_WINDOW_LINES]).lower()
@@ -146,13 +209,17 @@ def _marked_history(window: str) -> bool:
 
 
 def _path_claims(lines: list[str]) -> list[tuple[int, str, str]]:
-    """``(index, path, label_window)`` for every machine path on every line.
+    """``(index, path, label_window)`` for every machine path on every PROSE line.
 
     One entry per (line, path); the window travels with it so the caller never
-    has to rediscover which lines a claim belongs to.
+    has to rediscover which lines a claim belongs to.  Quoted example lines are
+    skipped (:func:`_quoted_example_lines`).
     """
+    quoted = _quoted_example_lines(lines)
     claims = []
     for index, line in enumerate(lines):
+        if index in quoted:
+            continue
         for match in MACHINE_PATH.finditer(line):
             path = match.group(1).rstrip(".,;:)'\"")
             claims.append((index, path, _label_window(lines, index)))
@@ -396,26 +463,39 @@ def _tool_banner(tool: str) -> str | None:
 
 
 def test_the_build_script_names_the_tool_versions_this_box_has():
-    """``build_oracle.sh`` must not describe a toolchain this box does not have.
+    """``tools/`` prose must not describe a toolchain this box does not have.
 
-    The claim under test, at :98: "on this box ``command -v cmake`` is conda
-    cmake **4.4.3**, which fails the configure" — i.e. the comment argues for
-    pinning ``CMAKE=/usr/bin/cmake`` by asserting that the first cmake on PATH is
-    a conda 4.x.  Measured here: ``command -v cmake`` is ``/usr/bin/cmake`` and
-    ``cmake --version`` is **3.28.3** (so the default already satisfies the
-    script's own 3.15 <= version < 4 gate, and the argument is belt-and-braces,
-    not a fact about this box).
+    The claim this rule was written for, at ``build_oracle.sh:98``: "on this box
+    ``command -v cmake`` is conda cmake **4.4.3**, which fails the configure" —
+    i.e. the comment argues for pinning ``CMAKE=/usr/bin/cmake`` by asserting
+    that the first cmake on PATH is a conda 4.x.  Measured here:
+    ``command -v cmake`` is ``/usr/bin/cmake`` and ``cmake --version`` is
+    **3.28.3** (so the default already satisfies the script's own
+    3.15 <= version < 4 gate, and the argument is belt-and-braces, not a fact
+    about this box).
 
-    The reasoning the comment carries — CMake 4 rejects upstream's
-    ``cmake_minimum_required (VERSION 3.15)`` and the gate therefore must be
-    explicit — is preserved; only the false measurement changes.
+    What it does NOT do is read a quoted sample as a claim:
+    ``tools/oracle/toolchain_probe.py:146`` shows ``gfortran (GCC) 4.8.5
+    20150623 (Red Hat 4.8.5-44)`` inside a reST literal block to document what
+    ``_gcc_version`` parses, and that banner belongs to no machine this repo
+    runs on.  :func:`_quoted_example_lines` draws the line; prose claims — every
+    comment, every ordinary docstring line — stay checked, and
+    :func:`test_a_quoted_example_is_not_a_claim_but_prose_beside_it_is` proves
+    both halves on the real file plus synthetic ones.
+
+    The reasoning the corrected build-script comment carries — CMake 4 rejects
+    upstream's ``cmake_minimum_required (VERSION 3.15)`` and the gate therefore
+    must be explicit — is untouched by any of this.
     """
     offenders, unchecked = [], []
     for path in _scanned_sources():
         if path.suffix not in (".py", ".sh", ".txt"):
             continue
         lines = _lines(path)
+        quoted = _quoted_example_lines(lines)
         for index, line in enumerate(lines):
+            if index in quoted:
+                continue              # a specimen of output, not a claim
             for match in TOOL_VERSION_CLAIM.finditer(line):
                 tool, tail, ver = (match.group("tool"), match.group("tail"),
                                    match.group("ver"))
@@ -491,6 +571,57 @@ def test_the_version_rule_can_still_fail():
     assert _version_agrees("0.68", pins["numba"]), (
         "a dotted prefix of a recorded pin is not a contradiction")
     assert not _version_agrees("9.9.9", pins["numba"])
+
+
+def test_a_quoted_example_is_not_a_claim_but_prose_beside_it_is():
+    """The claim/specimen line, drawn on the real file that tripped it.
+
+    ``tools/oracle/toolchain_probe.py``'s ``_gcc_version`` documents what it
+    parses with a reST literal block containing this box's banner and a Red Hat
+    one.  The rule must read the block as quoted material and the sentence that
+    introduces it as prose — otherwise the version rule calls a parser's example
+    a stale machine fact, and the only "fixes" left are deleting the example or
+    deleting the rule.
+
+    The three synthetic cases below pin the boundary from the other side, so the
+    exemption cannot be stretched into a loophole: a false version in ordinary
+    prose is still compared, and so is one written immediately AFTER an example
+    block (indenting a claim does not launder it; only quoting it does).
+    """
+    probe = _lines(TOOLS / "oracle" / "toolchain_probe.py")
+    quoted = _quoted_example_lines(probe)
+
+    red_hat = next(i for i, line in enumerate(probe) if "gfortran (GCC)" in line)
+    opener = next(i for i in range(red_hat, -1, -1) if probe[i].rstrip().endswith("::"))
+    assert red_hat in quoted, (
+        "the Red Hat banner in _gcc_version's docstring is a quoted example, "
+        "not a claim about this box's compiler")
+    assert opener not in quoted, (
+        "the line ending in '::' is the sentence that INTRODUCES the example "
+        "(it says what the banner looks like); it is prose and stays checked")
+    assert set(range(opener + 1, red_hat + 1)) <= quoted, (
+        "the whole literal block is quoted: the blank line AND both sample "
+        "banners. Note the first one happens to BE this box's banner - it is "
+        "still exempt, because a specimen is judged by whether it is a specimen, "
+        "not by whether it is currently true. The authoritative compiler record "
+        "is toolchain_probe.json, held to this box by tests/test_p0_toolchain.py")
+
+    stale = ["# cmake: prefer the upstream-era 3.28 over the conda 4.x, which",
+             "# on this box `command -v cmake` is conda cmake 4.4.3."]
+    assert _quoted_example_lines(stale) == set(), "ordinary prose is never quoted"
+    found = [m for m in TOOL_VERSION_CLAIM.finditer(stale[1])
+             if m.group("tool") == "cmake" and m.group("ver") == "4.4.3"]
+    assert found, "a false version in prose must still be seen by the rule"
+
+    quoted_stale = ["# cmake banners look like this::", "",
+                    "        cmake version 4.4.3"]
+    assert 2 in _quoted_example_lines(quoted_stale), (
+        "the same string inside a literal block is a specimen")
+
+    after = quoted_stale + ["# on this box cmake is 4.4.3."]
+    assert 3 not in _quoted_example_lines(after), (
+        "the first line at the block's indentation level ends the block, so a "
+        "claim written right after it is prose again")
 
 
 # ---------------------------------------------------------------------------
