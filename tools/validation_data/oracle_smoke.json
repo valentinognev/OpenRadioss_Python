@@ -10,12 +10,13 @@
     "third_party_prebuilt_binary": false,
     "starter": {
       "path": "/home/valentin/OpenRadioss_or/bin/starter_linux64_gf",
-      "sha256": "b2f6a19f178867da9a9478fb23f8a09b76370b53ef3e31444f80e183b58a03d6"
+      "sha256": "8b504accce0855a0c1201c2daef425e61e2dd9c495258d9dd4490e6488dbb3e3"
     },
     "engine": {
       "path": "/home/valentin/OpenRadioss_or/bin/engine_linux64_gf",
-      "sha256": "99e63c5c4a39dd870fc98c40ccbd3eb34f05dde202317a2cda1c919090ae9270"
-    }
+      "sha256": "6d58d0b1f882ee9139c61d739e6cdf7a1e7f89efb777bba4e974f66be35221d7"
+    },
+    "binary_sha256_note": "Both digests were RE-MEASURED on 2026-10-03 with `sha256sum` after the machine migration rebuilt the oracle; they REPLACE b2f6a19f178867da9a9478fb23f8a09b76370b53ef3e31444f80e183b58a03d6 (starter) and 99e63c5c4a39dd870fc98c40ccbd3eb34f05dde202317a2cda1c919090ae9270 (engine), which described binaries that no longer exist. Nothing else in this record moved, because nothing else changed: the rebuilt binaries reproduce t01.md5_normalized EXACTLY (three consecutive reference runs, measured 2026-10-03) -- see oracle_provenance.json -> revalidation. Until tests/test_p0_oracle_provenance.py (P0.12) existed, NOTHING compared these two digests with the binaries on disk (test_stored_golden_record_is_complete only asserted the string was non-empty), so the suite was green over a record that named binaries nobody had."
   },
   "deck": {
     "root": "examples/tensile_bar",

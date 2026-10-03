@@ -11,7 +11,8 @@
     "git_sha_short": "1a0d691b8",
     "git_commit_date": "2026-09-26",
     "git_subject": "Add three-surface RHT solid USER01 material and verification tools",
-    "mirror_path": "/home/valentin/OpenRadioss_or/source",
+    "mirror_path": "/home/valentin/OpenRadioss_build",
+    "mirror_path_note": "the mirror IS $OR_BUILD, the writable prefix: mirror_and_fetch.sh:260 does `git archive --format=tar HEAD | tar -x -C \"$OR_BUILD\"`, and build/starter/CMakeCache.txt confirms it (CMAKE_HOME_DIRECTORY:INTERNAL=/home/valentin/OpenRadioss_build). Re-measured 2026-10-03: this record used to name /home/valentin/OpenRadioss_or/source, a path the migration removed -- CMakeCache.txt:CMAKE_MAKE_PROGRAM and CMAKE_HOME_DIRECTORY are the evidence for the value above. tests/test_p0_oracle_provenance.py::test_provenance_names_only_paths_that_exist is what keeps it true.",
     "mirror_method": "git archive --format=tar HEAD | tar -x  (no .git in the mirror, $OR_SRC never written)",
     "extlib_version_declared_by_source": "82",
     "extlib_version_declared_source": "$OR_SRC/EXTLIB_VERSION.json -> https://github.com/OpenRadioss/OpenRadioss_extlib/releases/download/v82/extlib.zip",
@@ -152,49 +153,90 @@
       },
       "extra_includes": "gcc -include $OR_BUILD/p0_shims/p0_h3d_api_shim.h -I$OR_BUILD/p0_shims on the C and CXX lines (the declared h3d header shims); $OR_BUILD/p0_shims is earlier in the command line than the extlib include dir, so the shim headers win",
       "extra_link": "starter only: -Dflexpipe_lib=$OR_BUILD/p0_shims/libp0extlibshims.a -Wl,-rpath-link,$OR_BUILD/extlib/hm_reader/linux64 -Wl,-rpath-link,<dir providing libcrypt.so.1>  [the ${flexpipe_lib} hook at starter/CMake_Compilers/cmake_linux64_gf.txt:177 is unused upstream]",
-      "cmake": "/usr/bin/cmake 3.28.3 (build_oracle.sh now REQUIRES cmake >= 3.15 and < 4 and fails with a clear message otherwise; the conda cmake 4.4.3 that `command -v cmake` finds first is rejected because CMake 4 refuses upstream's cmake_minimum_required (VERSION 3.15))",
-      "python3": "python3 is resolved from PATH by the upstream component CMakeLists (starter/CMakeLists.txt:14-19); on this box that is conda 3.14.6. Override with PYTHON_P3 override in PATH if a different interpreter is required.",
+      "cmake": "/usr/bin/cmake 3.28.3 (build_oracle.sh REQUIRES cmake >= 3.15 and < 4 and fails with a clear message otherwise; on this box `command -v cmake` resolves to that same /usr/bin/cmake 3.28.3, so the guard is idle here. It is kept because CMake 4 refuses upstream's cmake_minimum_required (VERSION 3.15), which the pre-migration box's conda cmake 4.4.3 demonstrated)",
+      "python3": "python3 is resolved from PATH by the upstream component CMakeLists (starter/CMakeLists.txt:14-19); on this box that is /home/valentin/anaconda3/bin/python3, Python 3.11.5. Override with PYTHON_P3 override in PATH if a different interpreter is required. (The pre-migration box had conda python3 3.14.6 at /home/valentin/anaconda, which no longer exists.)",
       "stale_binaries": "build_oracle.sh removes $OR_ROOT/bin/{starter,engine}_linux64_gf before configuring, so a failed rebuild cannot leave a previous binary for the gate to pass on"
     },
     "runtime_library_check": "build_oracle.sh runs ldd on each installed binary with the oracle environment and fails if any NEEDED library is unresolved; the link-time 'libcrypt.so.1 ... not found' warning from ld is handled with -Wl,-rpath-link so ld resolves the harvested apr-1's dependency chain instead of warning, and libcrypt.so.1 itself comes from the system (/lib/x86_64-linux-gnu/libcrypt.so.1)."
   },
   "toolchain": {
-    "host": "Linux x86_64, 12 cores",
-    "gfortran": "GNU Fortran (GCC) 15.2.0 - /home/valentin/anaconda/bin/gfortran",
-    "gcc": "GNU C 15.2.0 (conda-forge) - /home/valentin/.local/bin/gcc -> anaconda/bin/x86_64-conda-linux-gnu-gcc",
-    "gxx": "GNU C++ 15.2.0 (conda-forge) - /home/valentin/.local/bin/g++ -> anaconda/bin/x86_64-conda-linux-gnu-g++",
+    "machine_of_record": null,
+    "machine_of_record_reason": "THIS BLOCK DESCRIBES THE MACHINE THE ORACLE WAS BUILT ON, AND THAT MACHINE IS THE ONE THESE BINARIES RUN ON -- it is not a record of a foreign build host. Every path below was executed and every banner read on 2026-10-03 while re-verifying this file after the machine migration (see revalidation below), so the null marker is a claim that can be checked, not an omission. If the oracle is ever rebuilt elsewhere, this key MUST become an object {\"describes\": \"the machine where the oracle was BUILT\", \"note\": ...} instead of quietly describing another box; tests/test_p0_oracle_provenance.py accepts only that object or this null-plus-reason form, and holds every path to the disk.",
+    "host": "Linux x86_64, 28 cores",
+    "host_measured_by": "os.cpu_count() == 28 and platform.machine() == 'x86_64' (nproc: 28). The pre-migration box recorded 12 cores; that number was stale, not a property of the model.",
+    "gfortran": "GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 - /usr/bin/gfortran",
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 - /usr/bin/gcc",
+    "gxx": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 - /usr/bin/g++",
+    "make": "GNU Make 4.3 - /usr/bin/gmake",
+    "make_note": "CMAKE_MAKE_PROGRAM:FILEPATH=/usr/bin/gmake in build/starter/CMakeCache.txt; /usr/bin/make is the same program.",
     "cmake": "cmake version 3.28.3 - /usr/bin/cmake",
-    "cmake_note": "the conda cmake 4.4.3 first on PATH is deliberately NOT used: CMake 4 rejects the `cmake_minimum_required (VERSION 3.15)` compatibility declarations in CMakeLists.txt:5 / starter/CMakeLists.txt:5 / engine/CMakeLists.txt:5",
-    "python3": "3.14.6 (the component CMakeLists hardcode python3 on non-Windows)",
-    "system_gfortran": null,
-    "system_gfortran_reason": "none installed; all Fortran comes from conda-forge"
+    "cmake_note": "build_oracle.sh REQUIRES cmake >= 3.15 and < 4 and pins CMAKE=/usr/bin/cmake (build_oracle.sh:100-119). On this box `command -v cmake` resolves to that same /usr/bin/cmake 3.28.3, so the version guard is no longer load-bearing; it stays because CMake 4 rejects upstream's `cmake_minimum_required (VERSION 3.15)` compatibility declarations (CMakeLists.txt:5 / starter/CMakeLists.txt:5 / engine/CMakeLists.txt:5), which the pre-migration box's conda cmake 4.4.3 demonstrated.",
+    "python3": "Python 3.11.5 - /home/valentin/anaconda3/bin/python3",
+    "python3_note": "what `command -v python3` resolves to on this box. The component CMakeLists hardcode python3 on non-Windows (starter/CMakeLists.txt:14-19); override with a PYTHON_P3 override earlier in PATH if a different interpreter is required. The pre-migration record said 'conda 3.14.6' from /home/valentin/anaconda -- a prefix this box does not have (see absent_toolchains).",
+    "system_gfortran": "GNU Fortran (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0 - /usr/bin/gfortran",
+    "system_gfortran_reason": "not null any more: the system gfortran IS the compiler these binaries were built with (build/starter/CMakeCache.txt: CMAKE_Fortran_COMPILER:STRING=/usr/bin/gfortran, CMAKE_C_COMPILER:STRING=/usr/bin/gcc, CMAKE_CXX_COMPILER:STRING=/usr/bin/g++). The binaries link libgfortran.so.5, the Ubuntu 13 runtime (ldd, measured 2026-10-03). The pre-migration record had null here with 'none installed; all Fortran comes from conda-forge', which was true of that box and false of this one.",
+    "absent_toolchains": {
+      "conda_forge_prefix_of_the_pre_migration_box": {
+        "path": "/home/valentin/anaconda",
+        "exists": false,
+        "reason": "the conda-forge gcc/gfortran 15.2.0 toolchain the pre-migration record named. Measured 2026-10-03: `ls -d /home/valentin/anaconda` -> 'No such file or directory'. Its binaries carried DT_RPATH=/home/valentin/anaconda/lib; the rebuilt binaries carry NO DT_RPATH/DT_RUNPATH at all (readelf -d, measured), because they link the system toolchain. Recorded as absent rather than silently dropped so that a later reader knows WHY the recorded compiler changed. tests/test_p0_oracle_provenance.py::test_toolchain_absent_prefixes_are_recorded_as_absent asserts this flag against the disk.",
+        "note": "a DIFFERENT conda prefix, /home/valentin/anaconda3, does exist and is what python3 resolves to; see toolchain.python3. The two are not the same thing and are not interchangeable."
+      }
+    }
   },
   "solvers": {
     "starter_linux64_gf": {
       "path": "/home/valentin/OpenRadioss_or/bin/starter_linux64_gf",
+      "sha256": "8b504accce0855a0c1201c2daef425e61e2dd9c495258d9dd4490e6488dbb3e3",
       "built": true,
       "built_from": "cmake --build of the mirror with the declared extlib_shims",
       "banner": "OpenRadioss Starter / Platform release : linux64 (CPUNAM from starter/share/spe_inc/machine.inc:39,44)",
-      "version_banner_observed": "OpenRadioss Starter\nPlatform release : linux64\nPlatform info : Linux 64 bits, GNU compiler\nCommitID : User Build\nReader : 20260505_a2e7b801"
+      "version_banner_observed": "OpenRadioss Starter\nPlatform release : linux64\nPlatform info : Linux 64 bits, GNU compiler\nCommitID : User Build\nReader : 20260505_a2e7b801",
+      "sha256_and_build_stamp_measured_on": "2026-10-03, `sha256sum /home/valentin/OpenRadioss_or/bin/starter_linux64_gf` and `starter_linux64_gf -v` under the oracle environment. Byte-identical to the build output /home/valentin/OpenRadioss_build/exec/starter (same sha256), i.e. the install is the build, not a copy of something else. The build stamp the banner prints is 'Time of build : 15:00:49 / Date of build : Oct  3 2026'. This digest REPLACED the pre-migration one (b2f6a19f178867da9a9478fb23f8a09b76370b53ef3e31444f80e183b58a03d6): the binary was rebuilt on this box after the migration and the record now describes the binary that exists."
     },
     "engine_linux64_gf": {
       "path": "/home/valentin/OpenRadioss_or/bin/engine_linux64_gf",
+      "sha256": "6d58d0b1f882ee9139c61d739e6cdf7a1e7f89efb777bba4e974f66be35221d7",
       "built": true,
       "built_from": "cmake --build of the mirror with the declared extlib_shims",
       "banner": "OpenRadios Engine / Platform release : linux64_gf (generated BNAME, engine/source/engine/execargcheck.F:729)",
-      "version_banner_observed": "OpenRadios Engine\nPlatform release : linux64_gf\nPlatform info : Linux 64 bits, GNU compiler"
+      "version_banner_observed": "OpenRadios Engine\nPlatform release : linux64_gf\nPlatform info : Linux 64 bits, GNU compiler",
+      "sha256_and_build_stamp_measured_on": "2026-10-03, `sha256sum /home/valentin/OpenRadioss_or/bin/engine_linux64_gf` and `engine_linux64_gf -v` under the oracle environment. Byte-identical to the build output /home/valentin/OpenRadioss_build/exec/engine (same sha256). The build stamp the banner prints is 'Time of build : 15:01:30 / Date of build : Oct  3 2026'. This digest REPLACED the pre-migration one (99e63c5c4a39dd870fc98c40ccbd3eb34f05dde202317a2cda1c919090ae9270)."
     }
+  },
+  "revalidation": {
+    "on": "2026-10-03",
+    "why": "the machine was migrated and the oracle was REBUILT from the same pinned source. Nothing in this file was edited to fit the new binaries; every field below was re-measured on the rebuilt binaries, and the fields that did NOT change are recorded as unchanged with the measurement that proves it.",
+    "gate": "tests/test_p0_oracle_provenance.py (P0.12). Before it existed, no committed test compared the recorded binary digests with the binaries on disk -- tests/test_p0_oracle_selftest.py only asserted `assert entry[\"sha256\"]` (a truthy string), so the suite was green over a record describing binaries that had been replaced. The new gate fails on a stale record by construction.",
+    "changed_and_re_measured": [
+      "solvers.*.sha256: both binaries are new (the rebuild). Measured with sha256sum; see solvers.*.sha256_and_build_stamp_measured_on. The pre-migration digests were b2f6a19f... (starter) and 99e63c5c... (engine).",
+      "toolchain: the conda-forge 15.2.0 toolchain is gone (see toolchain.absent_toolchains); the rebuild used the Ubuntu 13.3.0 system compilers, so system_gfortran is no longer null and gcc/gxx are no longer conda-forge.",
+      "toolchain.host: 12 cores -> 28 (os.cpu_count()).",
+      "toolchain.python3: 'conda 3.14.6' at a prefix that no longer exists -> Python 3.11.5 at /home/valentin/anaconda3/bin/python3.",
+      "upstream.mirror_path: /home/valentin/OpenRadioss_or/source -> /home/valentin/OpenRadioss_build, which is where mirror_and_fetch.sh:260 actually extracts the archive."
+    ],
+    "unchanged_and_re_measured": [
+      "OR_SRC revision 1a0d691b82bd4f94a3bc2399682551e84e1d5fa4 -- `git -C $OR_SRC rev-parse HEAD`, unchanged; $OR_SRC is still clean (`git status --porcelain` empty).",
+      "extlib: still the harvested v59 tree under $OR_BUILD/extlib with the P0_HARVESTED marker; the required v82 gap is unchanged, so all declared extlib_shims are unchanged and still needed.",
+      "THE PHYSICS: three consecutive reference runs of examples/tensile_bar on the REBUILT binaries produced a byte-identical stamp-normalised T01, md5_norm = e3688899358f35e825cd640f9bd94964 every run -- which EQUALS the committed golden digest in oracle_smoke.json -> t01.md5_normalized. That digest was NOT touched by this correction, and tests/test_p0_oracle_provenance.py pins it as a literal so it cannot move silently.",
+      "end-to-end verdict of the golden deck: 0 ERROR(S) / 0 WARNING(S) from the starter, NORMAL TERMINATION with TOTAL NUMBER OF CYCLES: 1420 from the engine, T01 15168 bytes, 11 A-files (TENSILEA001..A011), both restarts (TENSILE_0000_0001.rst, TENSILE_0001_0001.rst). Same numbers as evidence_verification below.",
+      "runtime library resolution: ldd under the oracle environment resolves every NEEDED entry of both binaries (libhm_reader_linux64.so and libapr-1.so.0 from $OR_BUILD/extlib/hm_reader/linux64, the rest from /lib/x86_64-linux-gnu), so build.runtime_library_check still holds.",
+      "the h3d ABI facts in inadmissible_parity_evidence_reasons: the reachable writer is still the v59 libh3dwriter.so and still exports no node dataset (`nm -D --defined-only ... | grep -ci node` -> 0, measured 2026-10-03)."
+    ],
+    "carried_not_re_measured": [
+      "the two-way H3D REFUSAL measurement (RAD_H3D_PATH unset -> MSGID 274; set -> NORMAL TERMINATION and a .h3d written). It needs a deck that REQUESTS h3d, and the vendored golden pair does not: `grep -c H3D examples/tensile_bar/TENSILE_0000.rad` -> 0, so the golden run cannot exercise either side. This was measured against the pre-migration binaries and was NOT repeated against the rebuilt ones. The refusal MECHANISM is unchanged by the rebuild (same $OR_SRC HEAD, same extlib, same oracle_env.sh which still does not export RAD_H3D_PATH), and it is not a channel this record makes admissible -- but it is recorded here as carried rather than presented as a fresh measurement of the installed binaries."
+    ]
   },
   "third_party_prebuilt_binaries_used": false,
   "third_party_prebuilt_binaries_note": "Two Docker Hub images (ale10tech/openradioss-core, dheiny/openradioss-solver) contain prebuilt starter/engine binaries. They were NOT installed or used as the oracle: the deliverable is a from-source build, and shipping someone else's binary as parity evidence would be unsound.",
   "built_on": "2026-10-03",
   "not_built_reason": null,
   "verification_performed": [
-    "cmake >=3.15,<4 configures and builds both components cleanly with gfortran 15.2.0 under upstream's own strict flags; no compiler-flag or source-level workaround was needed",
-    "both binaries print their version banner: starter_linux64_gf -v -> 'OpenRadioss Starter / Platform release : linux64 / Reader : 20260505_a2e7b801'; engine_linux64_gf -v -> 'OpenRadios Engine / Platform release : linux64_gf'",
-    "END-TO-END: examples/tensile_bar/TENSILE_0000.rad through the starter -> 0 ERROR(S), 0 WARNING(S); examples/tensile_bar/TENSILE_0001.rad through the engine -> NORMAL TERMINATION, 1420 cycles, T01 + 11 A-files + restart written (see evidence_verification)",
+    "cmake >=3.15,<4 configures and builds both components cleanly with gfortran 13.3.0 (/usr/bin/gfortran, CMAKE_Fortran_COMPILER in build/starter/CMakeCache.txt) under upstream's own strict flags; no compiler-flag or source-level workaround was needed. Re-measured 2026-10-03 after the migration; this line used to say gfortran 15.2.0 from a conda prefix this box no longer has.",
+    "both binaries print their version banner: starter_linux64_gf -v -> 'OpenRadioss Starter / Platform release : linux64 / Reader : 20260505_a2e7b801'; engine_linux64_gf -v -> 'OpenRadios Engine / Platform release : linux64_gf' (re-run 2026-10-03 on the rebuilt binaries: identical banners, new build stamps)",
+    "END-TO-END: examples/tensile_bar/TENSILE_0000.rad through the starter -> 0 ERROR(S), 0 WARNING(S); examples/tensile_bar/TENSILE_0001.rad through the engine -> NORMAL TERMINATION, 1420 cycles, T01 + 11 A-files + restart written (see evidence_verification). REPEATED on the rebuilt binaries on 2026-10-03 with the same numbers, and with the same stamp-normalised T01 digest (see revalidation).",
     "END-TO-END: tests/data/oracle/part_smoke_0000.rad (three parts) -> 0 ERROR(S), 0 WARNING(S) with all three ids and titles intact; the same deck reported 4 ERROR(S) and 'PART: 0' before the one-byte flag fix",
-    "H3D REFUSAL measured both ways: RAD_H3D_PATH unset -> 'MESSAGE ID : 274 / ** ERROR: H3D EXTERNAL LIBRARY NOT FOUND' + ERROR TERMINATION; RAD_H3D_PATH set to the stale writer -> NORMAL TERMINATION and TENSILE.h3d written (the dangerous path that oracle_env.sh now prevents)",
+    "H3D REFUSAL (carried from the pre-migration build; NOT re-measured against the rebuilt binaries -- see revalidation.carried_not_re_measured, because it needs a deck that requests h3d and the golden pair does not): RAD_H3D_PATH unset -> 'MESSAGE ID : 274 / ** ERROR: H3D EXTERNAL LIBRARY NOT FOUND' + ERROR TERMINATION; RAD_H3D_PATH set to the stale writer -> NORMAL TERMINATION and a .h3d file written (the dangerous path that oracle_env.sh now prevents)",
     "runtime library resolution verified with ldd under the oracle environment for both binaries; the harvested apr-1's libcrypt.so.1 dependency is satisfied by the system libcrypt and ld is given -rpath-link so it resolves the chain instead of warning",
     "tools/oracle/mirror_and_fetch.sh verifies all 14 extlib paths, the h3d/hm_reader API currency and the $OR_SRC revision on every run, and refuses to proceed when a stale entry point has no declared adapter",
     "every declared adapter is checked to be LIVE: a C adapter whose marker string is absent from the binary that uses it fails the suite (this is what exposed the dead p0_h3d_writer_adapter.c)"
