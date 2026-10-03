@@ -1,5 +1,34 @@
 # Updates
 
+## 1.1.0 - Hashed corpus manifest (P0.8)
+
+- **New** `tools/validation_data/rd_decks_manifest.json` — one record per
+  starter deck (`*_0000.rad`) under `paths.rd_decks_dir()`: `deck`,
+  `hashed_file`, `sha256`, `size_bytes`, `case_id`/`category`/`package`
+  (carried over from `inventory.json`, `null` when it never catalogued the
+  deck — ids are never invented), the `parity_m41.json` /
+  `coverage_results_m41.json` verdicts, and `in_envelope` **with**
+  `in_envelope_source` + `in_envelope_reason`.
+- **`in_envelope` is measured, never predicted**: `true` only where
+  `parity_m41.json` carries a `MATCH` verdict for that exact `case_id` (the
+  port reproduced the oracle). `inventory.json`'s static `IN_ENVELOPE`
+  classification (a *reading* prediction) is recorded as context and never
+  flips the flag. Every `false` carries its reason.
+- **New** `tools/validate_vs_fortran.load_manifest()` → `list[dict]`; lazy and
+  read-only (reads the JSON inside the function, opens no deck), so it works
+  with no environment exported and no corpus mounted. Raises `ValueError` on an
+  unknown schema or a record missing a documented field.
+- **New** `tools/build_rd_decks_manifest.py` — regenerates the manifest from
+  the corpus, and `--check` verifies the committed file against the decks on
+  disk without writing.
+- **Tests** `tests/test_p0_manifest.py` (15): one record per corpus starter
+  deck, **every** recorded `sha256` re-hashed from disk on every run (75 decks
+  / 8.8 MB, ~10 ms — the whole corpus, not a sample), unique ids that match
+  `inventory.json`, the envelope flag only ever backed by a measured `MATCH`,
+  non-empty joins with `parity_m41.json` and `coverage_results_m41.json`, the
+  loader working with nothing exported, and a synthetic uncatalogued deck
+  coming out `case_id: null` / `in_envelope: false`.
+
 ## 1.0.2 - P0.6 fix round 1: CI cfg spelling, candidate order, pinned precedence
 
 - **Fix** `PYRADIOSS_HM_CFG` now accepts **both** spellings — the documented

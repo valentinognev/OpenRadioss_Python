@@ -114,6 +114,71 @@ DEFAULT_WORKDIR = os.environ.get(
     os.path.join(os.environ.get("TEMP", REPO), "valruns"))
 
 
+# ----------------------------------------------------------------------------
+# Corpus manifest (Phase 0 / task P0.8)
+# ----------------------------------------------------------------------------
+#
+# The manifest is the generated, hashed answer to "which deck files does the
+# differential-validation evidence actually cover, and what are their bytes?".
+# It replaces the hand-kept case list that tools/validation_data/inventory.json
+# and parity_m41.json are keyed by; those two files stay the authority for
+# *ids*, and the manifest carries them over on `case_id` so the three files
+# remain joinable.
+#
+# The loader is deliberately lazy and read-only: it reads the JSON inside the
+# function and opens NO deck.  A validation run may legitimately happen with
+# the corpus unmounted, and the recorded hashes must still be readable; it
+# also means importing this module touches no resource (P0.9 replaces the
+# module-scope `C:\...` toolchain literals above with pyradioss.paths).
+
+MANIFEST_SCHEMA = "pyradioss/rd-decks-manifest/1"
+MANIFEST_PATH = os.path.join(REPO, "tools", "validation_data",
+                             "rd_decks_manifest.json")
+
+#: Fields every record must carry; a record missing one is a broken manifest,
+#: not a deck the harness may silently skip.
+MANIFEST_FIELDS = ("case_id", "deck", "hashed_file", "sha256", "size_bytes",
+                   "category", "package", "in_envelope", "in_envelope_source",
+                   "in_envelope_reason", "inventory_classification",
+                   "parity_case", "parity_class", "parity_max_rel_rms",
+                   "coverage_verdict")
+
+
+def load_manifest(path: Optional[str] = None) -> List[dict]:
+    """Return the corpus manifest records, one per starter deck.
+
+    ``path`` defaults to :data:`MANIFEST_PATH`.  Each record names the deck
+    (``deck``, a POSIX path relative to the corpus root), the file its
+    ``sha256`` was computed over (``hashed_file`` — equal to ``deck`` unless a
+    record says otherwise, so the hashed bytes are never a guess), the
+    inventory ``case_id`` it corresponds to (``null`` when the corpus holds a
+    deck inventory.json never saw), and the evidence-derived ``in_envelope``
+    flag together with the source of that flag.
+
+    Raises ``FileNotFoundError`` when the manifest has not been generated
+    (run ``tools/build_rd_decks_manifest.py``) and ``ValueError`` when it is
+    present but unreadable as a manifest.
+    """
+    with open(path or MANIFEST_PATH, encoding="utf-8") as fh:
+        doc = json.load(fh)
+    schema = doc.get("schema")
+    if schema != MANIFEST_SCHEMA:
+        raise ValueError(
+            f"{path or MANIFEST_PATH}: schema {schema!r} is not "
+            f"{MANIFEST_SCHEMA!r} — regenerate it with "
+            "tools/build_rd_decks_manifest.py")
+    records = doc.get("decks")
+    if not isinstance(records, list):
+        raise ValueError(f"{path or MANIFEST_PATH}: no 'decks' list")
+    for rec in records:
+        missing = [f for f in MANIFEST_FIELDS if f not in rec]
+        if missing:
+            raise ValueError(
+                f"{path or MANIFEST_PATH}: record {rec.get('deck')!r} is "
+                f"missing {missing}")
+    return records
+
+
 def fortran_env() -> Dict[str, str]:
     env = dict(os.environ)
     env["RAD_CFG_PATH"] = os.path.join(OR_ROOT, "hm_cfg_files")
