@@ -6,8 +6,9 @@ Audits:
 1. CFG card formats and layouts:
    - <hm_cfg_files>/config/CFG/radioss110/MAT/matl37_biphas.cfg
    - <hm_cfg_files>/config/CFG/radioss2018/MAT/matl37_biphas.cfg
-     (hm_cfg_files is resolved by pyradioss.paths.hm_cfg_dir(), never a
-     hardcoded install prefix; see _cfg() below)
+     (hm_cfg_files is resolved by the project's single resolver, in either of
+     its two supported spellings, never a hardcoded install prefix; see
+     _cfg() / _cfg_schema_dir() below)
    - Verify exact 20-character column layouts (%20lg) for all physics attributes.
    - CfgCatalogue schema resolution and attribute types.
    - pyradioss/input/card_layouts.py constants, synonyms, and LAYOUTS dictionary registration.
@@ -36,15 +37,21 @@ Audits:
      * c_l > 0
      * gamma > 0
      * 0 <= alpha1 <= 1
-     * nu_l >= 0
-     * nu_g >= 0
+      * nu_l >= 0
+      * nu_g >= 0
+5. CFG tree location:
+   - The audited cfg paths resolve under BOTH supported spellings of
+     $PYRADIOSS_HM_CFG (the hm_cfg_files tree root and the config/CFG schema
+     directory itself).
 """
 
 from __future__ import annotations
 
+import importlib
 import math
 import os
 import re
+import sys
 import tempfile
 import warnings
 from pathlib import Path
@@ -62,6 +69,7 @@ from pyradioss.input.mat_reader import (
     MAT_PHYSICS_REGISTRY,
     CfgCatalogue,
     GenericMaterialRecord,
+    _find_cfg_root,
     catalogue,
     parse_generic_mat,
 )
@@ -85,6 +93,10 @@ from pyradioss.starter.checks import _ALLOWED_LAWS, check_mat_law37, check_model
 # class skipped on every non-Windows box and the audit silently stopped running
 # after the Linux migration.  Resolving instead of hardcoding is what makes
 # these 6 tests execute wherever the tree is present, with or without OR_SRC.
+# ``_HM_CFG_ROOT`` below is therefore only the *resolver's own diagnostic*
+# (absent tree -> one import-time warning + an actionable skip reason) and the
+# skip guard; the audited paths are built by ``_cfg()``, which resolves the
+# schema directory and so honours BOTH spellings of the variable.
 try:
     _HM_CFG_ROOT = _paths.hm_cfg_dir()
     _HM_CFG_SKIP_REASON = ""
@@ -104,16 +116,41 @@ except FileNotFoundError as exc:                        # genuinely absent
     )
 
 
+def _cfg_schema_dir() -> Path | None:
+    """The ``config/CFG`` **schema directory** of the resolved cfg tree.
+
+    ``$PYRADIOSS_HM_CFG`` has two supported spellings — the ``hm_cfg_files``
+    tree root (``plan/00_ORCHESTRATION.md`` §4.1, upstream's
+    ``RAD_CFG_PATH`` = ``$OPENRADIOSS_PATH/hm_cfg_files``) and the
+    ``config/CFG`` schema directory itself (what
+    ``.github/workflows/ci.yml`` exports) — and the single resolver accepts
+    either (``pyradioss.paths.is_cfg_tree``; pinned by
+    ``tests/test_p0_paths.py:156``).  Which one it got is decided by
+    inspecting the filesystem, by the ONE probe the project already has:
+    ``mat_reader._find_cfg_root``.  This helper reuses it rather than
+    prefixing ``config/CFG`` onto whatever ``paths.hm_cfg_dir()`` returned —
+    commit ``e0c3a06`` did the latter and therefore built
+    ``.../config/CFG/config/CFG/radioss110/...`` under the schema-directory
+    spelling, failing 3 tests here and 2 in the LAW34 audit.  A third copy of
+    that probe in a test file is a maintenance hazard; see
+    TestCfgTreeSpellingAudit, which pins both spellings.
+
+    A function, not a module constant, so a test can re-resolve after
+    re-pointing the environment (``paths.reload()`` drops the memo).
+    """
+    root = _find_cfg_root()
+    return Path(root) if root is not None else None
+
+
 def _cfg(*parts: str) -> Path:
-    """A path inside the resolved CFG tree.
+    """A path inside the resolved cfg schema directory.
 
     Only ever *called* by tests whose class-level skip guard already passed,
-    so ``_HM_CFG_ROOT`` is non-None whenever the returned path reaches the
-    filesystem; the fallback keeps import itself exception-free on a box
-    without the tree (where the class skips).
+    so the tree is resolvable here; the fallback keeps import itself
+    exception-free on a box without the tree (where the class skips).
     """
-    root = _HM_CFG_ROOT if _HM_CFG_ROOT is not None else Path(".")
-    return root.joinpath(*parts)
+    base = _cfg_schema_dir()
+    return (base if base is not None else Path(".")).joinpath(*parts)
 
 
 def block_lines(text: str, header_prefix: str) -> list[str]:
@@ -142,12 +179,13 @@ def data_cards(lines: list[str]) -> list[str]:
 class TestLaw37CfgCatalogueAudit:
     """Audit reference CFG catalogue files and pyradioss/input/card_layouts.py.
 
-    The tree location comes from pyradioss.paths.hm_cfg_dir(), so this class
-    runs on any box that has it.
+    The tree location comes from the project's single resolver, so this class
+    runs on any box that has it, under either supported spelling of
+    $PYRADIOSS_HM_CFG.
     """
 
-    CFG_110 = _cfg("config", "CFG", "radioss110", "MAT", "matl37_biphas.cfg")
-    CFG_2018 = _cfg("config", "CFG", "radioss2018", "MAT", "matl37_biphas.cfg")
+    CFG_110 = _cfg("radioss110", "MAT", "matl37_biphas.cfg")
+    CFG_2018 = _cfg("radioss2018", "MAT", "matl37_biphas.cfg")
 
     def test_cfg_files_exist(self):
         """Verify both radioss110 and radioss2018 CFG files exist in reference install."""
@@ -231,7 +269,63 @@ class TestLaw37CfgCatalogueAudit:
 
 
 # =============================================================================
-# 2. Deck Writing and Roundtrip Reading Audit
+# 1b. CFG tree location audit — BOTH spellings of $PYRADIOSS_HM_CFG
+# =============================================================================
+
+@pytest.mark.skipif(_HM_CFG_ROOT is None, reason=_HM_CFG_SKIP_REASON)
+class TestCfgTreeSpellingAudit:
+    """The audited CFG paths must be found under **both** supported spellings.
+
+    ``$PYRADIOSS_HM_CFG`` has two supported spellings, both documented by
+    the single resolver: the ``hm_cfg_files`` **tree root**
+    (``plan/00_ORCHESTRATION.md`` §4.1, upstream's ``RAD_CFG_PATH``) and the
+    ``config/CFG`` **schema directory** itself (what
+    ``.github/workflows/ci.yml`` exports; ``pyradioss.paths.is_cfg_tree``
+    accepts both, ``tests/test_p0_paths.py:156`` pins the second, and
+    ``mat_reader._find_cfg_root`` tells them apart by inspecting the
+    filesystem).  Commit ``e0c3a06`` prefixed ``config/CFG`` onto whatever
+    the resolver returned, so under the schema-directory spelling it built
+    ``.../config/CFG/config/CFG/radioss110/MAT/matl37_biphas.cfg``.  This
+    guard rebuilds the module's own paths under that spelling and demands
+    the real files.
+    """
+
+    def test_audit_cfg_paths_found_under_the_cfg_directory_spelling(
+            self, monkeypatch):
+        from pyradioss.input.mat_reader import _find_cfg_root
+        try:
+            with monkeypatch.context() as mp:
+                # Derive the schema directory from the project's own probe,
+                # never from a hardcoded machine path: whatever spelling the
+                # ambient environment used, re-resolving it must agree.
+                mp.setenv("PYRADIOSS_HM_CFG", str(_HM_CFG_ROOT))
+                _paths.reload()
+                schema = Path(_find_cfg_root())
+
+                # …and now the OTHER supported spelling: the schema directory
+                # itself.  The audit's paths are rebuilt by re-executing this
+                # module under it, because that is where they come from.
+                mp.setenv("PYRADIOSS_HM_CFG", str(schema))
+                _paths.reload()
+                mod = importlib.reload(sys.modules[__name__])
+
+                cls = mod.TestLaw37CfgCatalogueAudit
+                assert cls.CFG_110 == schema / "radioss110" / "MAT" / "matl37_biphas.cfg", (
+                    f"the audit would read {cls.CFG_110}")
+                assert cls.CFG_2018 == schema / "radioss2018" / "MAT" / "matl37_biphas.cfg", (
+                    f"the audit would read {cls.CFG_2018}")
+                assert cls.CFG_110.is_file()
+                assert cls.CFG_2018.is_file()
+                assert mod._cfg_schema_dir() == schema
+        finally:
+            # monkeypatch has restored the environment by now; drop the
+            # resolver's memo and put this module back on the ambient one.
+            _paths.reload()
+            importlib.reload(sys.modules[__name__])
+
+
+# =============================================================================
+# 2. Deck Writing & Roundtrip Reading Audit
 # =============================================================================
 
 class TestLaw37DeckRoundtripAudit:
