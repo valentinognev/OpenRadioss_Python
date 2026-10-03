@@ -1,5 +1,64 @@
 # Updates
 
+*Reading note: per-file test counts in the entries below are **as-of that
+entry**. Several files have grown since (re-counted 2026-10-03 with
+`.venv/bin/python -m pytest -q --collect-only <file>`: `test_p0_paths.py`
+60 → 71, `test_p0_compare_t01.py` 20 → 25, `test_p0_harness_portable.py`
+27 → 34, `test_p0_parity_t01_path.py` 15 → 22; unchanged:
+`test_p0_oracle_selftest.py` 8, `test_p0_manifest.py` 56). The authoritative
+*current* counts — the collected total and the fast tier, per environment —
+live only in `docs/STATE.md` §Baseline.*
+
+## 1.6.1 - Records corrected: the baseline figures, the oracle counts, a gate that skipped what it claimed to verify, and a ruling that was never made
+
+A whole-branch review found four records asserting things that were false or
+unverifiable, with nothing keeping them true. All four are corrected here.
+**No licence decision is made by this pass** — that stays a maintainer
+decision (`plan/00_ORCHESTRATION.md` §1.3).
+
+- **`docs/STATE.md` §Baseline, three fields false.** It claimed
+  `14542/14662` collected, and a `14489 passed, 27 skipped, … in 908.76s`
+  figure labelled "bare command, `PYRADIOSS_BACKEND=numpy`" — two different
+  environments in one sentence, and a number quoted from commit `2e7e598`
+  rather than measured. Re-derived on this box: **`14617/14637` collected**,
+  and **three** environment-tagged fast-tier figures, all exit 0, all measured
+  in one session at commit `13deef2` — bare default backend
+  `14575 passed, 16 skipped`; the project's own gate
+  (`PYRADIOSS_BACKEND=numpy`, `plan/00_ORCHESTRATION.md` §4.2)
+  `14574 passed, 17 skipped`; the Phase 0 exit gate `14576 passed, 15 skipped`.
+  Which figure belongs to which environment is stated in the record, because
+  they genuinely differ. The oracle-module pair `56 passed, 9 skipped` bare vs
+  `65 passed` configured is **withdrawn**: those four modules collect **68**
+  now and measure `68 passed, 0 skipped` both ways — `pyradioss/paths.py`
+  resolves the install prefix unaided, so the skip surface P0.14 built no
+  longer fires on this box.
+- **The Phase 0 exit gate now verifies the oracle instead of skipping it.** It
+  exported `OR_SRC`/`OR_BUILD`/`OR_ROOT` but never
+  `PYRADIOSS_ORACLE_REQUIRED=1`, so on a box without the oracle the gate
+  skipped exactly the tests that prove the oracle is real — while
+  `tests/test_p0_oracle_build.py:10` and `tests/test_p0_harness_portable.py:64`
+  both asserted that the gate sets it. The gate block in
+  `plan/01_phase0_oracle_and_licensing.md` now exports it, and its effect is
+  measured: with `OR_BUILD=/tmp/no-such-mirror-xyz`, `test_p0_oracle_build.py`
+  gives `3 failed, 13 passed`.
+- **`docs/LICENSING.md` contradicted itself about the licence.** "No decision
+  recorded" and a "**Ruling:** … recorded by the Phase 0 controller … pending
+  maintainer confirmation" sat eleven lines apart. A recommendation pending
+  confirmation is not a decision, so the ruling line is gone; the honest
+  recommendation (Option 1) and the blocking behaviour are untouched
+  (`tests/test_p0_licensing.py` still `xfail(strict=True)`; measured
+  `1 passed, 1 xfailed`, no assertion edited). The document now says one true
+  thing: **no maintainer decision is recorded, and no agent may record one.**
+- **`docs/OPEN_BUGS.md` contradicted itself the same way.** Its Status Summary
+  called items 1–5 FIXED while the section underneath still headed them "These
+  items remain". All six closures were re-verified against the tree (removed
+  LAW14 shell code/tests, the `_NEW_PORTED_LAWS` keys, `_SOLID_ONLY_LAWS`,
+  the `VDOUBLE` rejection, `paths.hm_cfg_dir()`, and the three SPMD refusal
+  commits), the section now agrees with the summary, and the single entry
+  still open is the **full** `SPMD_EXCH_IDEL` port (`domdec.py:72-75` still
+  carries the ghost-`off` limitation). Its `14196 passed / 29 skipped` line is
+  labelled as the Windows CI record of 2026-09-24, not a current measurement.
+
 ## 1.6.0 - Migration to Linux: every machine fact re-measured (P0.11–P0.16)
 
 The repo moved off Windows onto a Linux box and the environment was rebuilt
@@ -36,24 +95,33 @@ label "P0.11" for the binary-T01 parity route, which is a **different** task.
   nothing compared those digests with the binaries on disk.
 - **P0.13** — 12 LAW34/LAW37 input-audit tests that skipped on
   `not os.path.isdir(r"C:\OpenRadioss\hm_cfg_files")` now EXECUTE and pass
-  (`69 passed` across the two files). The guard is
+  (`69 passed` across the two files at the time; **71 today** — `0d5f79e` added
+  one CFG-spelling guard per file, re-measured 2026-10-03:
+  `.venv/bin/python -m pytest -q tests/test_m539_law34_input_audit.py
+  tests/test_m540_law37_input_audit.py` → `71 passed in 1.34s`). The guard is
   `pyradioss.paths.hm_cfg_dir()`, so it follows §4.1's precedence. No audit
   assertion was edited and no skip was re-added.
 - **P0.14** — oracle-dependent tests skip **with a reason** when the oracle is
-  not configured, so the bare fast-tier command is reproducible:
-  `56 passed, 9 skipped` bare vs `65 passed` with
-  `OR_SRC`/`OR_BUILD`/`OR_ROOT` exported. One shared gate
+  not configured, so the bare fast-tier command is reproducible. One shared gate
   (`_require_live_oracle`) replaces three private copies that asked only
   whether the two executables resolve; a *stale* export still FAILS instead of
   skipping, and `PYRADIOSS_ORACLE_REQUIRED=1` turns absence into a failure.
+  *(Corrected 2026-10-03: the `56 passed, 9 skipped` bare vs `65 passed`
+  configured pair this entry carried did not reproduce and is withdrawn. The
+  four oracle modules collect **68** now and measure `68 passed, 0 skipped`
+  both bare and configured — `pyradioss/paths.py` resolves the install prefix
+  unaided, so nothing skips on this box any more. The skip surface this entry
+  built is therefore no longer a way to detect a missing oracle; the exit gate
+  exports `PYRADIOSS_ORACLE_REQUIRED=1` instead. See `docs/STATE.md`
+  §Baseline.)*
 - **P0.15** — false machine facts purged from tooling and packaging: the
   `DT_RPATH=/home/valentin/anaconda/lib` claim in `validate_vs_fortran.py`
   (neither binary carries a DT_RPATH or DT_RUNPATH — `readelf -d`), `numpy
   2.5.2` in `pyproject.toml` (now points at the lock's `# pin:` lines), and
   `cmake 4.4.3` in `build_oracle.sh` (`/usr/bin/cmake`, 3.28.3).
-  `tests/test_p0_no_stale_machine_paths.py` (9 tests) keeps them from rotting
-  and distinguishes a claim about this box from a quoted specimen of a tool's
-  output.
+  `tests/test_p0_no_stale_machine_paths.py` (9 tests at P0.15, **10** today)
+  keeps them from rotting and distinguishes a claim about this box from a
+  quoted specimen of a tool's output.
 - **P0.16** — `toolchain_probe.json` is a **gated record**, not a test side
   effect: `tests/test_p0_toolchain.py` compares every recorded key with a
   fresh probe (quoting the refresh command) instead of calling
@@ -64,8 +132,11 @@ label "P0.11" for the binary-T01 parity route, which is a **different** task.
 - **`docs/STATE.md` §Baseline re-measured.** The recorded `13030 passed /
   4 skipped / 13 failed` with 13 "pre-existing M614 failures" **did not
   reproduce** on this box: those six modules measure `74 passed, 1 skipped`.
-  The fast tier here is `14489 passed, 27 skipped, 20 deselected, 26 xfailed`
-  and **exits 0**. The old numbers are kept, marked as the previous machine's.
+  The fast tier here was recorded as `14489 passed, 27 skipped, 20 deselected,
+  26 xfailed` and **exits 0** — *(superseded 1.6.1: that figure was quoted
+  from an older commit and was wrong; the three current environment-tagged
+  figures live only in `docs/STATE.md` §Baseline.)* The old numbers are kept,
+  marked as the previous machine's.
 
 ## 1.5.1 - P0.11 fix round 1: what the verdict actually rests on, and the wrong ROLLING diagnosis withdrawn
 

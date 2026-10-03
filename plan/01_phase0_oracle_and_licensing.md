@@ -696,13 +696,18 @@ resolver already answered correctly.
   them, and they did not skip on the old Windows box, so this was real coverage
   loss, not an environment exemption.
 
-**Evidence:** `57 passed, 12 skipped` before → `69 passed` after. No audit
-assertion edited and no skip re-added: the 9/12 physics attributes resolve as
-FLOAT with law_number 34/37, the upstream `CARD("%20lg…")` statements match
-the port's 20-column layouts, and the CFG roundtrip recovers every parameter
-to rel_tol 1e-12. With every candidate blanked (throwaway plugin outside the
-repo) the 12 skip again with the project's standard "CFG tree not found"
-reason.
+**Evidence:** `57 passed, 12 skipped` before → `69 passed` after (the set has
+since grown by the two CFG-spelling guards of commit `0d5f79e`, one per file,
+so it is **71 today** — re-measured `.venv/bin/python -m pytest -q
+tests/test_m539_law34_input_audit.py tests/test_m540_law37_input_audit.py` →
+`71 passed in 1.34s`, exit 0; the `69` figure is what P0.13 left behind and is
+the number `0d5f79e` re-measured as 71). No audit assertion edited and no skip
+re-added: the 9/12 physics attributes resolve as FLOAT with law_number 34/37,
+the upstream `CARD("%20lg…")` statements match the port's 20-column layouts,
+and the CFG roundtrip recovers every parameter to rel_tol 1e-12. With every
+candidate blanked (throwaway plugin outside the repo) the tests skip again
+with the project's standard "CFG tree not found" reason — `57 passed, 14
+skipped` as measured by `0d5f79e` (12 pre-existing + its own 2 guards).
 
 ### Task P0.14: One oracle gate, so the bare fast tier is reproducible
 
@@ -724,11 +729,24 @@ the reader library).
 asked only whether the two executables resolve — they do here (the dev-box
 `~/OpenRadioss_or/bin` fallback), so the gate waved them into a run that
 cannot work. `4 failed, 48 passed, 3 errors` bare → `48 passed, 7 skipped`
-(same command); across the four oracle modules `56 passed, 9 skipped` bare vs
-`65 passed` configured. Proven not to be a blanket skip: pointing `OR_BUILD` at
-a non-existent dir FAILS, at an existing-but-empty dir SKIPS naming the absent
-library, and a `/bin/true` "starter" passes the gate and fails its own
-assertion.
+(same command) — historical, measured at `2147864`; the pre-fix state is not
+re-measurable now. **The `56 passed, 9 skipped` bare vs `65 passed` configured
+pair this entry carried until 2026-10-03 no longer reproduces.** Re-measured
+over the four oracle modules (`test_p0_oracle_build`, `test_p0_oracle_selftest`,
+`test_p0_oracle_provenance`, `test_p0_harness_portable`), which collect **68**
+tests today: bare `68 passed, 0 skipped`; with `OR_SRC`/`OR_BUILD`/`OR_ROOT`
+exported, `oracle_env.sh` sourced and `PYRADIOSS_ORACLE_REQUIRED=1`,
+`68 passed, 0 skipped`. Both exit 0.
+
+Nothing skips any more: `pyradioss/paths.py` resolves the install prefix
+unaided on this box, so the skip surface this task added never fires here.
+That cuts both ways — the gate can no longer infer "the oracle is absent" from
+a skip count, so it must export `PYRADIOSS_ORACLE_REQUIRED=1` (Exit gate), and
+a bogus export now fails loudly instead: `OR_BUILD=/tmp/no-such-mirror-xyz`
+gives `3 failed, 13 passed` in `test_p0_oracle_build.py`
+(`test_oracle_binary_runs[starter]`, `…runtime_library_path_exists…`,
+`…starter_reads_a_multi_part_deck`) whether or not the REQUIRED flag is set
+(measured 2026-10-03).
 
 ### Task P0.15: Purge false machine facts from tooling and packaging
 
@@ -738,7 +756,9 @@ DT_RUNPATH** (`tools.validate_vs_fortran.elf_search_paths()` returns `[]` for
 both).
 **Files:** Modify `tools/validate_vs_fortran.py` (docstrings only),
 `tools/oracle/build_oracle.sh` (comments only), `pyproject.toml` (comment);
-Create `tests/test_p0_no_stale_machine_paths.py` (9 tests).
+Create `tests/test_p0_no_stale_machine_paths.py` (9 tests at P0.15; **10**
+today — `00b5112` added the literal-block case, re-counted 2026-10-03 with
+`.venv/bin/python -m pytest -q --collect-only tests/test_p0_no_stale_machine_paths.py`).
 
 **Interfaces:**
 - Consumes: `elf_search_paths`, `<tool> --version`, the lock's `# pin:` lines,
@@ -807,7 +827,12 @@ Beyond `00_ORCHESTRATION.md` §9.1:
 - **P0.13** — the recovered tests **execute** (no skip smuggled back in), and
   the guard resolves through `pyradioss/paths.py`.
 - **P0.14** — the gate is proved *not* to be a blanket skip: a stale export
-  fails, an absent resource skips with a reason, a working oracle runs.
+  fails (`OR_BUILD=/tmp/no-such-mirror-xyz` → `3 failed, 13 passed` in
+  `test_p0_oracle_build.py`, measured 2026-10-03), `PYRADIOSS_ORACLE_REQUIRED=1`
+  turns absence into a failure, and a working oracle runs. **The "absent
+  resource skips with a reason" half no longer holds on this box** — the
+  resolver finds the install prefix unaided, so nothing skips; that is why the
+  exit gate exports the REQUIRED flag rather than watching for skips.
 - **P0.15/P0.16** — the rot-scanner distinguishes a sentence about this box
   from a quoted specimen, and a suite run leaves the committed records
   unmodified (`git status --porcelain` clean).
@@ -829,6 +854,7 @@ export OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant   # READ-ONLY
 export OR_BUILD=/home/valentin/OpenRadioss_build               # writable mirror
 export OR_ROOT=/home/valentin/OpenRadioss_or                   # install prefix
 source tools/oracle/oracle_env.sh
+export PYRADIOSS_ORACLE_REQUIRED=1   # VERIFY the oracle; absence must fail, not skip
 PYTHON=.venv/bin/python                       # never bare `python`
 PYRADIOSS_BACKEND=numpy $PYTHON -m pytest -q tests/test_p0_oracle_selftest.py tests/test_p0_compare_t01.py
 PYRADIOSS_BACKEND=numpy $PYTHON -m pytest -q -m "not slow"
@@ -839,12 +865,30 @@ All four must pass. The phase reviewer additionally re-runs Task 0.5's
 determinism check **three** times and confirms the rel-RMS scorer reproduces a
 known verdict from `parity_m41.json` on a stored deck pair.
 
-**Measured 2026-10-03 (P0.17, this box):** line 2 `32 passed, 1 skipped` (the
-skip is `th_to_csv` absent — documented in `test_p0_compare_t01.py:1085` and
-covered by three independent cross-checks); line 3
-`14489 passed, 27 skipped, 20 deselected, 26 xfailed, 47 warnings in 908.76s`,
-**exit 0**; line 4 empty, exit 0. Lines 1 and 2 are stale as written before
-P0.17: the gate said bare `python` (this box has only `.venv/bin/python`) and
-never exported `OR_SRC`/`OR_BUILD`/`OR_ROOT`, which `oracle_env.sh` requires
-(`:${OR_BUILD:?…}`, `${OR_ROOT:?…}`) and without which the oracle-dependent
-tests now skip instead of running.
+**`PYRADIOSS_ORACLE_REQUIRED=1` is load-bearing (added 2026-10-03).** Without
+it the oracle-dependent tests **skip** whenever the oracle does not resolve
+(`_require_live_oracle`), so a gate run on a box where the oracle is missing
+would be green while verifying nothing — the tests that check the oracle is real
+are exactly the ones a bare gate run drops. Two test docstrings assert that the
+Phase 0 exit gate sets it (`tests/test_p0_oracle_build.py:10`,
+`tests/test_p0_harness_portable.py:64`); until this line existed the gate did
+not, so those docstrings described a gate that did not exist.
+
+**Measured 2026-10-03 (the gate exactly as written above, this box):**
+line 2 `32 passed, 1 skipped` (the skip is `th_to_csv` absent — documented in
+`test_p0_compare_t01.py:1085` and covered by three independent cross-checks);
+line 3 `14576 passed, 15 skipped, 20 deselected, 26 xfailed in 888.48s (0:14:48)`,
+**exit 0**; line 4 empty, exit 0 (all at commit `13deef2`). Line 3's
+environment is exactly line 2's plus the full fast tier, so the fast-tier
+figures — and the bare and `PYRADIOSS_BACKEND=numpy`-only ones they must not
+be confused with — live in `docs/STATE.md` §Baseline, which is their single
+home. Under this gate the oracle tests **execute**:
+`test_p0_oracle_{build,selftest,provenance}.py`, `test_p0_harness_portable.py`,
+`test_p0_toolchain.py` and `test_p0_compare_t01.py` together give
+`113 passed, 1 skipped`, and that one skip is `th_to_csv`, not a missing
+oracle.
+
+Lines 1 and 2 were stale as written before P0.17: the gate said bare `python`
+(this box has only `.venv/bin/python`) and never exported
+`OR_SRC`/`OR_BUILD`/`OR_ROOT`, which `oracle_env.sh` requires
+(`:${OR_BUILD:?…}`, `${OR_ROOT:?…}`).

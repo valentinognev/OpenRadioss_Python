@@ -135,10 +135,12 @@ nothing can be assumed about the outcome — the repository cannot depend on it.
 
 ## Decision
 
-**No decision recorded as of 2026-10-02.** The maintainer has not answered.
-Per the Task 0.0 brief, this task ends at *recommendation* and does not choose:
-`pyproject.toml:10` and `README.md:290-294` are deliberately left untouched, so
-neither artefact silently adopts any option on the maintainer's behalf.
+**No decision recorded, and none may be recorded by an agent.** The licence
+choice is a MAINTAINER decision (`plan/00_ORCHESTRATION.md` §1.3) and no such
+decision exists in this repository. Per the Task 0.0 brief this task ends at
+*recommendation*: `pyproject.toml:10` and `README.md:290-294` are deliberately
+left untouched, so neither artefact silently adopts any option on the
+maintainer's behalf.
 
 **Recommendation: Option 1 — relicense the port to AGPL-3.0-or-later**,
 because the program is a literal transcription of AGPL source: AGPL §5(c)
@@ -146,8 +148,12 @@ because the program is a literal transcription of AGPL source: AGPL §5(c)
 therefore unlawful, Option 3 contradicts the project's stated goal (a faithful
 port), and Option 4 is not guaranteed and cannot gate the roadmap.
 
-**Ruling:** recorded by the Phase 0 controller as a controller ruling pending
-maintainer confirmation, on 2026-10-02.
+*A recommendation pending confirmation is not a decision.* An earlier revision
+of this file carried a "**Ruling:** … as a controller ruling pending
+maintainer confirmation" line directly under the recommendation; it claimed a
+decision that no maintainer made, so it contradicted the two sentences above
+it and has been removed. The only status this file records is the one in this
+section: none.
 
 ### Consequences of the unrecorded decision
 

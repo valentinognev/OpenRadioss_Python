@@ -2,8 +2,8 @@
 
 *The onboarding document. Read this + AGENTS.md before any work; everything
 else (PORTING_GUIDE.md 535 KB, VALIDATION.md 233 KB) is grep-only reference.*
-*Last updated: 2026-10-03 (post-migration re-baseline; before that: 2026-08-02,
-handover preparation, after M41).*
+*Last updated: 2026-10-03 (post-migration re-baseline, re-measured per
+environment; before that: 2026-08-02, handover preparation, after M41).*
 
 ## What this is
 
@@ -24,42 +24,87 @@ not the goal (an optional numba backend recovers some).
 .venv/bin/python -m pyradioss.engine  -i TENSILE_0001.rad
 ```
 
-Oracle-dependent tests need the oracle environment exported (see §Baseline):
-`OR_SRC`, `OR_BUILD`, `OR_ROOT`, then `source tools/oracle/oracle_env.sh`.
+Oracle-dependent tests resolve the oracle unaided on this box; to pin it
+explicitly, export `OR_SRC`, `OR_BUILD`, `OR_ROOT` and then
+`source tools/oracle/oracle_env.sh`. The Phase 0 exit gate also exports
+`PYRADIOSS_ORACLE_REQUIRED=1` so a missing oracle **fails** instead of
+skipping — see §Baseline and `plan/01_phase0_oracle_and_licensing.md`
+§Exit gate.
 
 Interpreter/terminal discipline, READ-ONLY paths, domain rules: **AGENTS.md**
 (⚠ that file still describes the pre-migration Windows box — task P1.0 owns
 it; until then this section and §Baseline are the authority).
 
-## Baseline (known-good, this machine — re-measured 2026-10-03)
+## Baseline (known-good, this machine — re-measured 2026-10-03, commit `13deef2`)
+
+**The fast tier is not one number — it differs by environment.** The three
+figures below were measured in one session on one tree state (`git rev-parse
+HEAD` = `13deef2`; the only uncommitted files were the records this section
+lives in). They move when tests are added — an earlier session in the same
+day, at `e144bac` plus another task's uncommitted work, collected 14617 and
+gave the same three verdicts — so re-measure before quoting them against a
+different commit:
+
+| # | environment | result |
+|---|-------------|--------|
+| 1 | bare shell, **default** backend — `.venv/bin/python -m pytest -q -m "not slow"` | `14575 passed, 16 skipped, 20 deselected, 26 xfailed in 877.28s`, exit 0 |
+| 2 | **the project's gate** (`plan/00_ORCHESTRATION.md` §4.2) — `PYRADIOSS_BACKEND=numpy .venv/bin/python -m pytest -q -m "not slow"` | `14574 passed, 17 skipped, 20 deselected, 26 xfailed in 782.22s`, exit 0 |
+| 3 | **the Phase 0 exit gate** — row 2's env **plus** `OR_SRC`/`OR_BUILD`/`OR_ROOT` exported, `source tools/oracle/oracle_env.sh`, `PYRADIOSS_ORACLE_REQUIRED=1` | `14576 passed, 15 skipped, 20 deselected, 26 xfailed in 888.48s`, **exit 0** |
+
+No red anywhere: every row is 0 failed / 0 errored. Row 2 is the figure the
+project's own pre-commit gate produces — quote that one when someone asks
+"is the gate green". Row 3 is the figure the Phase 0 exit gate produces and the
+only row that *verifies* the oracle instead of skipping around it (see
+`plan/01_phase0_oracle_and_licensing.md` §Exit gate). The rows differ only in
+skip surface: `pyradioss/paths.py` now resolves `$OR_ROOT` unaided, so the
+oracle tests neither skip nor need the exports on this box, and rows 1 and 2
+differ by exactly one test — the one that runs on the default backend and
+skips under `PYRADIOSS_BACKEND=numpy` (net difference of one; the two runs'
+skip lists were not diffed test-by-test, so treat the identity of that test as
+unverified).
+
+*Unverified, stated for the next agent:* the phase review measured row 3's
+environment as `1 failed, 14567 passed, 15 skipped` (backend unspecified in
+that report). **I could not reproduce the failure** — row 3 above is green on
+the tree state named in it, and I never saw which test failed. Do not treat
+"the oracle-configured run is green" as a permanent fact; re-run it.
 
 - Interpreter: **CPython 3.12.3**, numpy 2.5.3, scipy 1.18.1, pytest 9.1.1,
-  numba 0.68.0 (measured with `platform.python_version()` and each module's
-  `__version__`). These agree with `requirements-lock.txt` §[B]'s `# pin:`
-  lines (python 3.12.3 / numpy 2.5.3 / scipy 1.18.1 / pytest 9.1.1 /
-  numba 0.68.0 / llvmlite 0.50.0), which `tests/test_p0_optional_deps.py`
-  enforces on every run.
-- Collected: **14542 non-slow + 20 `slow` = 14562**
+  numba 0.68.0, llvmlite 0.50.0 (measured with `platform.python_version()` and
+  each module's `__version__`). These agree with `requirements-lock.txt` §[B]'s
+  `# pin:` lines (`grep -n "pin:" requirements-lock.txt` → python 3.12.3 /
+  numpy 2.5.3 / scipy 1.18.1 / pytest 9.1.1 / numba 0.68.0 / llvmlite 0.50.0),
+  which `tests/test_p0_optional_deps.py` enforces on every run.
+- Collected: **14617 non-slow + 20 `slow` = 14637**
   (`.venv/bin/python -m pytest -q --collect-only -m "not slow"` →
-  `14542/14562 tests collected (20 deselected)`).
-- Fast tier, bare command, `PYRADIOSS_BACKEND=numpy`: **14489 passed,
-  27 skipped, 20 deselected, 26 xfailed, 47 warnings in 908.76s (0:15:08),
-  exit 0** — 0 failed, 0 errored. (Quoted from the run recorded in commit
-  `2e7e598`; not re-measured when this section was rewritten.)
-- Oracle-dependent tests skip **with a reason** when the oracle is not
-  configured, so the bare command above is reproducible. Measured on the four
-  oracle modules: `56 passed, 9 skipped` with nothing exported, `65 passed`
-  with the three variables exported. To make them RUN, export:
+  `14617/14637 tests collected (20 deselected)`; same tree state as the table).
+- Fast tier, bare command: see the environment table at the top of this
+  section. (The `14489 passed, 27 skipped, … in 908.76s` figure this bullet
+  used to carry was quoted from commit `2e7e598` and was **not** a measurement
+  of this box — it does not reproduce and is withdrawn.)
+- Oracle-dependent tests: the four oracle modules
+  (`test_p0_oracle_build`, `test_p0_oracle_selftest`, `test_p0_oracle_provenance`,
+  `test_p0_harness_portable`) collect **68** and measure `68 passed, 0 skipped`
+  **both** bare and with the three variables exported (re-measured 2026-10-03,
+  exit 0 both ways). **Nothing skips any more**: `pyradioss/paths.py` resolves
+  the install prefix unaided on this box, so the skip surface P0.14 built never
+  fires here — which is why the exit gate exports
+  `PYRADIOSS_ORACLE_REQUIRED=1` instead of watching for skips. The variables
+  remain the supported way to point at a different oracle:
   `OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant`,
   `OR_BUILD=/home/valentin/OpenRadioss_build`,
   `OR_ROOT=/home/valentin/OpenRadioss_or`.
 - The oracle is rebuilt and verified here: binaries at `$OR_ROOT/bin/`
   (sha256 `8b504acc…` starter, `6d58d0b1…` engine — byte-identical to the
-  build outputs `$OR_BUILD/exec/{starter,engine}`), writable mirror at
+  build outputs `$OR_BUILD/exec/{starter,engine}`; both digests re-hashed
+  2026-10-03 with `sha256sum`, they still match
+  `tools/validation_data/oracle_provenance.json`), writable mirror at
   `$OR_BUILD` (harvested extlib **v59**), and its T01 is byte-reproducible
   across runs: three consecutive reference runs of `examples/tensile_bar`
   give the committed golden `t01.md5_normalized`
-  `e3688899358f35e825cd640f9bd94964` every time.
+  `e3688899358f35e825cd640f9bd94964` every time — pinned as a literal and
+  re-checked against the installed binaries by
+  `tests/test_p0_oracle_provenance.py` (passing in rows 1–3 above).
 - Any red on the fast tier is a regression you introduced, not baseline noise.
 - **Previous machine (Windows, Python 3.14.2 / numpy 2.4.6, pre-migration) —
   history, not this box.** Its fast tier measured `11182 passed / 4 skipped /
@@ -70,7 +115,8 @@ it; until then this section and §Baseline are the authority).
   reproduce here** — `tests/test_m6_engine.py tests/test_m6_eos_thermal.py
   tests/test_m6_fixes_wave2.py tests/test_m12_implconstr.py
   tests/test_m14_implgen.py tests/test_numpy_compat.py` measures
-  **74 passed, 1 skipped** (the one skip is `test_numpy_compat.py:109`,
+  **74 passed, 1 skipped** (re-measured 2026-10-03 under
+  `PYRADIOSS_BACKEND=numpy`, exit 0; the one skip is `test_numpy_compat.py:109`,
   "legacy spelling already removed (NumPy >= 2.0)"). It was a property of that
   interpreter/numpy pair, not a standing exemption: do not carry it forward.
 

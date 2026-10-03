@@ -2,6 +2,14 @@
 
 *Recorded 2026-09-24 at the end of the M615 (SPMD) bug-fix pass, PR #51.
 Update (2026-09-24): Items fixed in PR #47 / branch `feat/vtk-full-tensors`.*
+Re-verified 2026-10-03 (Linux box): every "FIXED" row below was re-checked
+against the tree — the three SPMD refusals are live in `check_spmd_support`
+(`pyradioss/spmd/domdec.py:489-522` penalty `Idel` + `/INTER/TYPE2` with
+deletion, `:560-561` `/GJOINT` + `/KJOINT`), and the PR #51 closures are
+cited item by item further down. The only entry still open is the **full**
+`SPMD_EXCH_IDEL` port under SPMD-2 — `pyradioss/spmd/domdec.py:72-75` still
+carries the "ghost element's `off` flag is never updated" limitation and
+nothing implements the exchange.
 
 ## Status Summary
 
@@ -126,10 +134,17 @@ and `spmd/domdec.py:468`).
 
 The five clusters landed in commits `41240aa` and `cf065dc`. Each one was
 adversarially verified against the Fortran, and every realigned test cites
-its source. These items remain:
+its source. **All six items are closed** — this list used to be headed "These
+items remain" while the Status Summary above already called items 1–5 FIXED;
+both halves cannot be true, and the code is what the Status Summary says.
+Each closure was re-checked against the tree on 2026-10-03 (the check is cited
+inline below, or is the existence of the commit it names); the figures inside
+item 1 are the Windows CI record of 2026-09-24 and are **not** re-measured on
+this box:
 
-1. **PR #51 CI is red: 8 failures in `tests/test_law14_compso.py`.** They are
-   expected collateral. The fix made `law14_compso.shell_update` raise, as the
+1. **PR #51 CI is red: 8 failures in `tests/test_law14_compso.py`. — FIXED
+   (`e1dbee6`).** They were expected collateral. The fix made
+   `law14_compso.shell_update` raise, as the
    Fortran does: no `sigeps14c.F` exists upstream, `mulawc.F90:1125-1307`
    dispatches no LAW14 shell kernel, and `hm_read_mat14.F:151-158` raises
    ANCMSG 305. The 8 shell tests exercise a kernel with no Fortran
@@ -143,21 +158,23 @@ its source. These items remain:
    `tests/test_m547_law14_compso.py::test_shell_update_not_implemented`
    already does. In the last CI run everything else passed
    (14196 passed / 29 skipped).
-2. **Dead LAW14 shell code:** `pyradioss/materials/law14_compso.py` still
-   has `multilayer_shell_update` and the `shell_membrane_tangent` /
-   `consistent_shell_tangent` helpers, whose docstrings cite `sigeps14c.F`.
-   Remove them together with item 1.
-3. **Duplicate law registration:** LAW24, LAW37 and LAW90 are registered both
-   as dedicated laws and in `_NEW_PORTED_LAWS` in
-   `pyradioss/materials/__init__.py`.
-4. **Solid-only audit:** `tests/test_mat_all_135_census.py` now skips shell
-   checks for `_SOLID_ONLY_LAWS = {24, 37, 90}`. Other laws in
-   `_NEW_PORTED_LAWS` (e.g. 11, 13, 51, 54, 151) pass the shell census only
-   because their modules carry shell stubs. They should be audited against
-   `mulawc.F90` and added to the set where there is no upstream shell kernel.
-5. **Duplicate `/PROP` IDs are not rejected.** Upstream
-   `hm_read_properties.F:798-802` calls `VDOUBLE`; the port only fails later,
-   at PART CHECK.
+2. **Dead LAW14 shell code — FIXED (`e1dbee6`).** `pyradioss/materials/law14_compso.py`
+   no longer has `multilayer_shell_update` or the `shell_membrane_tangent` /
+   `consistent_shell_tangent` helpers; verified 2026-10-03 by grep (no hit in
+   `pyradioss/`; the surviving `consistent_shell_tangent` hits are LAW60's own,
+   in `tests/test_m551_law60_tangents.py`). Removed together with item 1.
+3. **Duplicate law registration — FIXED (`1f680b5`).** LAW24, LAW37 and LAW90
+   are no longer registered both as dedicated laws and in `_NEW_PORTED_LAWS`
+   in `pyradioss/materials/__init__.py`; verified 2026-10-03 by reading that
+   dict's keys (24/37/90 absent).
+4. **Solid-only audit — FIXED (`1f680b5`).** `tests/test_mat_all_135_census.py`
+   now skips shell checks for `_SOLID_ONLY_LAWS = {11, 13, 24, 37, 51, 54, 90,
+   151}`, i.e. it covers the laws item 3 flagged as needing an audit against
+   `mulawc.F90`, not just `{24, 37, 90}`; verified 2026-10-03 by reading the
+   set at `tests/test_mat_all_135_census.py:45`.
+5. **Duplicate `/PROP` IDs — FIXED (`c6c3b3c`).** `parse_starter_deck` rejects
+   them at parse time (`pyradioss/input/starter_keywords.py:97011`,
+   `hm_read_properties.F:798 VDOUBLE`), upstream's rule.
 6. **LAW4 cfg lookup — FIXED (Task P0.6).**
    `tests/test_m535_law04.py::test_direct_read_generic_mat_law4` and
    `::test_direct_read_generic_mat_hyd_jcook` failed in the Linux dev
