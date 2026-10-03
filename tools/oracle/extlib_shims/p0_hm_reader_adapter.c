@@ -39,14 +39,26 @@
  *   reader/source/solver_interface/source/cfg_reading/GlobalModelSdi.cpp:2666-2693
  *
  * The mangled implementation symbols are used deliberately instead of the
- * `cpp_*` thunks in the same .so: those thunks are Fortran-linkage aliases and
- * their target mapping does NOT agree with the reference tree (in the harvested
- * library `cpp_count_elements_in_part_` jumps to
- * `_Z38GlobalEntitySDIConvertRigidPartToRbodyPiS_`, which creates rigid bodies --
- * calling it here would silently modify the model).  Every primitive below is
- * therefore resolved by dlsym from its own mangled name, and every one of them
- * is checked: if a primitive is missing the adapter reports the failure instead
- * of inventing a value.
+ * `cpp_*` Fortran-linkage thunks in the same .so.  An earlier version of this
+ * comment claimed those thunks point at unrelated code; that was WRONG and has
+ * been removed.  What objdump actually shows is:
+ *
+ *   00000000003942a0 <cpp_count_elements_in_part_>:
+ *     3942a0:  jmp  296990 <_Z34GlobalEntitySDICountElementsInPartPi@plt>
+ *   00000000003961b0 <cpp_get_number_of_include_files_>:
+ *     jmp  2960e0 <cpp_get_number_of_include_files_@plt>  (self-thunk chain)
+ *   00000000003952b0 <cpp_get_include_files_list_>:
+ *     3952b0:  jmp  294680 <_Z29GlobalModelSDIGetIncludesListPPc@plt>
+ *
+ * i.e. the thunks resolve to the very implementations used below.  Two reasons
+ * remain for addressing the mangled symbols directly: (1) it names the exact
+ * implementation instead of relying on an alias table that upstream itself
+ * generates, and (2) cpp_get_number_of_include_files is the one symbol where
+ * the thunk CANNOT be used, because its target takes ONE argument while the
+ * pinned source calls it with two (see that function's comment).  Every
+ * primitive below is resolved by dlsym from its own mangled name, and each is
+ * checked: if one is missing the adapter reports the failure instead of
+ * inventing a value.
  *
  * HOW IT IS BUILT IN
  * ------------------
@@ -268,15 +280,53 @@ void cpp_get_include_file_by_index(const int *is_dyna, const int *include_index,
  * The flag is always written, so the caller's intent(inout) contract holds; on
  * any internal failure it is left FALSE, which is the value the caller had just
  * set (hm_read_part.F:210) -- i.e. "no elements", never a fabricated "yes".
+ *
+ * ONE BYTE, NOT AN int -- this is the whole subtlety of this function.
+ * `logical(c_bool)` is a FOUR-byte... no: gfortran gives `logical(c_bool)`
+ * KIND = 1 and STORAGE_SIZE = 1, verified with
+ *   print *, kind(b), storage_size(b)/8      ->  1  1
+ * So the caller's IS_FILLED (hm_read_part.F:131) occupies ONE byte, and the
+ * adapter must write exactly one byte through the pointer.  An earlier version
+ * of this file stored an `int`, which overwrote the three bytes above
+ * IS_FILLED: in that frame they are the low bytes of the part id ID, so every
+ * /PART came out as 0 and the starter aborted with MSGERROR 494 + 402
+ * (reproduced on tests/data/oracle/part_smoke_0000.rad, gated by
+ * test_oracle_starter_reads_a_multi_part_deck).  Every other argument of the
+ * three other adapted entry points is a genuine 4-byte integer or a character
+ * array, and is audited in the width table below.
+ * =========================================================================*/
+
+/* Width audit of every pointer the four adapted entry points receive.
+ *
+ *   entry point                          argument   upstream declaration
+ *   ------------------------------------  ---------  ----------------------------
+ *   cpp_get_number_of_include_files      is_dyna    integer(c_int)   -> 4 bytes
+ *                                         num        integer(c_int)   -> 4 bytes
+ *   cpp_get_include_file_by_index        is_dyna    integer(c_int)   -> 4 bytes
+ *                                         index      integer(c_int)   -> 4 bytes
+ *                                         file_name  character(kind=c_char)(*) -> 1 byte/char, 512 of them
+ *                                         bufsize    integer(c_int)   -> 4 bytes
+ *   cpp_is_part_with_elements_           part_id    integer           -> 4 bytes
+ *                                         flag      logical(c_bool)   -> 1 byte  <-- the trap
+ *   cpp_sale_mesh_create_                message    integer(45)       -> 4 bytes/element
+ *
+ * Sources: starter/source/devtools/hm_reader/write_include_files_list.F90:42-56
+ *          starter/source/devtools/hm_reader/hm_is_part_with_elements.F90:44-56
+ *          starter/source/devtools/hm_reader/hm_s_ale.F90:79-80,133
+ *          starter/source/model/assembling/hm_read_part.F:131,211
  * =========================================================================*/
 void cpp_is_part_with_elements_(const int *part_id, int *is_part_with_elements)
 {
     fn_count_elements_in_part count = p0_count_elements_in_part();
     fn_get_current_id get_id = p0_get_current_id();
     int n = 0;
+    /* One byte only: the caller passes a `logical(c_bool)`, which gfortran
+     * stores in ONE byte (kind 1).  Writing an int here corrupts the caller's
+     * frame -- in hm_read_part.F the part id itself. */
+    unsigned char *flag = (unsigned char *)is_part_with_elements;
 
-    if (is_part_with_elements == NULL) return;
-    *is_part_with_elements = 0;
+    if (flag == NULL) return;
+    *flag = 0;
     if (count == NULL) return;
 
     if (get_id != NULL && part_id != NULL) {
@@ -294,7 +344,7 @@ void cpp_is_part_with_elements_(const int *part_id, int *is_part_with_elements)
     }
 
     count(&n);
-    *is_part_with_elements = (n > 0) ? 1 : 0;
+    *flag = (n > 0) ? 1u : 0u;
 }
 
 /* Non-underscored alias, for callers written in C (upstream's own reader

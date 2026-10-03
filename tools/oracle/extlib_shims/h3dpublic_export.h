@@ -41,6 +41,7 @@
  * (libh3dwriter.so: Hyper3DDatatypeWrite@@H3D_EXPORT_11.0,
  * Hyper3DDatasetBegin@@H3D_EXPORT_11.0) and are reached through the dlopen
  * shim in common_source/output/h3d/h3d_build_cpp/h3d_dl.c:878,894.  The
+*   common_source/output/h3d/h3d_build_cpp/h3d_dl.c:878,894.  The
  * prototype below is what those C++ call sites bind to; the definition they
  * actually run is the shim's exported wrapper, h3d_dl.c:1371-1376 and
  * :1409-1420, which takes H3D_NF_FORMAT as its LAST parameter and forwards it
@@ -51,7 +52,9 @@
  * inconsistency, present with a current extlib too, and it is NOT repaired
  * here -- upstream source is not modified.  Its consequence is recorded in
  * tools/validation_data/oracle_provenance.json: h3d output from this oracle is
- * inadmissible for parity, on top of the missing node-force feature.
+ * inadmissible for parity, and it is additionally REFUSED at run time because
+ * oracle_env.sh does not put the stale writer on RAD_H3D_PATH (see the note on
+ * Hyper3DExportLibraryVersion below and h3d_dl.c:920-921 / genh3d.F:729-731).
  * =========================================================================*/
 #ifndef P0_H3DPUBLIC_EXPORT_SHIM_H
 #define P0_H3DPUBLIC_EXPORT_SHIM_H
@@ -122,9 +125,26 @@ DllExport bool Hyper3DElement2Begin(H3DFileInfo* h3d_file, unsigned int count,
                     H3D_ID type_id, H3D_ID parent_id,
                     H3D_ID parent_poolname_id, H3D_ID node_poolname_id);
 
-/* Not exported by the reachable libh3dwriter.so; defined by
- * p0_h3d_writer_adapter.c, which reports the library's REAL version so that
- * upstream's own h3d version gate (genh3d.F:734-746) does the rest. */
+/* Declared by the reachable libh3dwriter.so?  No -- neither
+ * Hyper3DExportLibraryVersion nor Hyper3DCompressionLevel exists there
+ * (`nm -D --defined-only extlib/h3d/lib/linux64/libh3dwriter.so | grep -c
+ * Hyper3DExportLibraryVersion` -> 0).  They are DEFINED by the pinned source
+ * itself, in the dlopen shim every binary links:
+ *   common_source/output/h3d/h3d_build_cpp/h3d_dl.c:984-989  Hyper3DCompressionLevel
+ *   common_source/output/h3d/h3d_build_cpp/h3d_dl.c:991-1000  Hyper3DExportLibraryVersion
+ *     (with the "function not available -> 0.0" fallback at :996-1000)
+ * and the C++ callers bind to those definitions, so only the DECLARATIONS are
+ * needed here.  There is deliberately no adapter .c for them: an earlier
+ * revision had one, it was never linked (h3d_dl.o already provides both
+ * symbols, so the archive member was never pulled in and `strings` found no
+ * trace of it), and it advertised a safety net that did not exist.
+ *
+ * What actually stops an h3d run on this box is stated in
+ * tools/validation_data/oracle_provenance.json and enforced by
+ * tools/oracle/oracle_env.sh: the ABI-incompatible libh3dwriter.so is NOT put
+ * on RAD_H3D_PATH, so h3d_dl.c:920-921 returns *IERROR = 1 and
+ * engine/source/output/h3d/h3d_results/genh3d.F:729-731 aborts the run with
+ * MSGID 274 instead of letting a one-parameter-short ABI write H3D files. */
 DllExport uint32_t Hyper3DExportLibraryVersion(uint32_t* majorVersion,
                                                uint32_t* minorVersion);
 DllExport bool Hyper3DCompressionLevel(H3DFileInfo* h3d_file,

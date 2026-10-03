@@ -91,9 +91,31 @@ BUILD_ROOT="${OR_BUILD}/build"
 # cmake: prefer the upstream-era 3.28 over the conda 4.x, which rejects the
 # `cmake_minimum_required(VERSION 3.15)` compatibility declarations
 # (starter/CMakeLists.txt:5, engine/CMakeLists.txt:5, CMakeLists.txt:5).
+# Upstream declares `cmake_minimum_required (VERSION 3.15)`
+# (CMakeLists.txt:5, starter/CMakeLists.txt:5, engine/CMakeLists.txt:5).  CMake 4
+# removed the compatibility for < 3.10-era declarations and refuses such a
+# project outright, so the first cmake on PATH is NOT a safe fallback here (on
+# this box `command -v cmake` is conda cmake 4.4.3, which fails the configure
+# with an upstream-looking error).  Require 3.15 <= version < 4 explicitly.
 CMAKE="${CMAKE:-/usr/bin/cmake}"
 if [ ! -x "$CMAKE" ]; then
-  CMAKE="$(command -v cmake)"
+  CMAKE="$(command -v cmake || true)"
+fi
+[ -n "$CMAKE" ] && [ -x "$CMAKE" ] || {
+  echo "!!! build_oracle.sh: no cmake found; set CMAKE=/path/to/cmake" >&2
+  exit 1
+}
+cmake_version="$("$CMAKE" --version | head -1 | sed -E 's/.*version ([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/')"
+cmake_major="${cmake_version%%.*}"
+cmake_rest="${cmake_version#*.}"
+cmake_minor="${cmake_rest%%.*}"
+if [ -z "$cmake_version" ] || [ "$cmake_major" -lt 3 ] \
+   || { [ "$cmake_major" -eq 3 ] && [ "${cmake_minor:-0}" -lt 15 ]; } \
+   || [ "$cmake_major" -ge 4 ]; then
+  echo "!!! build_oracle.sh: cmake >= 3.15 and < 4 is required (upstream uses" >&2
+  echo "    cmake_minimum_required (VERSION 3.15), which CMake 4 rejects);" >&2
+  echo "    found $CMAKE -> $cmake_version" >&2
+  exit 1
 fi
 
 # Compilers must be passed explicitly: the arch file's fallback
@@ -228,6 +250,16 @@ fi
 
 mkdir -p "$OR_ROOT/bin"
 
+# A failed rebuild must not leave last week's binary behind for the gate (and for
+# any parity run) to find: drop both before configuring.
+for component in starter engine; do
+  stale="$OR_ROOT/bin/${component}_${ARCH}"
+  if [ -f "$stale" ]; then
+    echo "--- Removing stale $stale (it will be reinstalled only if this build succeeds)"
+    rm -f "$stale"
+  fi
+done
+
 # ------------------------------------------------------------- extlib shims --
 # The reachable extlib (v59) predates the pinned source's reader and h3d API.
 # tools/oracle/extlib_shims/ holds SOURCE adapters for the missing surface; see
@@ -252,8 +284,7 @@ SHIM_DIR="$OR_BUILD/p0_shims"
 SHIM_LIB=""
 mkdir -p "$SHIM_DIR"
 cp "$SHIM_SRC/p0_h3d_api_shim.h" "$SHIM_SRC/h3dpublic_import.h" \
-   "$SHIM_SRC/h3dpublic_export.h" "$SHIM_SRC/p0_hm_reader_adapter.c" \
-   "$SHIM_SRC/p0_h3d_writer_adapter.c" "$SHIM_DIR/"
+   "$SHIM_SRC/h3dpublic_export.h" "$SHIM_SRC/p0_hm_reader_adapter.c" "$SHIM_DIR/"
 echo "--- extlib shims installed in $SHIM_DIR"
 
 # -I<shim dir> must come BEFORE the extlib include dir so that the shim
@@ -289,29 +320,29 @@ fi
 # ONLY when that is actually true, so a current extlib never gets them
 # interposed over the real implementations.
 HM="$OR_BUILD/extlib/hm_reader/linux64/libhm_reader_linux64.so"
-H3DLIB="$OR_BUILD/extlib/h3d/lib/linux64/libh3dwriter.so"
 need_shim_lib=0
 for s in cpp_get_include_file_by_index cpp_sale_mesh_create_ \
          cpp_is_part_with_elements_; do
   nm -D --defined-only "$HM" 2>/dev/null | grep -q "[[:space:]]$s\$" || need_shim_lib=1
 done
-for s in Hyper3DExportLibraryVersion Hyper3DCompressionLevel; do
-  nm -D --defined-only "$H3DLIB" 2>/dev/null | grep -q "[[:space:]]$s\$" || need_shim_lib=1
-done
 
+# Only the hm_reader adapter is compiled.  There is deliberately no adapter for
+# Hyper3DExportLibraryVersion / Hyper3DCompressionLevel: the pinned source
+# defines both itself (common_source/output/h3d/h3d_build_cpp/h3d_dl.c:984-1000),
+# so an archive member defining them was never pulled in -- a "safety net" that
+# was dead code.  What refuses h3d output is oracle_env.sh, which does not put
+# the ABI-incompatible writer on RAD_H3D_PATH (h3d_dl.c:920-921 -> *IERROR=1 ->
+# genh3d.F:729-731 ARRET(2)).
 if [ "$need_shim_lib" = "1" ]; then
-  echo "    compiling the extlib shim archive (missing entry points detected)"
+  echo "    compiling the extlib shim archive (missing hm_reader entry points)"
   rm -f "$SHIM_LIB"
-  for unit in p0_hm_reader_adapter p0_h3d_writer_adapter; do
-    "$C_COMPILER" -c -O2 -fPIC -Wall -Wextra -o "$SHIM_DIR/$unit.o" \
-                  "$SHIM_DIR/$unit.c"
-  done
-  ar rcs "$SHIM_DIR/libp0extlibshims.a" \
-        "$SHIM_DIR/p0_hm_reader_adapter.o" "$SHIM_DIR/p0_h3d_writer_adapter.o"
+  "$C_COMPILER" -c -O2 -fPIC -Wall -Wextra -o "$SHIM_DIR/p0_hm_reader_adapter.o" \
+                "$SHIM_DIR/p0_hm_reader_adapter.c"
+  ar rcs "$SHIM_DIR/libp0extlibshims.a" "$SHIM_DIR/p0_hm_reader_adapter.o"
   SHIM_LIB="$SHIM_DIR/libp0extlibshims.a"
   echo "    -> $SHIM_LIB"
 else
-  echo "    harvested libraries export every entry point: no shim archive linked"
+  echo "    harvested hm_reader exports every entry point: no shim archive linked"
 fi
 
 # ---------------------------------------------------------------- libcrypt ---

@@ -92,6 +92,17 @@ EXTLIB_HM_CONTAINER="or_extlib_harvest_$$"
 # Source adapters for the API the reachable (older) extlib does not have.
 SHIM_SRC="$SCRIPT_DIR/extlib_shims"
 
+# The oracle is only meaningful for the exact source tree it was reviewed
+# against: every path:line citation in tools/validation_data/
+# oracle_provenance.json and all five shim headers point into that commit.
+# Override with OR_ALLOW_ANY_OR_SRC=1 to build a different one on purpose.
+EXPECTED_OR_SRC_SHA="1a0d691b82bd4f94a3bc2399682551e84e1d5fa4"
+
+# Local-extlib escape hatch, for boxes that cannot reach Docker Hub or the extlib
+# git mirror: point OR_EXTLIB_LOCAL at a directory containing an `extlib/`
+# (or at the extlib/ directory itself) and it is copied in instead of harvested.
+OR_EXTLIB_LOCAL="${OR_EXTLIB_LOCAL:-}"
+
 # The exact set the build needs, read off
 #   starter/CMake_Compilers/cmake_linux64_gf.txt:25,30-33,36-44
 #   engine/CMake_Compilers/cmake_linux64_gf.txt:73-81
@@ -121,6 +132,22 @@ echo "OR_SRC   = $OR_SRC   (read-only, never written)"
 echo "OR_BUILD = $OR_BUILD (mirror)"
 echo "OR_ROOT  = $OR_ROOT  (install prefix)"
 echo
+
+# ------------------------------------------------------- source revision ----
+# Mirroring HEAD of whatever $OR_SRC happens to be would silently invalidate
+# every citation in the provenance file, so check it.
+OR_SRC_SHA="$(git -C "$OR_SRC" rev-parse HEAD 2>/dev/null || echo unknown)"
+echo "OR_SRC HEAD = $OR_SRC_SHA (expected $EXPECTED_OR_SRC_SHA)"
+if [ "$OR_SRC_SHA" != "$EXPECTED_OR_SRC_SHA" ] && [ "${OR_ALLOW_ANY_OR_SRC:-0}" != "1" ]; then
+  cat >&2 <<EOF
+!!! $OR_SRC is at $OR_SRC_SHA but this oracle was reviewed against
+    $EXPECTED_OR_SRC_SHA.  Every path:line citation in
+    tools/validation_data/oracle_provenance.json and every shim header refers
+    to that commit.  Re-review them, or set OR_ALLOW_ANY_OR_SRC=1 to build this
+    tree on purpose.
+EOF
+  exit 1
+fi
 
 # --------------------------------------------------------------- gates ------
 # Gate 1: every path the two component arch flag files ask for must exist
@@ -241,7 +268,25 @@ mkdir -p "$OR_BUILD/CMake_Compilers"
 cp "$SCRIPT_DIR/cmake_linux64_gf.txt" "$OR_BUILD/CMake_Compilers/cmake_linux64_gf.txt"
 
 # --------------------------------------------------------------- extlib -----
-if [ "${OR_USE_UPSTREAM_EXTLIB:-0}" = "1" ]; then
+if [ -n "$OR_EXTLIB_LOCAL" ]; then
+  # Maintainer-supplied extlib: no network, no docker.
+  src_extlib="$OR_EXTLIB_LOCAL"
+  [ -d "$src_extlib/extlib" ] && src_extlib="$src_extlib/extlib"
+  [ -d "$src_extlib" ] || {
+    echo "!!! OR_EXTLIB_LOCAL=$OR_EXTLIB_LOCAL holds no extlib/ directory" >&2
+    exit 1
+  }
+  echo "--- Installing extlib from OR_EXTLIB_LOCAL=$src_extlib"
+  rm -rf "$OR_BUILD/extlib"
+  cp -a "$src_extlib" "$OR_BUILD/extlib"
+  printf 'supplied locally via OR_EXTLIB_LOCAL=%s
+' "$OR_EXTLIB_LOCAL" \
+    > "$OR_BUILD/extlib/UPSTREAM_EXTLIB_VERSION.json"
+  printf 'supplied locally via OR_EXTLIB_LOCAL=%s
+see tools/validation_data/oracle_provenance.json
+' \
+    "$OR_EXTLIB_LOCAL" > "$OR_BUILD/extlib/P0_HARVESTED"
+elif [ "${OR_USE_UPSTREAM_EXTLIB:-0}" = "1" ]; then
   echo "--- Fetching extlib with the upstream script (OR_USE_UPSTREAM_EXTLIB=1)"
   # Must be python3: the component CMakeLists hardcode python3 on non-Windows.
   # cwd is irrelevant -- load_extlib.py derives source_root from its own path, so
@@ -326,6 +371,7 @@ fi
 
 echo
 echo "--- Mirror ready"
+echo "    OR_SRC sha : $OR_SRC_SHA"
 echo "    extlib     : $OR_BUILD/extlib ($(du -sh "$OR_BUILD/extlib" | cut -f1))"
 echo "    extlib ver : $( [ -f "$OR_BUILD/extlib/UPSTREAM_EXTLIB_VERSION.json" ] \
                      && tr -d ' \n' < "$OR_BUILD/extlib/UPSTREAM_EXTLIB_VERSION.json" \

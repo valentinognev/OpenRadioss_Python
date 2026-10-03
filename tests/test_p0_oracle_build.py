@@ -103,17 +103,26 @@ def _require_oracle():
 
 
 def _runtime_env():
-    """INSTALL.md:34-42, retargeted from OPENRADIOSS_PATH to the mirror."""
+    """INSTALL.md:34-42, retargeted from OPENRADIOSS_PATH to the mirror.
+
+    RAD_H3D_PATH is deliberately absent, exactly as in tools/oracle/oracle_env.sh:
+    the reachable libh3dwriter.so is one parameter short of what the pinned source
+    calls, and pointing the solvers at it would let a run write silently-wrong H3D
+    files.  Without it h3d_dl.c:920-921 returns *IERROR = 1 and genh3d.F:729-731
+    aborts any h3d run with MSGID 274.  See
+    test_oracle_env_refuses_the_incompatible_h3d_writer.
+    """
     env = dict(os.environ)
+    env.pop("RAD_H3D_PATH", None)
     env["OPENRADIOSS_PATH"] = str(OR_BUILD)
     env["RAD_CFG_PATH"] = str(OR_BUILD / "hm_cfg_files")
-    env["RAD_H3D_PATH"] = str(OR_BUILD / "extlib" / "h3d" / "lib" / "linux64")
     env["LD_LIBRARY_PATH"] = (
         str(OR_BUILD / "extlib" / "hm_reader" / "linux64")
         + os.pathsep
         + env.get("LD_LIBRARY_PATH", "")
     )
     env["OMP_STACKSIZE"] = "400m"
+    assert "RAD_H3D_PATH" not in env
     return env
 
 
@@ -281,6 +290,197 @@ def test_provenance_states_which_parity_evidence_is_admissible():
             assert data.get("inadmissible_parity_evidence_reasons", {}).get(
                 channel
             ), f"{channel}: marked inadmissible but no reason recorded"
+
+
+def test_oracle_starter_reads_a_multi_part_deck(tmp_path):
+    """End-to-end gate on the reader path the hm_reader adapter feeds.
+
+    ``cpp_is_part_with_elements_`` hands the caller's flag back through a
+    ``logical(c_bool)``, which is ONE byte (gfortran: ``logical(c_bool)`` has
+    kind 1 and storage_size 1, verified with a probe program).  An adapter that
+    stored an ``int`` through it overwrote the three bytes above the flag -- in
+    ``hm_read_part.F`` the part id itself -- so every /PART came out as
+    ``PART: 0``, the deck was rejected with MSGERROR 494 + 402 and the starter
+    died.  Both decks below reproduce that; both must now come out clean.
+
+    Decks:
+      * ``examples/tensile_bar/TENSILE_0000.rad`` -- vendored in this repo,
+        upstream's own tensile example (the deck the reviewer reproduced the
+        defect on).
+      * ``tests/data/oracle/part_smoke_0000.rad`` -- SYNTHESIZED for this gate:
+        the vendored tensile deck with explicit /PART/2 and /PART/3 blocks, so
+        three distinct part ids must survive the round trip through the adapter.
+    """
+    _require_oracle()
+    decks = [
+        (REPO / "examples" / "tensile_bar" / "TENSILE_0000.rad",
+         {1: "steel bar"}),
+        (REPO / "tests" / "data" / "oracle" / "part_smoke_0000.rad",
+         {1: "steel bar", 2: "steel bar half one", 3: "steel bar half two"}),
+    ]
+
+    for deck, expected_parts in decks:
+        assert deck.is_file(), f"missing oracle fixture deck: {deck}"
+        local = tmp_path / deck.name
+        local.write_bytes(deck.read_bytes())
+        proc = subprocess.run(
+            [str(STARTER), "-i", local.name, "-np", "1"],
+            cwd=tmp_path,
+            env=_runtime_env(),
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+        listing_file = tmp_path / local.name.replace(".rad", ".out")
+        assert listing_file.is_file(), (
+            f"{deck.name}: starter wrote no listing file:\n"
+            f"{proc.stdout[-1500:]}\n{proc.stderr[-1500:]}"
+        )
+        listing = listing_file.read_text(errors="replace")
+
+        errors = re.findall(r"^\s*(\d+)\s+ERROR\(S\)", listing, re.M)
+        warnings = re.findall(r"^\s*(\d+)\s+WARNING\(S\)", listing, re.M)
+        assert errors, f"{deck.name}: no ERROR(S) summary in the listing"
+        assert int(errors[-1]) == 0, (
+            f"{deck.name}: oracle starter reported {errors[-1]} ERROR(S):\n"
+            + "\n".join(l for l in listing.splitlines() if "ERROR ID" in l)
+        )
+        assert warnings and int(warnings[-1]) == 0, (
+            f"{deck.name}: oracle starter reported {warnings} WARNING(S):\n"
+            + "\n".join(l for l in listing.splitlines() if "WARNING ID" in l)
+        )
+
+        # the exact symptom of a clobbered part id
+        assert "PART WITH AN ID EQUAL TO 0 IS NOT ALLOWED" not in listing, (
+            f"{deck.name}: a part id came back as 0 -- the one-byte flag write "
+            "is broken again"
+        )
+        assert "-- PART ID: 0" not in listing, (
+            f"{deck.name}: a part was reported with id 0"
+        )
+
+        # every declared part must appear with its own id and title, either in
+        # the PART: block ("PART:         1,steel bar") or in the subset part
+        # list ("                            2,steel bar half one")
+        for part_id, title in expected_parts.items():
+            assert f"{part_id},{title}" in listing, (
+                f"{deck.name}: part {part_id} ({title!r}) missing from the listing"
+            )
+
+
+
+def test_provenance_only_claims_verified_evidence():
+    """Every channel marked admissible must have been run, with its MSGERROR count.
+
+    Marking T01/A-file/RESTART admissible while no deck had ever been read
+    through the oracle is how a reader adapter can stay broken unnoticed.
+    """
+    data = json.loads(PROVENANCE.read_text())
+    admissible = data["admissible_parity_evidence"]
+    verified = data.get("evidence_verification")
+    assert verified, "provenance must record evidence_verification"
+
+    for channel, verdict in admissible.items():
+        assert verdict in ("yes", "no"), f"{channel}: verdict must be yes/no, got {verdict!r}"
+        if verdict != "yes":
+            assert data.get("inadmissible_parity_evidence_reasons", {}).get(
+                channel
+            ), f"{channel}: marked inadmissible but no reason recorded"
+            continue
+        entry = verified.get(channel)
+        assert entry, f"{channel}: admissible but nothing in evidence_verification"
+        for key in ("deck", "msgerrors", "observed"):
+            assert key in entry, f"{channel}: evidence_verification.{key} missing"
+        assert isinstance(entry["msgerrors"], int), (
+            f"{channel}: msgerrors must be a number, got {entry['msgerrors']!r}"
+        )
+        assert entry["msgerrors"] == 0, (
+            f"{channel}: admissible but the recorded run reported "
+            f"{entry['msgerrors']} MSGERROR(s)"
+        )
+        assert entry["deck"], f"{channel}: no deck named"
+
+
+def test_provenance_shims_are_live():
+    """No dead adapter may be declared as a safety net.
+
+    ``p0_h3d_writer_adapter.c`` once claimed to refuse h3d output; it never ran,
+    because ``h3d_dl.c:984-1000`` already defines the same two wrappers, so the
+    archive member was never pulled in and ``strings`` found no trace of it.
+    Each declared C adapter must therefore leave a marker in the binary that
+    actually uses it.
+    """
+    data = json.loads(PROVENANCE.read_text())
+    shims = data.get("extlib_shims") or []
+    if not shims:
+        return
+    _require_oracle()
+
+    for shim in shims:
+        provided = shim.get("provided_by", "")
+        src = REPO / "tools" / "oracle" / "extlib_shims" / Path(provided).name
+        if not src.is_file():
+            continue  # provided by an upstream file, not by us
+        body = src.read_text()
+        # every identifier the entry names must really be in the file (an entry
+        # may name several, e.g. "Hyper3DElementBegin / Hyper3DElement2Begin")
+        stopwords = {"prototypes", "shim", "macro", "declaration", "header"}
+        for ident in re.findall(r"[A-Za-z_][A-Za-z_0-9]*", shim["symbol"]):
+            if ident.lower() in stopwords:
+                continue
+            assert ident in body, (
+                f"{shim['symbol']} is declared but {src.name} does not mention {ident}"
+            )
+        marker = shim.get("liveness_marker")
+        if shim.get("linked_into_binary"):
+            assert marker, (
+                f"{shim['symbol']}: linked_into_binary is set but no "
+                "liveness_marker given"
+            )
+            blob = STARTER.read_bytes() if STARTER.is_file() else b""
+            if not blob:
+                proc = subprocess.run(
+                    ["strings", str(STARTER)], capture_output=True, text=True
+                )
+                blob = proc.stdout.encode()
+            assert marker.encode() in blob, (
+                f"{shim['symbol']}: marker {marker!r} is NOT in the starter "
+                f"binary -- the adapter is dead code, not a safety net"
+            )
+
+
+def test_oracle_env_refuses_the_incompatible_h3d_writer():
+    """The h3d safety net must be a real refusal, not a claim in a JSON file.
+
+    ``libh3dwriter.so`` v59 is one parameter short of what the pinned source
+    calls, so a run that writes H3D through it silently produces wrong files:
+    measured, with ``RAD_H3D_PATH`` pointing at it, the tensile engine reaches
+    NORMAL TERMINATION and writes ``TENSILE.h3d``.  The refusal is
+    ``common_source/output/h3d/h3d_build_cpp/h3d_dl.c:920-921`` returning
+    ``*IERROR = 1`` when the writer cannot be dlopen'ed at all, which
+    ``engine/source/output/h3d/h3d_results/genh3d.F:729-731`` turns into
+    MSGID 274 + ``ARRET(2)`` (measured: ``MESSAGE ID : 274 / ** ERROR: H3D
+    EXTERNAL LIBRARY NOT FOUND``).  That only happens if nothing points the
+    solver at the stale writer, so the environment script must not export
+    ``RAD_H3D_PATH``.
+    """
+    env_script = REPO / "tools" / "oracle" / "oracle_env.sh"
+    assert env_script.is_file(), env_script
+    text = env_script.read_text()
+    exported = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip().startswith("export RAD_H3D_PATH")
+    ]
+    assert not exported, (
+        "oracle_env.sh exports RAD_H3D_PATH "
+        f"({exported}); the ABI-incompatible v59 writer would then be loaded and "
+        "H3D files would be written through a one-parameter-short ABI"
+    )
+    # the reason must be written down where an agent will see it
+    assert "genh3d.F:729-731" in text, (
+        "oracle_env.sh omits RAD_H3D_PATH without citing the refusal path"
+    )
 
 
 def test_upstream_source_is_untouched():
