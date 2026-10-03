@@ -28,44 +28,61 @@ not any hardcoded string, is what this module implements, in this order:
 4. **fail loudly** — :func:`missing_resource` builds a
    ``FileNotFoundError`` listing every candidate.
 
-Why rule 4 is the whole point
------------------------------
-``docs/OPEN_BUGS.md`` item 6: ``pyradioss/input/mat_reader.py`` looked the
-cfg tree up in a tuple built from ``os.environ.get("PYRADIOSS_HM_CFG")`` at
-**import time** plus two invented paths.  With none of them present it
-returned ``None`` and the reader silently degraded to a heuristic parse, so
-``/MAT/LAW4`` lost ``E`` and
-``tests/test_m535_law04.py::test_direct_read_generic_mat_law4`` failed with
-no clue why.  A wrong-but-existing directory is worse than a missing one;
-therefore every candidate is *existence-checked*, every failure names every
-location, and nothing ever falls through to a directory nobody verified.
+Every candidate is existence-checked against a **resource-specific
+predicate**, never against "the string looks like a path": for
+:func:`hm_cfg_dir` a directory only counts if it really carries the cfg
+schemas (see :func:`is_cfg_tree`).  A wrong-but-existing directory is worse
+than a missing one, and a *set but missing* environment variable is
+reported with a :func:`warnings.warn` so a validation run cannot quietly
+cover a smaller corpus than it claims.
 
-Two candidates extend the contract above; both are marked in the failure
-message and both are existence-checked like the rest:
+Candidates beyond the contract, and their exact position
+-------------------------------------------------------
+Three candidates are not in §4.1.  All three are placed **after rule 3**,
+so no extra can ever shadow a contract candidate (a reviewer's Important-2
+finding — the first version of this module put the brief's
+``$OR_ROOT/OpenCourant/hm_cfg_files`` *before* the Windows candidate and
+the rule-3 path was therefore unreachable on a box where both existed):
 
 * ``$OR_ROOT/OpenCourant/hm_cfg_files`` — the brief's sibling tree
   (``task-6-brief.md`` ``test_hm_cfg_defaults_to_the_sibling_tree``);
+* ``$OR_SRC/hm_cfg_files`` derived from a resolved ``$OR_SRC``;
 * ``<repo>/../OpenCourant/hm_cfg_files`` and ``~/OpenRadioss_or`` — the
-  layout measured on the Linux dev box on 2026-10-03, so that a fresh
-  shell with *no* exported variable resolves instead of failing.  They are
-  placed **after** every contract candidate, so they can never override a
-  rule-1/2/3 answer, and they are skipped entirely if the tree is not there.
+  layout measured on the Linux dev box on 2026-10-03, so that a fresh shell
+  with *no* exported variable resolves instead of failing.  They are skipped
+  entirely when the tree is not there.
 
-Import contract: this module does **no** filesystem access at import time
-and cannot fail at import — ``import pyradioss.paths`` works with nothing
-configured.  Resolution is lazy, memoised per resource, and re-read after
-:func:`reload`.
+So the candidate order for ``hm_cfg_dir`` is: ``$PYRADIOSS_HM_CFG``,
+``$RAD_CFG_PATH`` (upstream's own spelling, ``INSTALL.md:39``),
+``$OR_ROOT/../OpenCourant/hm_cfg_files``, ``C:\\OpenRadioss\\hm_cfg_files``,
+``$OR_ROOT/OpenCourant/hm_cfg_files``, ``$OR_SRC/hm_cfg_files``,
+``<repo>/../OpenCourant/hm_cfg_files``.  ``tests/test_p0_paths.py`` pins
+every one of those precedence relations by name.
 
-Convention: :func:`missing_resource` **returns** a ``FileNotFoundError``
-instance and never raises it itself; every resolver does
-``raise missing_resource(...)``.  A returned exception lets a caller that
-must not abort (the ``/MAT`` reader logs it and keeps parsing) reuse the
-exact same diagnostic the raising callers surface.
+Import contract
+---------------
+Importing this module touches only ``__file__`` (one ``Path.resolve()``,
+i.e. the ``stat``/``readlink`` syscalls that entails) and the process
+environment; it never *resolves* a resource, never walks a tree, and cannot
+fail — ``import pyradioss.paths`` works with nothing configured.  Resolution
+is lazy, memoised per resource, and re-read after :func:`reload`.
+
+Convention for :func:`missing_resource`
+---------------------------------------
+It **returns** a ``FileNotFoundError`` instance; it does **not** raise.  Every
+resolver here does ``raise missing_resource(...)``.  Keep it that way: the
+brief types it ``-> FileNotFoundError``, and a returned exception object
+composes — a caller that must not abort (the ``/MAT`` reader logs it and
+keeps parsing) reuses the exact diagnostic the raising callers surface.
+Calling ``missing_resource(...)`` and *expecting* a raise is a bug; the
+return value has to be raised explicitly.
 """
 
 from __future__ import annotations
 
 import os
+import re
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional, Sequence, Tuple, Union
@@ -80,6 +97,9 @@ __all__ = [
     "rd_decks_dir",
     "missing_resource",
     "reload",
+    "is_cfg_schema_dir",
+    "is_cfg_tree",
+    "CFG_VERSION_DIR_RE",
 ]
 
 #: The package directory and the repository root, both derived from
@@ -93,12 +113,50 @@ _REPO_ROOT = _PKG_DIR.parent
 #: and the pre-cmake ``exec/`` layout that ``tools/validate_vs_fortran.py:106``
 #: hardcoded).  On POSIX these are inert single-component names and simply
 #: never exist; they stay in the candidate list so the failure message is
-#: the same on both platforms.
+#: the same on both platforms.  Both are monkeypatched by the precedence
+#: tests, which is the only way to exercise rule 3 off Windows.
 _WIN_ROOT = Path(r"C:\OpenRadioss")
 _WIN_CFG = Path(r"C:\OpenRadioss\hm_cfg_files")
 
 #: Name of the upstream checkout directory (``$OR_SRC``'s basename).
 _UPSTREAM_DIRNAME = "OpenCourant"
+
+#: A CFG schema directory holds one subdirectory per incremental format
+#: version (``radioss2022``, ``radioss110``, ...); ``mat_reader``'s
+#: ``CfgCatalogue._scan`` reads exactly those, newest first.
+CFG_VERSION_DIR_RE = re.compile(r"radioss\d+")
+
+
+def is_cfg_schema_dir(path) -> bool:
+    """True when ``path`` is a CFG **schema** directory — it holds at
+    least one ``radiossNNN`` version subdirectory.
+
+    A directory merely *named* ``CFG`` is not accepted: an empty or partial
+    sparse checkout would otherwise resolve and then parse nothing, which is
+    the silent-degradation failure mode this module exists to remove.
+    """
+    try:
+        entries = os.listdir(str(path))
+    except OSError:
+        return False
+    return any(CFG_VERSION_DIR_RE.fullmatch(name) for name in entries)
+
+
+def is_cfg_tree(path) -> bool:
+    """True for **either** spelling of the cfg location:
+
+    * the documented one, a tree root whose ``config/CFG`` holds the
+      schemas (``$OR_SRC/hm_cfg_files``, ``plan/00_ORCHESTRATION.md`` §4.1,
+      upstream's ``RAD_CFG_PATH`` = ``$OPENRADIOSS_PATH/hm_cfg_files``);
+    * the schema directory itself (``.../hm_cfg_files/config/CFG``) — what
+      ``.github/workflows/ci.yml`` has always exported, and what the old
+      ``mat_reader._DEFAULT_CFG_ROOTS`` tuple accepted.
+
+    Which of the two a caller got is decided by inspecting the filesystem
+    (``mat_reader._find_cfg_root``), never by the shape of the string.
+    """
+    p = Path(str(path))
+    return is_cfg_schema_dir(p / "config" / "CFG") or is_cfg_schema_dir(p)
 
 
 # ---------------------------------------------------------------------------
@@ -114,23 +172,37 @@ class _Candidate:
     a maintainer can match it against ``plan/00_ORCHESTRATION.md`` §4.1.
     ``path`` is the resolved absolute path, or ``None`` when the candidate
     could not even be constructed (the env var is unset, or ``OR_ROOT``
-    itself is unresolvable).  ``note`` explains that case in the message.
+    itself is unresolvable).  ``env_var`` names the variable when this
+    candidate came from one, so a *set but missing* variable can be warned
+    about instead of skipped in silence.  ``note`` explains an unconstructed
+    candidate in the failure message.
     """
 
     origin: str
     path: Optional[Path] = None
     note: str = ""
+    env_var: str = ""
 
 
-Tried = Union[str, Path, _Candidate, Tuple[str, Path], Sequence[object]]
+@dataclass(frozen=True)
+class _Tried:
+    """A candidate plus why it was rejected."""
+
+    candidate: _Candidate
+    reason: str = ""
+
+
+Tried = Union[str, Path, _Candidate, _Tried, Tuple[str, Path],
+              Sequence[object]]
 
 
 def _env_candidate(var: str) -> _Candidate:
-    """Rule-1 candidate: ``var`` if set (existence is checked later)."""
+    """Rule-1 candidate: ``var`` if set (the predicate is checked later)."""
     value = os.environ.get(var)
     if not value:
-        return _Candidate(f"env {var}", None, "not set")
-    return _Candidate(f"env {var}", Path(value))
+        return _Candidate(f"env {var}", None, "not set in the environment",
+                          env_var=var)
+    return _Candidate(f"env {var}", Path(value), env_var=var)
 
 
 def _dev_or_root() -> Path:
@@ -155,38 +227,61 @@ def _norm(path: Path) -> Path:
 
 
 def _resolve(name: str, candidates: Sequence[_Candidate],
-             exists: Callable[[Path], bool]) -> Path:
-    """Return the first candidate that exists; raise loudly if none does."""
+             exists: Callable[[Path], bool],
+             kind: str = "directory") -> Path:
+    """Return the first candidate the predicate accepts; else raise loudly.
+
+    A variable that *is* set but points at nothing usable is announced with
+    :func:`warnings.warn` — otherwise a stale ``PYRADIOSS_RD_DECKS`` lets a
+    validation run cover the small vendored corpus while the log claims the
+    full extract.
+    """
     cached = _CACHE.get(name)
     if cached is not None:
         return cached
-    tried: List[_Candidate] = []
+    tried: List[_Tried] = []
     for cand in candidates:
-        tried.append(cand)
-        if cand.path is not None and exists(cand.path):
-            resolved = _norm(cand.path)
-            _CACHE[name] = resolved
-            return resolved
+        if cand.path is None:
+            tried.append(_Tried(cand, cand.note or "unresolved"))
+            continue
+        if not exists(cand.path):
+            reason = f"{_norm(cand.path)}: {kind} does not exist"
+            if cand.env_var:
+                warnings.warn(
+                    f"{cand.env_var} is set to {cand.path} but that {kind} "
+                    f"does not exist — ignored; pyradioss is falling "
+                    f"through to the next candidate location",
+                    RuntimeWarning, stacklevel=3)
+            tried.append(_Tried(cand, reason))
+            continue
+        resolved = _norm(cand.path)
+        _CACHE[name] = resolved
+        return resolved
     raise missing_resource(name, tried)
 
 
 def _under_or_root(origin: str, *parts: str) -> _Candidate:
-    """``$OR_ROOT/<parts...>``, listed even when ``OR_ROOT`` itself cannot
-    be resolved — the symbolic origin is the useful diagnostic there."""
-    root = _or_root_maybe()
+    """``$OR_ROOT/<parts...>``.
+
+    When ``OR_ROOT`` itself cannot be resolved the candidate is still listed
+    — its symbolic origin is the useful diagnostic — and it *nests*
+    ``OR_ROOT``'s own candidate list so the message shows the whole search,
+    not a placeholder.
+    """
+    root, nested = _or_root_soft()
     if root is None:
         return _Candidate(origin, None,
-                          "OR_ROOT is unset and no install prefix resolved")
+                          "OR_ROOT unresolved; its own candidates:\n" + nested)
     return _Candidate(origin, _norm(root.joinpath(*parts)))
 
 
-def _or_root_maybe() -> Optional[Path]:
-    """``or_root()`` without the exception, for use inside a candidate
-    list that must be buildable in order to *report* a failure."""
+def _or_root_soft() -> Tuple[Optional[Path], str]:
+    """``(root, nested-report)`` — never raises, because these candidates
+    must be buildable in order to *report* a failure of something else."""
     try:
-        return or_root()
-    except FileNotFoundError:
-        return None
+        return or_root(), ""
+    except FileNotFoundError as exc:
+        return None, str(exc)
 
 
 def _or_src_maybe() -> Optional[Path]:
@@ -244,7 +339,7 @@ def or_starter() -> Path:
         _under_or_root("$OR_ROOT/exec/starter_win64.exe "
                        "(pre-cmake Windows install)",
                        "exec", "starter_win64.exe"),
-    ], Path.is_file)
+    ], Path.is_file, kind="file")
 
 
 def or_engine() -> Path:
@@ -256,30 +351,38 @@ def or_engine() -> Path:
         _under_or_root("$OR_ROOT/exec/engine_win64.exe "
                        "(pre-cmake Windows install)",
                        "exec", "engine_win64.exe"),
-    ], Path.is_file)
+    ], Path.is_file, kind="file")
 
 
 def hm_cfg_dir() -> Path:
     """The ``hm_cfg_files`` CFG card-schema tree (PYRADIOSS_HM_CFG).
 
     Upstream reaches the same tree through ``RAD_CFG_PATH``
-    (``$OR_SRC/INSTALL.md:39``), which is accepted as an alias.
+    (``$OR_SRC/INSTALL.md:39``), accepted here as an alias.  Accepts either
+    the tree root or the ``config/CFG`` schema directory inside it — see
+    :func:`is_cfg_tree`; ``mat_reader._find_cfg_root`` decides which one it
+    got by inspecting the filesystem.
     """
     derived = _or_src_maybe()
     return _resolve("PYRADIOSS_HM_CFG", [
+        # -- rule 1: the environment variable (set AND carrying schemas) --
         _env_candidate("PYRADIOSS_HM_CFG"),
         _env_candidate("RAD_CFG_PATH"),
+        # -- rule 2: sibling-of-build --
         _under_or_root("$OR_ROOT/../OpenCourant/hm_cfg_files",
                        "..", _UPSTREAM_DIRNAME, "hm_cfg_files"),
-        _under_or_root("$OR_ROOT/OpenCourant/hm_cfg_files",
-                       _UPSTREAM_DIRNAME, "hm_cfg_files"),
+        # -- rule 3: Windows compatibility path (never shadowed) --
         _Candidate(str(_WIN_CFG), _WIN_CFG),
-        _Candidate("$OR_SRC/hm_cfg_files (from $OR_SRC)",
+        # -- beyond the contract, strictly after rules 1-3 --
+        _under_or_root("$OR_ROOT/OpenCourant/hm_cfg_files (brief's sibling "
+                       "tree, not §4.1)",
+                       _UPSTREAM_DIRNAME, "hm_cfg_files"),
+        _Candidate("$OR_SRC/hm_cfg_files (from a resolved $OR_SRC)",
                    derived / "hm_cfg_files" if derived else None,
-                   "" if derived else "OR_SRC is unset and did not resolve"),
+                   "" if derived else "$OR_SRC did not resolve"),
         _Candidate("$OR_SRC/hm_cfg_files (upstream checkout beside this repo)",
                    _checkout_hm_cfg()),
-    ], Path.is_dir)
+    ], is_cfg_tree)
 
 
 def rd_decks_dir() -> Path:
@@ -308,59 +411,78 @@ _HINTS = {
                   "tools/oracle/build_oracle.sh",
     "OR_ENGINE": "export OR_ENGINE, or build the oracle with "
                  "tools/oracle/build_oracle.sh",
-    "PYRADIOSS_HM_CFG": "export PYRADIOSS_HM_CFG=<hm_cfg_files>, or upstream's "
-                         "RAD_CFG_PATH ($OR_SRC/INSTALL.md:39)",
+    "PYRADIOSS_HM_CFG": "export PYRADIOSS_HM_CFG=<hm_cfg_files> (the tree "
+                         "root) or upstream's RAD_CFG_PATH "
+                         "($OR_SRC/INSTALL.md:39)",
     "PYRADIOSS_RD_DECKS": "export PYRADIOSS_RD_DECKS=<corpus>, or keep the "
                           "vendored tests/data/rd_decks in the checkout",
 }
 
 
-def _as_candidates(tried: Tried) -> List[_Candidate]:
-    """Accept the documented ``list[Path]`` as well as the internal
-    ``_Candidate`` / ``(origin, path)`` forms."""
-    out: List[_Candidate] = []
+def _as_tried(tried: Tried) -> List[_Tried]:
+    """Accept the documented ``list[Path]``, a bare path, a
+    ``(origin, path)`` pair, and the internal ``_Candidate`` / ``_Tried``
+    forms."""
+    out: List[_Tried] = []
     if tried is None:
         return out
-    if isinstance(tried, (_Candidate, str, Path)):
+    if isinstance(tried, (_Tried, _Candidate, str, Path)):
         tried = [tried]
     for item in tried:
-        if isinstance(item, _Candidate):
+        if isinstance(item, _Tried):
             out.append(item)
+        elif isinstance(item, _Candidate):
+            out.append(_Tried(item, item.note))
+        elif isinstance(item, tuple) and len(item) == 2 \
+                and isinstance(item[0], _Candidate):
+            out.append(_Tried(item[0], str(item[1])))
         elif isinstance(item, tuple) and len(item) == 2:
-            out.append(_Candidate(str(item[0]), Path(item[1])))
+            out.append(_Tried(_Candidate(str(item[0]), Path(item[1])), ""))
         elif isinstance(item, (str, Path)):
             p = Path(item)
-            out.append(_Candidate(str(p), p))
-        else:                               # defensive: keep the text
-            out.append(_Candidate(str(item), None, "unusable candidate"))
+            out.append(_Tried(_Candidate(str(p), p), ""))
+        else:                              # defensive: keep the text
+            out.append(_Tried(_Candidate(str(item), None,
+                                         "unusable candidate"), ""))
     return out
 
 
-def _render(cand: _Candidate) -> str:
-    if cand.path is None:
-        return f"[{cand.origin}] <{cand.note or 'unresolved'}>"
-    resolved = _norm(cand.path)
-    if str(resolved) == cand.origin:
-        return f"[{cand.origin}]"
-    return f"[{cand.origin}] -> {resolved}"
+def _render(entry: _Tried) -> str:
+    cand = entry.candidate
+    reason = entry.reason or cand.note
+    if cand.path is not None:
+        resolved = _norm(cand.path)
+        head = (f"[{cand.origin}]" if str(resolved) == cand.origin
+                else f"[{cand.origin}] -> {resolved}")
+    else:
+        head = f"[{cand.origin}]"
+    if not reason:
+        return head
+    lines = reason.splitlines()
+    if len(lines) == 1:
+        return f"{head} — {lines[0]}"
+    body = "\n".join("    " + line for line in lines[1:])
+    return f"{head} — {lines[0]}\n{body}"
 
 
 def missing_resource(name: str, tried: Tried) -> FileNotFoundError:
-    """Build — **return, do not raise** — the loud failure for ``name``.
+    """Build and **return** (never raise) the loud failure for ``name``.
 
     Every attempted location is listed with its symbolic origin from the
-    contract and, when it differs, its resolved absolute path.  Resolvers
-    call ``raise missing_resource(...)``; a caller that must not abort logs
-    ``str(exc)`` instead.  (Convention chosen because the interface is
-    typed ``-> FileNotFoundError``: returning keeps one diagnostic object
-    usable both ways.)
+    contract and, when it differs, its resolved absolute path, plus the
+    reason it was rejected.  Resolvers call
+    ``raise missing_resource(...)``; a caller that must not abort logs
+    ``str(exc)`` instead.  (Convention: the interface is typed
+    ``-> FileNotFoundError``, so the object is returned and the caller
+    decides — this function never raises by itself.)
     """
-    candidates = _as_candidates(tried)
-    lines = [f"{name} not found: none of the {len(candidates)} "
-             f"candidate location{'s' if len(candidates) != 1 else ''} exists."]
-    if candidates:
+    entries = _as_tried(tried)
+    lines = [f"{name} not found: none of the {len(entries)} "
+             f"candidate location{'s' if len(entries) != 1 else ''} "
+             f"passed the check."]
+    if entries:
         lines.append("Tried:")
-        lines.extend(f"  {_render(c)}" for c in candidates)
+        lines.extend(f"  {_render(e)}" for e in entries)
     lines.append(_HINTS.get(name, "set the environment variable, or fix "
                                   "the layout (plan/00_ORCHESTRATION.md §4.1)"))
     return FileNotFoundError("\n".join(lines))

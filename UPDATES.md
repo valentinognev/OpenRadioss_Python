@@ -1,5 +1,39 @@
 # Updates
 
+## 1.0.2 - P0.6 fix round 1: CI cfg spelling, candidate order, pinned precedence
+
+- **Fix** `PYRADIOSS_HM_CFG` now accepts **both** spellings — the documented
+  tree root (`…/hm_cfg_files`, §4.1 and upstream's `RAD_CFG_PATH`) and the
+  schema directory itself (`…/hm_cfg_files/config/CFG`, what
+  `.github/workflows/ci.yml` exported). `mat_reader._find_cfg_root` decides by
+  inspecting the filesystem (`<cfg>/config/CFG` exists?), never by string
+  shape; a directory named `CFG` with no `radioss<version>` schemas is
+  rejected loudly instead of accepted.
+- **Out-of-map file edit** `.github/workflows/ci.yml` re-points
+  `PYRADIOSS_HM_CFG` at the tree root (both jobs), so the workflow exports
+  what §4.1 says the variable means. The old spelling still works in code.
+- **Fix** the brief-only candidate `$OR_ROOT/OpenCourant/hm_cfg_files` no
+  longer sits *before* the §4.1 rule-3 Windows candidate — every
+  non-contract candidate is now strictly after rules 1–3.
+- **Fix** `pyradioss.paths.is_cfg_tree` / `is_cfg_schema_dir`: a cfg
+  candidate must carry the incremental `radioss<version>` subdirectories, so
+  an empty or partial sparse checkout fails loudly instead of resolving.
+- **Fix** `mat_reader.catalogue()` is keyed on the freshly resolved cfg root
+  and rebuilds when it moves, so `paths.reload()` reaches the singleton that
+  several test modules freeze at collection time.
+- **Diagnostics** a *set but missing* variable now emits a `RuntimeWarning`
+  (a stale `PYRADIOSS_RD_DECKS` could silently downgrade a validation run);
+  an unresolvable `OR_ROOT` nests its own candidate list instead of printing
+  a placeholder, and "unset" is no longer claimed for a variable that was set
+  and merely absent.
+- **Tests** `tests/test_p0_paths.py` 60 tests (was 35): every neighbouring
+  precedence pair, loud failures for `or_build()`/`or_engine()`, both cfg
+  spellings, the empty-`CFG` rejection, and the catalogue-follows-`reload`
+  invariant. 7/7 mutants killed by a harness in `/tmp/opencode`
+  (extras-first, rule2-before-rule1, Windows-candidate-deleted, no-op
+  `reload()`, cfg-root-appends-`config/CFG`, frozen catalogue root,
+  any-directory-is-a-cfg-tree).
+
 ## 1.0.1 - Single resource resolver (P0.6), LAW4 cfg bug closed
 
 - **New** `pyradioss/paths.py` — the one place that resolves every external

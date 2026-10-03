@@ -82,6 +82,15 @@ jobs:
       # the upstream project's license); fetch them sparsely from the
       # official repo and point PYRADIOSS_HM_CFG at them. Without this the
       # cfg-dependent test modules skip (still green, but ~200 tests less).
+      #
+      # PYRADIOSS_HM_CFG is the TREE ROOT here, which is what
+      # plan/00_ORCHESTRATION.md §4.1 and upstream's RAD_CFG_PATH
+      # ($OPENRADIOSS_PATH/hm_cfg_files, $OR_SRC/INSTALL.md:34-42) mean; the
+      # reader appends config/CFG itself.  It used to be exported as
+      # .../hm_cfg_files/config/CFG — the schema directory — which
+      # pyradioss.paths still accepts (mat_reader decides which of the two
+      # spellings it got by inspecting the filesystem, never by the string),
+      # but one spelling is easier to reason about than two.
       - name: Cache OpenRadioss hm_cfg_files
         id: cfg-cache
         uses: actions/cache@v4
@@ -97,7 +106,7 @@ jobs:
           git -C or_cfg sparse-checkout set hm_cfg_files/config/CFG
 
       - name: Point pyradioss at the cfg tree
-        run: echo "PYRADIOSS_HM_CFG=$GITHUB_WORKSPACE/or_cfg/hm_cfg_files/config/CFG" >> "$GITHUB_ENV"
+        run: echo "PYRADIOSS_HM_CFG=$GITHUB_WORKSPACE/or_cfg/hm_cfg_files" >> "$GITHUB_ENV"
 
       - name: Run fast test suite (NumPy reference backend)
         # Pin the reference backend so the regression suite is deterministic
@@ -158,7 +167,7 @@ jobs:
           git -C or_cfg sparse-checkout set hm_cfg_files/config/CFG
 
       - name: Point pyradioss at the cfg tree
-        run: echo "PYRADIOSS_HM_CFG=$GITHUB_WORKSPACE/or_cfg/hm_cfg_files/config/CFG" >> "$GITHUB_ENV"
+        run: echo "PYRADIOSS_HM_CFG=$GITHUB_WORKSPACE/or_cfg/hm_cfg_files" >> "$GITHUB_ENV"
 
       - name: Run full test suite (slow tests included)
         run: python -m pytest tests -q -n auto --durations=25

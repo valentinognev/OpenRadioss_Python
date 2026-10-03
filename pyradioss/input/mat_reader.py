@@ -84,7 +84,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from ..common.messages import MessageLog
 from ..model.entities import Material
-from ..paths import hm_cfg_dir
+from ..paths import hm_cfg_dir, is_cfg_schema_dir
 from .deck_reader import Card, KeywordBlock, parse_fortran_float
 
 # ============================================================================
@@ -105,12 +105,46 @@ MAX_CFG_VERSION = 2022
 _CFG_SEARCH_FAILED = ""
 
 
-def _find_cfg_root() -> Optional[str]:
-    """The ``config/CFG`` directory of the resolved cfg tree, or ``None``.
+class _Resolve:
+    """Sentinel for "resolve the cfg root when this catalogue is built".
 
-    All path knowledge lives in :mod:`pyradioss.paths` (the single
-    resolver, Task P0.6).  Upstream reaches the same tree through
-    ``RAD_CFG_PATH`` (``$OR_SRC/INSTALL.md:34-42``).
+    Distinct from ``root=None``, which is a real answer: "there is no cfg
+    tree".  Without it ``CfgCatalogue()`` could not tell a caller asking
+    for an explicit root off from one asking for the resolved one.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:                       # pragma: no cover
+        return "<resolve>"
+
+
+_RESOLVE = _Resolve()
+
+
+def _find_cfg_root() -> Optional[str]:
+    """The ``config/CFG`` schema directory of the resolved cfg tree, or
+    ``None`` when there is no readable cfg tree anywhere.
+
+    All *path* knowledge lives in :mod:`pyradioss.paths` (the single
+    resolver, Task P0.6).  What this function adds is the **layout**
+    knowledge, and it accepts **both** spellings of the variable because
+    both are in use:
+
+    * ``PYRADIOSS_HM_CFG=<tree>`` — the documented one
+      (``plan/00_ORCHESTRATION.md`` §4.1, upstream's ``RAD_CFG_PATH`` =
+      ``$OPENRADIOSS_PATH/hm_cfg_files``, ``$OR_SRC/INSTALL.md:34-42``), from
+      which ``<tree>/config/CFG`` is taken;
+    * ``PYRADIOSS_HM_CFG=<tree>/config/CFG`` — what
+      ``.github/workflows/ci.yml`` exports and what the pre-P0.6
+      ``_DEFAULT_CFG_ROOTS`` tuple accepted, i.e. the schema directory
+      itself.
+
+    The two are told apart by **inspecting the filesystem** (does
+    ``<cfg>/config/CFG`` exist?), never by the shape of the string.  A
+    directory named ``CFG`` that carries no ``radioss<version>`` schema
+    subdirectory is rejected: accepting it would resolve the tree and then
+    parse nothing, which is the silent degradation Task P0.6 removed.
     """
     global _CFG_SEARCH_FAILED
     try:
@@ -118,12 +152,22 @@ def _find_cfg_root() -> Optional[str]:
     except FileNotFoundError as exc:
         _CFG_SEARCH_FAILED = str(exc)
         return None
-    root = os.path.join(str(cfg), "config", "CFG")
-    if not os.path.isdir(root):
+    nested = os.path.join(str(cfg), "config", "CFG")
+    if os.path.isdir(nested):
+        root = nested
+    elif is_cfg_schema_dir(cfg):
+        root = str(cfg)               # the variable pointed at the CFG dir
+    else:
         _CFG_SEARCH_FAILED = (
-            f"{cfg} exists but has no config/CFG subdirectory; upstream's "
-            f"layout is $OPENRADIOSS_PATH/hm_cfg_files/config/CFG "
+            f"{cfg} is neither an hm_cfg_files tree (…/config/CFG) nor a "
+            f"CFG schema directory (…/radioss<version>); upstream's layout "
+            f"is $OPENRADIOSS_PATH/hm_cfg_files/config/CFG "
             f"($OR_SRC/INSTALL.md:34-42)")
+        return None
+    if not is_cfg_schema_dir(root):  # defence in depth for an injected root
+        _CFG_SEARCH_FAILED = (
+            f"{root} carries no radioss<version> schema subdirectory — an "
+            f"empty or partial hm_cfg_files tree cannot be read")
         return None
     _CFG_SEARCH_FAILED = ""
     return root
@@ -560,9 +604,11 @@ class CfgCatalogue:
     definition changed in that version) and map every law spelling to
     its cfg file.  Schemas are parsed lazily and cached."""
 
-    def __init__(self, root: Optional[str] = None,
+    def __init__(self, root: object = _RESOLVE,
                  max_version: int = MAX_CFG_VERSION):
-        self.root = root if root is not None else _find_cfg_root()
+        # ``root=_RESOLVE`` means "resolve it now"; ``root=None`` is the
+        # real answer "there is no cfg tree" and must not be re-resolved.
+        self.root = _find_cfg_root() if root is _RESOLVE else root
         self.max_version = max_version
         self._files: Dict[str, str] = {}       # law key -> cfg path
         self._by_basename: Dict[str, str] = {}  # 'law51_iflag_6' -> path
@@ -724,13 +770,28 @@ class CfgCatalogue:
 
 
 _CATALOGUE: Optional[CfgCatalogue] = None
+#: the cfg root ``_CATALOGUE`` was built from (``_RESOLVE`` = never built).
+_CATALOGUE_ROOT: object = _RESOLVE
 
 
 def catalogue() -> CfgCatalogue:
-    """The process-wide lazy catalogue singleton."""
-    global _CATALOGUE
-    if _CATALOGUE is None:
-        _CATALOGUE = CfgCatalogue()
+    """The process-wide lazy catalogue singleton, re-resolved when the cfg
+    root moves.
+
+    The root is keyed on every call rather than frozen at first use
+    (Task P0.6 fix round 1): several test modules evaluate
+    ``mat_reader.catalogue()`` in a module-level ``pytestmark`` — i.e. at
+    *collection* time — so a frozen root would survive ``paths.reload()``
+    and a test that re-points ``PYRADIOSS_HM_CFG`` would keep reading the
+    tree that happened to be current when pytest started collecting.  The
+    resolver memoises, so re-resolving costs one dict lookup on the happy
+    path; the catalogue is rebuilt only when the root actually changed.
+    """
+    global _CATALOGUE, _CATALOGUE_ROOT
+    root = _find_cfg_root()
+    if _CATALOGUE is None or root != _CATALOGUE_ROOT:
+        _CATALOGUE = CfgCatalogue(root)
+        _CATALOGUE_ROOT = root
     return _CATALOGUE
 
 
