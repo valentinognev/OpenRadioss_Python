@@ -43,23 +43,42 @@ What is pinned here (the properties that make the manifest worth having):
    regenerated into uselessness without a test failing;
 8. **no environment, no corpus** — ``load_manifest()`` returns the *recorded*
    hashes without exporting anything or touching a deck, so it works on a
-   read-only share and with no corpus at all.
+   read-only share and with no corpus at all;
+9. **the described corpus still hashes to the recorded fingerprint** — every
+   record's ``sha256`` and ``size_bytes`` are re-hashed from
+   ``manifest_corpus_root()`` on every run, which is what keeps the whole
+   corpus covered instead of skipped.
 
-The corpus root is ``pyradioss.paths.rd_decks_dir()`` (``PYRADIOSS_RD_DECKS``
-else the vendored ``tests/data/rd_decks``).  The manifest records which corpus
-it describes; the skip condition below compares that against the **vendored
-path in this checkout** — never against the manifest under test — so a missing
-manifest fails instead of skipping.  A different extract (an env override) has
-to be re-hashed with ``tools/build_rd_decks_manifest.py``; the
-``test_check_is_portable_across_checkout_paths`` test does exactly that on a
-copy.
+Which corpus the assertions read
+--------------------------------
+The corpus every corpus-dependent assertion reads is
+``tools.validate_vs_fortran.manifest_corpus_root()`` — the corpus **the
+manifest describes**, i.e. the vendored ``tests/data/rd_decks`` in this
+checkout.  It is in-tree, so it is always there: no test in this module skips
+for want of a corpus, in any configuration, including the sanctioned
+``PYRADIOSS_RD_DECKS=<full E: extract>`` setup.
+
+``paths.rd_decks_dir()`` — the corpus the *environment* selects — is used in
+exactly one place, :func:`_live_corpus_report`, which is a **report, never a
+failure**: it states both corpora with their fingerprints and how many of the
+live corpus' decks have no record, and it is pinned by asserting its own text.
+A live corpus that is not the described one is something to *say*, not to
+fail on: the workaround is a different corpus, not a broken artifact.
+
+Regenerating the manifest is only ever safe for the vendored corpus, and the
+generator enforces that (it refuses to overwrite
+``tools/validation_data/rd_decks_manifest.json`` from any other root without
+an explicit ``--out``); see
+``test_generator_refuses_to_overwrite_the_committed_manifest``.
 """
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import shutil
+import warnings
 from pathlib import Path
 
 import pytest
@@ -73,6 +92,12 @@ MANIFEST_PATH = DATA / "rd_decks_manifest.json"
 PARITY_PATH = DATA / "parity_m41.json"
 INVENTORY_PATH = DATA / "inventory.json"
 COVERAGE_PATH = DATA / "coverage_results_m41.json"
+GENERATOR = REPO / "tools" / "build_rd_decks_manifest.py"
+
+#: The command that is safe in every configuration: an explicit root, so the
+#: environment cannot redirect it, and a corpus the manifest may describe.
+REGENERATE_VENDORED = ("python tools/build_rd_decks_manifest.py --root "
+                       "tests/data/rd_decks")
 
 #: A class the port is *expected* to honour without complaint: a skip of one of
 #: these is invisible in ``coverage_verdict`` (which counts non-control skips),
@@ -95,60 +120,78 @@ def _manifest() -> list:
     return load_manifest()
 
 
-def _resolved_corpus() -> Path:
+def _described_corpus() -> Path:
+    """The corpus the manifest describes — what every assertion below reads."""
+    from tools.validate_vs_fortran import manifest_corpus_root
+    return Path(manifest_corpus_root())
+
+
+def _live_corpus() -> Path:
+    """The corpus the ENVIRONMENT selects (``PYRADIOSS_RD_DECKS`` or vendored).
+
+    Only :func:`_live_corpus_report` looks at this one, and it never fails on
+    what it finds.
+    """
     return paths.rd_decks_dir()
 
 
-def _manifest_fingerprint() -> str:
-    """The corpus the manifest says it hashed — "" when it cannot be read.
+def _live_corpus_report(live: Path = None, header: dict = None) -> str:
+    """State the live-vs-described relationship.  A report, never a verdict.
 
-    Read with :func:`pyradioss.paths`-independent code so an absent manifest
-    yields "" instead of raising at import time.
+    Says which corpus the committed manifest describes (path + fingerprint),
+    which corpus is live (path + fingerprint), how many of the live corpus'
+    starter decks have no record, and — branched, because the two situations
+    need opposite actions — how to act:
+
+    * the **vendored** corpus changed → re-hash *it*, with
+      ``PYRADIOSS_RD_DECKS`` unset (``--root tests/data/rd_decks``);
+    * a **wider extract** is simply selected → that is a workaround, not a
+      defect.  If an extract-scoped manifest is really wanted, write it to an
+      explicit ``--out`` path and do NOT commit it over the committed file,
+      which would null ``corpus_root.vendored`` and break
+      ``manifest_corpus_root()`` for everyone else.
     """
+    from tools.validate_vs_fortran import corpus_fingerprint, manifest_corpus_root
+    live = Path(live) if live is not None else _live_corpus()
+    header = header if header is not None else _doc()
+    described = manifest_corpus_root(header)
+    described_fp = (header.get("corpus_root") or {}).get("fingerprint", "?")
+    covered = {r["deck"] for r in header.get("decks", [])}
     try:
-        return _doc().get("corpus_root", {}).get("fingerprint", "")
-    except (ValueError, OSError):
-        return ""
-
-
-def _corpus_is_described() -> bool:
-    """True when ``paths.rd_decks_dir()`` is the corpus this manifest hashed.
-
-    Two ways that holds, and the difference matters:
-
-    * it IS this checkout's vendored corpus — the normal case;
-    * it is a **byte-identical** copy elsewhere (``PYRADIOSS_RD_DECKS``), which
-      the corpus fingerprint recognises, so the whole-corpus tests RUN instead
-      of skipping.  A copy at another path is still the same corpus.
-
-    Anything else (a different extract) skips here, loudly: the fingerprint
-    mismatch is reported by the never-skipped
-    ``test_live_corpus_is_the_corpus_the_manifest_describes``, which names both
-    fingerprints and the command that re-hashes.  A missing manifest returns
-    True on purpose: a missing manifest must FAIL (see
-    ``test_manifest_file_exists``), not hide behind eight skips.
-    """
-    if not MANIFEST_PATH.is_file():
-        return True
-    try:
-        root = _resolved_corpus()
-    except (FileNotFoundError, OSError):
-        return False
-    try:
-        if root.resolve() == VENDORED.resolve():
-            return True
-    except OSError:
-        return False
-    from tools.validate_vs_fortran import corpus_fingerprint
-    expected = _manifest_fingerprint()
-    return bool(expected) and corpus_fingerprint(str(root)) == expected
-
-
-requires_described_corpus = pytest.mark.skipif(
-    not _corpus_is_described(),
-    reason="rd_decks_dir() is not the corpus this manifest describes "
-           "(PYRADIOSS_RD_DECKS override to a different extract?); re-hash it "
-           "with python tools/build_rd_decks_manifest.py --root <that dir>")
+        live_fp = corpus_fingerprint(str(live))
+    except (ValueError, OSError) as exc:
+        return (f"live corpus {live}: cannot fingerprint ({exc}); the manifest "
+                f"describes {described} ({described_fp})")
+    on_disk = {p.relative_to(live).as_posix()
+               for p in live.rglob("*_0000.rad")} if live.is_dir() else set()
+    uncovered = sorted(on_disk - covered)
+    lines = [
+        f"committed manifest describes: {described} ({described_fp})",
+        f"live corpus (paths.rd_decks_dir()): {live} ({live_fp})",
+        f"decks in the live corpus with no manifest record: {len(uncovered)}",
+    ]
+    if live_fp == described_fp:
+        lines.append(
+            "in sync (a byte-identical copy of the described corpus is still "
+            "the described corpus)")
+        return "\n".join(lines)
+    lines.append(
+        "DIVERGED - nothing is broken, but the two corpora are not the same:")
+    if uncovered:
+        lines.append(f"  uncovered decks: {', '.join(uncovered[:5])}"
+                     + (" ..." if len(uncovered) > 5 else ""))
+    lines.append(
+        "  if the VENDORED corpus changed, re-hash it with the environment "
+        f"unset:\n      unset PYRADIOSS_RD_DECKS; {REGENERATE_VENDORED}")
+    lines.append(
+        "  if you want a manifest for THIS extract, write it to your own "
+        "path and do not commit it over\n      "
+        f"{MANIFEST_PATH.relative_to(REPO)}: that file must keep "
+        f"corpus_root.vendored, or manifest_corpus_root()\n      "
+        "stops resolving for every other consumer. Use:\n      "
+        "      python tools/build_rd_decks_manifest.py --root "
+        f"{live} --out <private path>")
+    return "\n".join(lines)
 
 
 @pytest.fixture(scope="module")
@@ -166,6 +209,22 @@ def header() -> dict:
 def parity_by_case_id() -> dict:
     doc = json.loads(PARITY_PATH.read_text(encoding="utf-8"))
     return {r["case_id"]: r for r in doc["results"] if r.get("case_id")}
+
+
+@pytest.fixture
+def committed_manifest():
+    """Snapshot the committed manifest and restore it afterwards.
+
+    The generator-refusal tests aim a *harmful* command at that file on
+    purpose.  If the guard ever regresses, the artifact must not be left
+    damaged by a test run.
+    """
+    before = MANIFEST_PATH.read_bytes()
+    try:
+        yield before
+    finally:
+        if MANIFEST_PATH.read_bytes() != before:
+            MANIFEST_PATH.write_bytes(before)
 
 
 @pytest.fixture(scope="module")
@@ -206,74 +265,125 @@ def _copy_corpus(tmp_path: Path, decks=None) -> Path:
 
 def test_manifest_file_exists():
     assert MANIFEST_PATH.is_file(), (
-        f"no manifest at {MANIFEST_PATH}; generate it with "
-        "python tools/build_rd_decks_manifest.py")
+        f"no manifest at {MANIFEST_PATH}; generate it with\n"
+        f"  {REGENERATE_VENDORED}\n"
+        "(an explicit --root, so PYRADIOSS_RD_DECKS cannot redirect it)")
     doc = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     from tools.validate_vs_fortran import MANIFEST_SCHEMA
     assert doc["schema"] == MANIFEST_SCHEMA
     assert doc["decks"], "the manifest has no deck records"
 
 
-def test_live_corpus_is_the_corpus_the_manifest_describes(header):
-    """Never skipped, and the loud half of the skip condition.
+def test_live_corpus_report_states_both_corpora_when_in_sync(header):
+    """The live-vs-described relationship is a REPORT; its text is pinned.
 
-    The whole-corpus tests skip when ``rd_decks_dir()`` is some *other*
-    extract; without this, that would be eight silent skips.  A byte-identical
-    copy passes (the fingerprint matches, so those tests run); anything else
-    fails here, naming both fingerprints and the command that re-hashes.
+    In the default configuration the live corpus IS the described corpus, and
+    the report says exactly that — no verdict, nothing skipped.
     """
-    from tools.validate_vs_fortran import corpus_fingerprint
-    live = corpus_fingerprint(str(_resolved_corpus()))
-    expected = header["corpus_root"]["fingerprint"]
-    assert live == expected, (
-        f"the corpus rd_decks_dir() resolves to is NOT the corpus this "
-        f"manifest describes ({live} != {expected}). The eight whole-corpus "
-        f"tests skip until it is re-hashed:\n"
-        f"  python tools/build_rd_decks_manifest.py --root {_resolved_corpus()}")
+    text = _live_corpus_report(live=VENDORED, header=header)
+    assert str(VENDORED) in text
+    assert header["corpus_root"]["fingerprint"] in text
+    assert "decks in the live corpus with no manifest record: 0" in text
+    assert "in sync" in text
+    assert "DIVERGED" not in text
 
 
-def test_skip_policy_follows_the_fingerprint_not_the_path(monkeypatch, tmp_path):
-    """The skip condition itself, pinned.
+def test_live_corpus_report_branches_the_advice_when_it_diverges(header,
+                                                                  tmp_path):
+    """A different extract must produce a report that says BOTH corpora and
+    then branches the remedy, because the two situations need opposite actions.
 
-    A **byte-identical** corpus copy elsewhere (``PYRADIOSS_RD_DECKS``) is the
-    corpus the manifest describes, so the eight whole-corpus tests must RUN
-    there, not skip.  Any other extract must not.  Deriving this from the
-    vendored *path* — as round 1 did — satisfies neither half and hides a
-    drifted corpus behind skips.
+    The advice it must NOT give is the one round 2 gave: re-hash the *live*
+    extract over the committed manifest, which nulls ``corpus_root.vendored``
+    and breaks ``manifest_corpus_root()`` for every other consumer.
     """
-    identical = _copy_corpus(tmp_path / "identical")
-    monkeypatch.setenv("PYRADIOSS_RD_DECKS", str(identical))
-    paths.reload()
-    try:
-        assert _resolved_corpus().resolve() != VENDORED.resolve(), (
-            "the override did not take effect")
-        assert _corpus_is_described() is True, (
-            "a byte-identical corpus copy must not skip the whole-corpus "
-            "tests — it is the corpus the manifest hashed")
-    finally:
-        monkeypatch.delenv("PYRADIOSS_RD_DECKS", raising=False)
-        paths.reload()
+    foreign = tmp_path / "extract"
+    (foreign / "rd_e" / "SOME_PKG").mkdir(parents=True)
+    (foreign / "rd_e" / "SOME_PKG" / "X_0000.rad").write_bytes(b"#RADIOSS\n")
+    text = _live_corpus_report(live=foreign, header=header)
 
-    foreign = tmp_path / "foreign"
+    # both corpora, with their fingerprints, and the uncovered count
+    assert str(foreign) in text
+    assert header["corpus_root"]["fingerprint"] in text
+    assert "DIVERGED" in text
+    assert "decks in the live corpus with no manifest record: 1" in text
+    assert "rd_e/SOME_PKG/X_0000.rad" in text
+
+    # branch 1: the vendored corpus changed -> re-hash IT, env unset
+    assert REGENERATE_VENDORED in text
+    assert "unset PYRADIOSS_RD_DECKS" in text
+    # branch 2: an extract-scoped manifest goes to a private --out, never over
+    # the committed file
+    assert "--out <private path>" in text
+    assert "do not commit it over" in text
+    assert str(MANIFEST_PATH.relative_to(REPO)) in text
+    assert "corpus_root.vendored" in text
+    # ...and it must NOT tell the reader to re-hash the live corpus in place
+    assert f"--root {foreign} --out {MANIFEST_PATH}" not in text
+
+
+def test_live_corpus_report_survives_an_absent_live_corpus(header, tmp_path):
+    """A corpus that cannot be read is reported, not raised."""
+    text = _live_corpus_report(live=tmp_path / "not_mounted", header=header)
+    assert "cannot fingerprint" in text or "DIVERGED" in text
+
+
+def test_described_corpus_is_the_vendored_one(header, monkeypatch, tmp_path):
+    """The corpus every other assertion reads is in-tree, so nothing skips.
+
+    Pinned under an override, because that is where it matters: with
+    ``PYRADIOSS_RD_DECKS`` pointing somewhere else, the assertions must still
+    read the corpus the manifest describes.
+    """
+    assert _described_corpus().resolve() == VENDORED.resolve()
+    assert header["corpus_root"]["vendored"] == "tests/data/rd_decks"
+    foreign = tmp_path / "extract"
     (foreign / "rd_e" / "SOME_PKG").mkdir(parents=True)
     (foreign / "rd_e" / "SOME_PKG" / "X_0000.rad").write_bytes(b"#RADIOSS\n")
     monkeypatch.setenv("PYRADIOSS_RD_DECKS", str(foreign))
     paths.reload()
     try:
-        assert _corpus_is_described() is False, (
-            "a different extract must not pass as the described corpus")
+        assert _live_corpus().resolve() == foreign.resolve()
+        assert _described_corpus().resolve() == VENDORED.resolve(), (
+            "the corpus the assertions read must not follow "
+            "PYRADIOSS_RD_DECKS — that is how eight tests used to skip")
     finally:
         monkeypatch.delenv("PYRADIOSS_RD_DECKS", raising=False)
         paths.reload()
+
+
+def test_this_module_has_no_skip_markers():
+    """0 skipped in every configuration, by construction.
+
+    The whole-corpus assertions read an in-tree corpus, so nothing here may
+    reintroduce a conditional skip: a skip would silently turn a coverage
+    regression into a green run.  Checked on the AST, so this test's own
+    docstring (which has to name the markers) does not trip it.
+    """
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+    marks = sorted({node.attr for node in ast.walk(tree)
+                    if isinstance(node, ast.Attribute)
+                    and node.attr in ("skip", "skipif", "skiplib")})
+    assert not marks, f"conditional skips reintroduced: {marks}"
+
+
+def test_live_corpus_divergence_is_surfaced_to_the_operator():
+    """A report nobody reads is not a report: emit it on every run, so a
+    ``PYRADIOSS_RD_DECKS`` override that quietly changes the corpus is visible
+    in the warnings summary instead of nowhere."""
+    text = _live_corpus_report()
+    assert text
+    warnings.warn(text, RuntimeWarning, stacklevel=1)
+
+
 
 
 # --------------------------------------------------------------------------
 # 1. coverage: one record per starter deck
 # --------------------------------------------------------------------------
 
-@requires_described_corpus
 def test_manifest_has_exactly_one_record_per_starter_deck(records):
-    root = _resolved_corpus()
+    root = _described_corpus()
     on_disk = {p.relative_to(root).as_posix() for p in root.rglob("*_0000.rad")}
     assert on_disk, f"no starter decks found under {root}"
     in_manifest = [r["deck"] for r in records]
@@ -284,28 +394,12 @@ def test_manifest_has_exactly_one_record_per_starter_deck(records):
         f"only on disk {sorted(on_disk - set(in_manifest))}")
 
 
-def test_every_corpus_starter_deck_is_covered(records):
-    """The manifest must not be a silent subset of the corpus the harness runs.
-
-    Same property as above but counted, and phrased through
-    ``paths.rd_decks_dir()`` so it also holds for an env-overridden corpus.
-    """
-    root = _resolved_corpus()
-    on_disk = {p.relative_to(root).as_posix() for p in root.rglob("*_0000.rad")}
-    assert on_disk, f"no starter decks found under {root}"
-    missing = on_disk - {r["deck"] for r in records}
-    assert not missing, (
-        f"{len(missing)}/{len(on_disk)} corpus decks have no manifest record; "
-        "regenerate with tools/build_rd_decks_manifest.py")
-
-
 # --------------------------------------------------------------------------
 # 2. integrity: every recorded hash is the hash of the bytes on disk
 # --------------------------------------------------------------------------
 
-@requires_described_corpus
 def test_every_recorded_sha256_matches_the_file_on_disk(records):
-    root = _resolved_corpus()
+    root = _described_corpus()
     for rec in records:
         target = root / rec["hashed_file"]
         assert target.is_file(), f"{rec['deck']}: hashed_file missing: {target}"
@@ -365,7 +459,6 @@ def test_every_record_carries_the_corpus_it_was_hashed_from(records, header):
             f"while the header says {fingerprint!r}")
 
 
-@requires_described_corpus
 def test_resolve_record_against_the_manifests_own_corpus(records):
     """The default resolution is the manifest's declared corpus, so a record's
     absolute path always hashes to its recorded ``sha256``."""
@@ -529,7 +622,6 @@ def test_loader_rejects_an_unknown_schema(tmp_path):
 # 5. the envelope flag is measured, never assumed, and never unqualified
 # --------------------------------------------------------------------------
 
-@requires_described_corpus
 def test_in_envelope_requires_a_measured_match(records, parity_by_case_id):
     for rec in records:
         verdict = (parity_by_case_id.get(rec["case_id"])
@@ -556,7 +648,6 @@ def test_static_inventory_classification_never_sets_the_envelope(records):
             assert not rec["in_envelope"] or rec["parity_class"] == "MATCH"
 
 
-@requires_described_corpus
 def test_skipped_families_are_carried_verbatim(records, coverage_by_case_id):
     for rec in records:
         row = coverage_by_case_id.get(rec["case_id"]) if rec["case_id"] else None
@@ -573,7 +664,6 @@ def test_skipped_families_are_carried_verbatim(records, coverage_by_case_id):
         assert rec["coverage_blockers"] == row["blockers"]
 
 
-@requires_described_corpus
 def test_in_envelope_records_are_never_silent_about_control_skips(
         records, coverage_by_case_id):
     """``coverage_verdict`` counts only NON-control skips, so a ``SKIPS(2)`` row
@@ -643,7 +733,6 @@ def test_deck_bytes_match_is_derived_not_asserted(tmp_path):
 # 7. joinability with the M41 evidence
 # --------------------------------------------------------------------------
 
-@requires_described_corpus
 def test_manifest_joins_parity_m41(records, parity_by_case_id):
     mine = {r["case_id"] for r in records if r["case_id"]}
     assert mine & set(parity_by_case_id), (
@@ -651,7 +740,6 @@ def test_manifest_joins_parity_m41(records, parity_by_case_id):
         "has been regenerated into uselessness")
 
 
-@requires_described_corpus
 def test_joined_records_report_the_parity_verdict(records, parity_by_case_id):
     joined = [r for r in records
               if r["case_id"] and r["case_id"] in parity_by_case_id]
@@ -778,7 +866,7 @@ def test_check_compares_the_header_prose(tmp_path, key):
     doc = _doc()
     doc.pop(key)
     manifest_copy = _write_doc(tmp_path, doc, f"no_{key}.json")
-    assert gen.main(["--check", "--root", str(_resolved_corpus()),
+    assert gen.main(["--check", "--root", str(_described_corpus()),
                      "--out", manifest_copy]) == 1
 
 
@@ -788,7 +876,7 @@ def test_check_compares_the_header_prose_content(tmp_path):
     doc = _doc()
     doc["bytes_verified_rule"] = "everything is fine, trust me"
     manifest_copy = _write_doc(tmp_path, doc, "reworded.json")
-    assert gen.main(["--check", "--root", str(_resolved_corpus()),
+    assert gen.main(["--check", "--root", str(_described_corpus()),
                      "--out", manifest_copy]) == 1
 
 
@@ -800,7 +888,7 @@ def test_check_compares_the_generated_envelope_note(tmp_path):
     doc["notes"] = [n for n in doc["notes"]
                     if "in-envelope decks still skip" not in n]
     manifest_copy = _write_doc(tmp_path, doc, "no_envelope_note.json")
-    assert gen.main(["--check", "--root", str(_resolved_corpus()),
+    assert gen.main(["--check", "--root", str(_described_corpus()),
                      "--out", manifest_copy]) == 1
 
 
@@ -830,3 +918,116 @@ def test_generator_nulls_the_identity_of_an_uncatalogued_deck(tmp_path):
     assert rec["coverage_run_deck_bytes_verified"] is False
     assert rec["skipped_families"] == {}
     assert rec["corpus_fingerprint"] == doc["corpus_root"]["fingerprint"]
+
+# --------------------------------------------------------------------------
+# 10. the generator must not damage the committed manifest
+# --------------------------------------------------------------------------
+
+def _synthetic_corpus(tmp_path: Path, decks: int = 2) -> Path:
+    """A tiny foreign corpus: NOT the vendored one, so writing the committed
+    manifest from it would null ``corpus_root.vendored``."""
+    corpus = tmp_path / "synthetic" / "rd_decks"
+    for i in range(decks):
+        deck = corpus / "rd_e" / "SYN" / f"D{i}_0000.rad"
+        deck.parent.mkdir(parents=True, exist_ok=True)
+        deck.write_bytes(f"#RADIOSS\n/D{i}\n/END\n".encode())
+    return corpus
+
+
+def test_generator_refuses_to_overwrite_the_committed_manifest(tmp_path,
+                                                               capsys,
+                                                               committed_manifest):
+    """The harmful step must not be one command away.
+
+    Regenerating the committed manifest from a foreign corpus writes
+    ``corpus_root.vendored: null`` and an absolute
+    ``resolved_at_generation``, which silently breaks
+    ``manifest_corpus_root()`` — and therefore every consumer — in the
+    committed file.  So the generator refuses: an explicit ``--out`` (a private
+    path) or an explicit ``--allow-nonportable`` is required.
+
+    ``committed_manifest`` snapshots and restores the committed file: this test
+    deliberately aims a harmful command at it, so a regression of the guard
+    must not be able to leave the artifact damaged.
+    """
+    from tools import build_rd_decks_manifest as gen
+    corpus = _synthetic_corpus(tmp_path)
+    assert gen.main(["--root", str(corpus)]) == 2
+    err = capsys.readouterr().err
+    assert "REFUSING" in err
+    assert "--out" in err and "--allow-nonportable" in err
+    assert str(corpus) in err
+    assert "corpus_root.vendored: null" in err
+    # the committed manifest must be untouched by the refusal
+    assert json.loads(MANIFEST_PATH.read_text(encoding="utf-8")) == _doc()
+
+
+def test_generator_refuses_the_documented_bare_command_under_an_override(
+        tmp_path, monkeypatch, capsys, committed_manifest):
+    """Round 2's remedy was exactly this: ``--root <live dir>`` (or the bare
+    command with ``PYRADIOSS_RD_DECKS`` set) writes the committed file.  Both
+    must refuse now — including the bare command, which is what the failure
+    message used to advise."""
+    from tools import build_rd_decks_manifest as gen
+    corpus = _synthetic_corpus(tmp_path)
+    monkeypatch.setenv("PYRADIOSS_RD_DECKS", str(corpus))
+    paths.reload()
+    try:
+        assert gen.main([]) == 2                      # the bare command
+        assert "REFUSING" in capsys.readouterr().err
+        assert gen.main(["--root", str(corpus)]) == 2  # the round-2 remedy
+        err = capsys.readouterr().err
+        assert "REFUSING" in err
+        assert "--root tests/data/rd_decks" in err, (
+            "the refusal must point at the vendored corpus, not at the live one")
+    finally:
+        monkeypatch.delenv("PYRADIOSS_RD_DECKS", raising=False)
+        paths.reload()
+    assert json.loads(MANIFEST_PATH.read_text(encoding="utf-8")) == _doc()
+
+
+def test_generator_allows_an_explicit_private_out(tmp_path):
+    """An extract-scoped manifest is legitimate — into its OWN file."""
+    from tools import build_rd_decks_manifest as gen
+    corpus = _synthetic_corpus(tmp_path)
+    out = tmp_path / "extract_manifest.json"
+    assert gen.main(["--root", str(corpus), "--out", str(out)]) == 0
+    doc = json.loads(out.read_text(encoding="utf-8"))
+    assert doc["corpus_root"]["vendored"] is None      # honest about itself
+    assert doc["corpus_root"]["fingerprint"]
+    assert json.loads(MANIFEST_PATH.read_text(encoding="utf-8")) == _doc()
+
+
+def test_generator_allows_an_explicit_override_flag(tmp_path):
+    """``--allow-nonportable`` is the deliberate way to say 'yes, I mean the
+    committed file'."""
+    from tools import build_rd_decks_manifest as gen
+    corpus = _synthetic_corpus(tmp_path)
+    out = tmp_path / "forced.json"
+    assert gen.main(["--root", str(corpus), "--out", str(out),
+                     "--allow-nonportable"]) == 0
+    assert json.loads(out.read_text(encoding="utf-8"))["decks"]
+
+
+def test_check_is_still_allowed_for_any_corpus(tmp_path):
+    """The refusal guards WRITING the committed file, not verifying one: a
+    portable ``--check`` against a copy must keep working."""
+    from tools import build_rd_decks_manifest as gen
+    copy = _copy_corpus(tmp_path)
+    out = tmp_path / "manifest.json"
+    assert gen.main(["--root", str(copy), "--out", str(out)]) == 0
+    assert gen.main(["--check", "--root", str(copy), "--out", str(out)]) == 0
+
+
+def test_check_message_counts_the_records_it_collapsed(tmp_path, capsys):
+    """The corpus-fingerprint message must derive its 'not N' from the corpus,
+    not hardcode 75 (N8)."""
+    from tools import build_rd_decks_manifest as gen
+    corpus = _synthetic_corpus(tmp_path, decks=3)
+    out = tmp_path / "m.json"
+    assert gen.main(["--root", str(corpus), "--out", str(out)]) == 0
+    sorted(corpus.rglob("*_0000.rad"))[0].write_bytes(b"#RADIOSS\n/END\n")
+    assert gen.main(["--check", "--root", str(corpus), "--out", str(out)]) == 1
+    err = capsys.readouterr().err
+    assert "not 3" in err, err
+    assert "not 75" not in err

@@ -1,5 +1,51 @@
 # Updates
 
+## 1.1.3 - P0.8 fix round 3: the remedy must not damage the artifact
+
+- **Fix (I1a)** the manifest's corpus-dependent assertions now read
+  `tools.validate_vs_fortran.manifest_corpus_root()` — the corpus **the
+  manifest describes** (the in-tree vendored `tests/data/rd_decks`) — instead
+  of `paths.rd_decks_dir()`, which the environment selects. Consequences:
+  **0 skipped tests in every configuration**, including the sanctioned
+  `PYRADIOSS_RD_DECKS=<full E: extract>` setup, and the live-vs-described
+  relationship stays visible as a **report, never a failure**
+  (`test_live_corpus_report_*`, emitted as a `RuntimeWarning` on every run).
+  Every record's `sha256` is still re-hashed from the described corpus on every
+  run, so the "does the described corpus still hash to the record?" property is
+  kept, not traded away. Pinned by `test_described_corpus_is_the_vendored_one`
+  (asserted *under* an override) and `test_this_module_has_no_skip_markers`
+  (AST check — no conditional skip may be reintroduced).
+- **Fix (I1b)** the loud-failure text no longer prescribes a harmful command.
+  It states the committed manifest's corpus (path + `sha256:…`), the live
+  corpus (path + `sha256:…`) and how many of the live corpus' decks have no
+  record, then **branches**: the vendored corpus changed → re-hash *it* with
+  `PYRADIOSS_RD_DECKS` unset (`--root tests/data/rd_decks`); a wider extract is
+  wanted → write it to an explicit `--out <private path>` and do **not** commit
+  it over `tools/validation_data/rd_decks_manifest.json`.
+- **Fix (I1c)** `tools/build_rd_decks_manifest.py` now **REFUSES** (exit 2) to
+  write the committed manifest from any non-vendored root — `write_refusal()`
+  fires for both the bare command under `PYRADIOSS_RD_DECKS` and
+  `--root <live dir>`; an explicit `--out` or `--allow-nonportable` is required.
+  `--check` is unaffected (verifying a foreign corpus is harmless). Without this
+  the prescribed fix was a dead end *and* it turned 1 failure into 6–8.
+- **Fix (N8)** the `--check` corpus-fingerprint message derives its record count
+  instead of hardcoding "not 75".
+- **Fix (N6/N7/N9)** `UPDATES.md`'s "46 (was 30)" corrected to the collected 47
+  (the round-3 count is 56, measured); the test module's docstring rewritten —
+  it described a vendored-path skip predicate and repeated the harmful remedy;
+  the round-2 report's "7 tests" corrected to the measured 8.
+- **Tests** `tests/test_p0_manifest.py` 56 (was 47), **0 skipped** in the
+  default, byte-identical-override and foreign-extract configurations.
+  Mutation-checked on copies: `write_refusal()` neutered, `main()` ignoring the
+  refusal, the hardcoded "not 75", the report prescribing the live-corpus
+  re-hash, and `_described_corpus()` following `PYRADIOSS_RD_DECKS` — all five
+  killed.
+- **Process note** writing the refusal tests *before* the refusal existed made
+  one of them clobber the committed manifest with a synthetic corpus (restored
+  from git immediately). Those tests now snapshot and restore the committed
+  file through a `committed_manifest` fixture, so a regression of the guard
+  cannot leave the artifact damaged.
+
 ## 1.1.2 - P0.8 fix round 2: the manifest says only what it can support
 
 - **Docs (M5)** `tools/build_rd_decks_manifest.py`'s header claim "the manifest
@@ -36,7 +82,8 @@
   `test_live_corpus_is_the_corpus_the_manifest_describes`, which names both
   fingerprints and the command that re-hashes — eight silent skips are no
   longer possible.
-- **Tests** `tests/test_p0_manifest.py` 46 (was 30). Mutation-checked on
+- **Tests** `tests/test_p0_manifest.py` 47 (was 30; the 46 I first wrote
+  here was not the collected count — run the number, do not assert it).
   copies in `/tmp/opencode`: an extra record key, a deleted
   `bytes_verified_rule`/`envelope_rule`/`notes`, and a record built without
   `corpus_fingerprint` are each rejected.

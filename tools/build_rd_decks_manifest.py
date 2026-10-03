@@ -444,7 +444,8 @@ def _diff(committed: dict, fresh: dict) -> List[str]:
             f"{(committed.get('corpus_root') or {}).get('fingerprint')} -> "
             f"{(fresh.get('corpus_root') or {}).get('fingerprint')} "
             "(different decks or bytes; every record's corpus_fingerprint "
-            "moves with it, which is this one fact, not 75)")
+            f"moves with it, which is this one fact, not "
+            f"{len(committed.get('decks') or [])})")
     for key in PROSE_KEYS:
         if committed.get(key) != fresh.get(key):
             out.append(f"header {key} differs (it states a rule a reader "
@@ -477,6 +478,46 @@ def _diff(committed: dict, fresh: dict) -> List[str]:
     return out
 
 
+def vendored_root() -> str:
+    """The one corpus root the committed manifest may describe."""
+    return os.path.abspath(os.path.join(REPO, "tests", "data", "rd_decks"))
+
+
+def write_refusal(root: str, out_path: str) -> Optional[str]:
+    """Why writing ``out_path`` from ``root`` must be refused — or ``None``.
+
+    The committed manifest (``DEFAULT_OUT``) is a PORTABLE artifact: its
+    ``corpus_root.vendored`` is what ``manifest_corpus_root()`` resolves, for
+    every consumer, on every machine.  Regenerating it from any other root
+    writes ``vendored: null`` and an absolute ``resolved_at_generation``
+    instead — silently, with no error — and quietly breaks that resolution.
+
+    So the harmful step is not one command away: writing the committed path
+    from a non-vendored root requires an explicit ``--out`` (a private file) or
+    the explicit ``--allow-nonportable`` flag.  ``--check`` is unaffected —
+    verifying a foreign corpus is harmless.
+    """
+    if os.path.abspath(root) == vendored_root():
+        return None
+    if os.path.abspath(out_path) != os.path.abspath(DEFAULT_OUT):
+        return None
+    return (
+        f"the committed manifest {DEFAULT_OUT} describes the vendored corpus "
+        f"({vendored_root()}), and regenerating it from\n  {root}\n"
+        "would write corpus_root.vendored: null plus an absolute "
+        "resolved_at_generation, which breaks manifest_corpus_root() for "
+        "every consumer.\n"
+        "Do one of these instead:\n"
+        f"  * to re-hash the vendored corpus: unset PYRADIOSS_RD_DECKS, then "
+        f"python tools/build_rd_decks_manifest.py --root {os.path.relpath(vendored_root(), REPO)}\n"
+        f"  * to keep a manifest for THIS corpus: give it its own file\n"
+        f"      python tools/build_rd_decks_manifest.py --root {root} "
+        "--out <private path>\n"
+        "    and do not commit it over the committed one.\n"
+        "  * or, if you really mean to overwrite the committed file: re-run "
+        "with --allow-nonportable.")
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", help="corpus root "
@@ -484,6 +525,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--out", default=DEFAULT_OUT)
     ap.add_argument("--check", action="store_true",
                     help="verify the committed file; write nothing")
+    ap.add_argument("--allow-nonportable", action="store_true",
+                    help="permit writing the COMMITTED manifest from a "
+                         "non-vendored corpus (it will lose "
+                         "corpus_root.vendored)")
     args = ap.parse_args(argv)
 
     if args.root:
@@ -492,6 +537,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         root = str(paths.rd_decks_dir())
         source = ("PYRADIOSS_RD_DECKS" if os.environ.get("PYRADIOSS_RD_DECKS")
                   else "vendored tests/data/rd_decks")
+
+    refusal = None if args.check else write_refusal(root, args.out)
+    if refusal:
+        if not args.allow_nonportable:
+            print(f"REFUSING to write {args.out}.\n{refusal}",
+                  file=sys.stderr)
+            return 2
+        print(f"WARNING: --allow-nonportable — writing {args.out} from "
+              f"{root}; corpus_root.vendored will be null.",
+              file=sys.stderr)
+
     doc = build(root, source)
     text = json.dumps(doc, indent=2) + "\n"
 
