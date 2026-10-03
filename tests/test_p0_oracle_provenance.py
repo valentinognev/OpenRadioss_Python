@@ -119,6 +119,14 @@ _HINT = (
     "tools/oracle/build_oracle.sh"
 )
 
+# The live-oracle gate: ONE definition, in tests/test_p0_oracle_build.py, shared
+# by every oracle test module so the four cannot drift.  Its precedence is the
+# one _hint() below already implements -- PYRADIOSS_ORACLE_DISABLED=1 silences,
+# PYRADIOSS_ORACLE_REQUIRED=1 turns absence into a failure, a stale export (a
+# variable set but resolving to nothing) is always a failure, otherwise skip with
+# a reason naming what is missing and how to get it.
+from tests.test_p0_oracle_build import _require_live_oracle  # noqa: E402
+
 #: The digest the committed golden run must keep producing.  Written here as a
 #: LITERAL so this gate can fail even when oracle_smoke.json has been edited: the
 #: committed oracle selftest (tests/test_p0_oracle_selftest.py) pins the record's
@@ -157,8 +165,22 @@ def _installed_binaries():
     return resolved
 
 
-def _require_oracle():
-    """The oracle is present -> ``{basename: Path}``; absent -> skip/fail."""
+def _require_oracle(runtime_env=True):
+    """The oracle is present -> ``{basename: Path}``; absent -> skip/fail.
+
+    ``runtime_env`` is the shared gate's own flag (tests/test_p0_oracle_build.py
+    defines it, this module imports it -- one definition, no second copy): True
+    for the tests that LAUNCH the oracle, which cannot start without the writable
+    mirror and its extlib reader library (``INSTALL.md:34-42``;
+    ``tools/oracle/oracle_env.sh``: "LD_LIBRARY_PATH IS required, not cosmetic"),
+    False for the tests that only hash the binaries on disk.  Without it the
+    digest test below raised ``FileNotFoundError: OR_BUILD not found`` out of
+    ``run_reference()`` and turned the bare fast tier red on a shell that had
+    not exported the oracle variables -- a missing resource reported as a
+    failure.  It is a presence probe: a configured-but-broken oracle passes it
+    and the test that follows goes red on its own assertion.
+    """
+    _require_live_oracle(runtime_env=runtime_env)
     binaries = _installed_binaries()
     missing = [f"{name} ({path})" for name, path in binaries.items()
                if not path.is_file()]
@@ -243,7 +265,7 @@ def test_recorded_oracle_binary_digests_are_the_installed_binaries(provenance,
     * the recorded DIGEST is ``sha256`` of that file's bytes, computed here with
       hashlib -- never a constant copied out of the record under test.
     """
-    binaries = _require_oracle()
+    binaries = _require_oracle(runtime_env=False)
 
     entries = []
     entries += _recorded_binary_digests(provenance, "provenance")

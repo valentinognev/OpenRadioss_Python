@@ -879,11 +879,21 @@ def test_binary_rpath_hazards_names_a_poisoned_rpath(tmp_path):
     glibc searches ``DT_RPATH`` **before** ``LD_LIBRARY_PATH`` — the reviewer
     proved it with a purpose-built ELF pair — so a stale
     ``libh3dwriter.so`` in a prefix the binary carries is dlopen'd by the bare
-    trial (``h3d_dl.c:660-666``) whatever the harness exports.  Measured on
-    the oracle built for this box, both binaries carry
-    ``DT_RPATH=/home/valentin/anaconda/lib``: a conda prefix that has nothing
-    to do with the oracle, i.e. exactly the machine-specific leakage this
-    task exists to remove.
+    trial (``h3d_dl.c:660-666``) whatever the harness exports.  The oracle built
+    for this box is CLEAN of that hazard, which is why the hazard has to be
+    proven on a synthetic ELF pair rather than on the installed binaries:
+    measured with ``readelf -d`` on 2026-10-03, neither
+    ``starter_linux64_gf`` nor ``engine_linux64_gf`` carries a ``DT_RPATH`` or a
+    ``DT_RUNPATH`` entry at all, so no prefix of this machine is baked into
+    either.  What the starter does carry is ``NEEDED libhm_reader_linux64.so``,
+    and with no RPATH/RUNPATH that library resolves through
+    ``LD_LIBRARY_PATH`` alone — ``tools/oracle/oracle_env.sh`` exports it from
+    ``$OR_BUILD/extlib/hm_reader/linux64/`` (``INSTALL.md:34-42``: "LD_LIBRARY_PATH
+    IS required, not cosmetic"), and unconfigured it names a directory that does
+    not exist, which is precisely the bare-shell failure the fast tier used to
+    report: exit 127, ``libhm_reader_linux64.so: cannot open shared object file``.
+    The engine needs no reader library at all, which is why its ``-v`` still runs
+    unconfigured.
     """
     from tools import validate_vs_fortran as V
     prefix = tmp_path / "conda_lib"
