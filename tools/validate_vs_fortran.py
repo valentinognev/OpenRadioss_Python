@@ -461,12 +461,23 @@ def fortran_env(oracle: Optional[Dict[str, Optional[str]]] = None,
     (1) A ``libh3dwriter.so`` installed **system-wide** — the ``ld.so`` cache
     or a default directory — is found by ``:660-666`` regardless.  (2) The
     binaries' own ``DT_RPATH``/``DT_RUNPATH``: glibc searches ``DT_RPATH``
-    **before** ``LD_LIBRARY_PATH``, and measured on the oracle built for this
-    box both binaries carry ``DT_RPATH=/home/valentin/anaconda/lib`` — a conda
-    prefix with nothing to do with the oracle.  :func:`binary_rpath_hazards`
-    reads that out of the ELF and reports it; :func:`run_fortran` then refuses
-    the run, which is the only honest outcome for a hazard that cannot be
-    scrubbed.
+    **before** ``LD_LIBRARY_PATH``, so a writer reachable through one of those
+    entries is dlopen'd by ``:660-666`` whatever this harness exports.
+    Measured on the oracle built for this box (2026-10-03, ``readelf -d`` on
+    both binaries, cross-read by :func:`elf_search_paths`): **neither binary
+    carries a ``DT_RPATH`` or a ``DT_RUNPATH``** — the conda prefix that
+    ``DT_RPATH`` used to name is gone with the pre-migration conda-forge
+    toolchain, and these link the system one (ldd resolves ``libgfortran.so.5``
+    from ``/lib/x86_64-linux-gnu``).  So route (2) is closed by the BUILD, not
+    by the environment, and the mirror image of that fact is why
+    ``LD_LIBRARY_PATH`` is not optional here either: with no RPATH and nothing
+    in the ``ld.so`` cache (``ldconfig -p`` lists no ``libhm_reader``), the
+    starter resolves ``libhm_reader_linux64.so`` from ``LD_LIBRARY_PATH`` and
+    from nowhere else (``tools/oracle/oracle_env.sh``, "LD_LIBRARY_PATH IS
+    required, not cosmetic").  The route is therefore **probed, never assumed**:
+    :func:`binary_rpath_hazards` reads it out of the ELF on every call and
+    reports any entry holding the writer; :func:`run_fortran` then refuses the
+    run, which is the only honest outcome for a hazard that cannot be scrubbed.
 
     With every closeable route closed the writer stays unreachable,
     ``h3dhandle`` remains NULL, ``*IERROR = 1`` (``:920-922``), and
@@ -665,10 +676,16 @@ def binary_rpath_hazards(oracle: Optional[Dict[str, Optional[str]]] = None
     ``libh3dwriter.so`` dropped into a prefix the binaries carry in their
     RPATH is found by the bare ``dlopen(h3dlib)`` trial
     (``h3d_dl.c:660-666``) no matter what this harness exports.  Measured on
-    the oracle built for this box: both binaries carry
-    ``DT_RPATH=/home/valentin/anaconda/lib`` — a conda prefix that has
-    nothing to do with the oracle, i.e. exactly the machine-specific leakage
-    this harness exists to remove.
+    the oracle built for this box (2026-10-03, ``readelf -d`` on both
+    binaries): neither of them carries a ``DT_RPATH`` or a ``DT_RUNPATH``, so
+    this probe reports nothing today.  It stays because that absence is a
+    property of THAT build, not of the harness: these binaries link the system
+    toolchain (``/usr/bin/gfortran`` 13.3.0), while the pre-migration ones,
+    built with a conda-forge toolchain, carried a conda prefix in their RPATH —
+    the machine-specific leakage this harness exists to remove, and the reason
+    the probe reads the ELF instead of trusting the link line.  The reader
+    library is found the same honest way, through ``LD_LIBRARY_PATH`` alone
+    (``tools/oracle/oracle_env.sh``).
 
     Policy: **report and let the driver refuse.** :func:`fortran_env` warns
     (an environment builder must not raise); :func:`run_fortran` refuses the

@@ -16,11 +16,13 @@ test = ["pytest>=7", "pytest-xdist>=3", "scipy>=1.8"]
 # the optional M7 accelerated backend (pyradioss/accel): the base install
 # stays NumPy-only; select with PYRADIOSS_BACKEND=numba or -backend numba
 # P0.7 (2026-10-03): the floor stays 0.59 (the M7-era minimum, unchanged on
-# purpose — bumping it would drop interpreters that used to work).  Verified
-# installed + kernel-compiling on the shared Linux box at numba 0.68.0 /
-# llvmlite 0.50.0 / numpy 2.5.2, and on the Windows .venv at numba 0.66.0
-# (both recorded in requirements-lock.txt).  numba 0.68 declares
-# numpy<2.6,>=1.22, so the accel extra does NOT force a numpy downgrade.
+# purpose — bumping it would drop interpreters that used to work).  The exact
+# versions the extra was verified against are deliberately NOT repeated here:
+# they are the `# pin:` lines of requirements-lock.txt ([B] this Linux .venv,
+# [A] the Windows .venv), each asserted against the importable module by
+# tests/test_p0_optional_deps.py, so this comment cannot drift out of
+# agreement with them.  numba declares numpy<2.6,>=1.22, so the accel extra
+# does NOT force a numpy downgrade.
 accel = ["numba>=0.59"]
 # the SPMD domain decomposition (pyradioss/spmd): real MPI processes under
 # `mpirun -np N pyradioss-engine -np N ...` need mpi4py (+ an MPI library);

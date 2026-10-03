@@ -94,9 +94,14 @@ BUILD_ROOT="${OR_BUILD}/build"
 # Upstream declares `cmake_minimum_required (VERSION 3.15)`
 # (CMakeLists.txt:5, starter/CMakeLists.txt:5, engine/CMakeLists.txt:5).  CMake 4
 # removed the compatibility for < 3.10-era declarations and refuses such a
-# project outright, so the first cmake on PATH is NOT a safe fallback here (on
-# this box `command -v cmake` is conda cmake 4.4.3, which fails the configure
-# with an upstream-looking error).  Require 3.15 <= version < 4 explicitly.
+# project outright, so the first cmake on PATH is NOT a safe fallback here.
+# Measured on this box 2026-10-03: `command -v cmake` resolves to
+# /usr/bin/cmake and `cmake --version` says 3.28.3, so the default already
+# satisfies the gate below and /usr/bin/cmake is belt-and-braces, NOT a claim
+# that PATH cmake is broken (the pre-migration conda-forge cmake 4.x that
+# shadowed it went with /home/valentin/anaconda, which no longer exists;
+# /home/valentin/anaconda3 has no cmake).  Keep the explicit path anyway --
+# the version gate is what guarantees it.  Require 3.15 <= version < 4.
 CMAKE="${CMAKE:-/usr/bin/cmake}"
 if [ ! -x "$CMAKE" ]; then
   CMAKE="$(command -v cmake || true)"
