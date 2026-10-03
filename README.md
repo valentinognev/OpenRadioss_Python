@@ -283,6 +283,8 @@ pyradioss/
 ├── failure/      # /FAIL damage criteria      (≈ engine/source/materials/fail)
 ├── contact/      # contact interfaces         (≈ engine/source/interfaces)
 └── output/       # listings, TH, ANIM         (≈ engine/source/output)
+paths.py         # the single external-path resolver (OR_SRC, OR_ROOT,
+                  # hm_cfg_files, the RD-* deck corpus, the oracle binaries)
 examples/         # ready-to-run input decks
 tests/            # pytest suite incl. analytic validations
 ```
@@ -292,3 +294,9 @@ tests/            # pytest suite incl. analytic validations
 GPL-3.0 (see [LICENSE](LICENSE)) — inherited from files derived from
 OpenRadioss, © Altair Engineering Inc. This repository is an independent
 educational port and is not affiliated with Altair.
+
+## Reading order for agents
+
+1. Read this `README.md` (mandatory if present).
+2. `UPDATES.md` (mandatory) for the change history and current state before
+   working.

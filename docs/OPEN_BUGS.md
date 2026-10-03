@@ -13,7 +13,11 @@ Update (2026-09-24): Items fixed in PR #47 / branch `feat/vtk-full-tensors`.*
 - **Item 3 (Duplicate law registration)**: **FIXED** (commit `1f680b5`). Removed duplicate LAW24, LAW37, LAW90 from `_NEW_PORTED_LAWS` in `pyradioss/materials/__init__.py`.
 - **Item 4 (Solid-only audit)**: **FIXED** (commit `1f680b5`). Audited against `mulawc.F90` and added 11, 13, 51, 54, 151 to `_SOLID_ONLY_LAWS` in `tests/test_mat_all_135_census.py`.
 - **Item 5 (Duplicate `/PROP` IDs not rejected at parse time)**: **FIXED** (commit `c6c3b3c`). Added duplicate ID rejection in `pyradioss/input/starter_keywords.py:parse_starter_deck` citing `hm_read_properties.F:798 VDOUBLE`.
-- **Item 6 (LAW4 cfg lookup in Linux dev container)**: Environment issue; passes in Windows environment and GitHub CI (76 passed).
+- **Item 6 (LAW4 cfg lookup in Linux dev container)**: **FIXED** (Task P0.6,
+  `pyradioss/paths.py`). The cfg tree is now resolved by the single resolver
+  `pyradioss.paths.hm_cfg_dir()` instead of an import-time tuple of
+  `os.environ` + two hardcoded roots; the `/MAT` reader keeps its heuristic
+  degradation but now logs every location that was searched.
 
 ---
 
@@ -154,10 +158,17 @@ its source. These items remain:
 5. **Duplicate `/PROP` IDs are not rejected.** Upstream
    `hm_read_properties.F:798-802` calls `VDOUBLE`; the port only fails later,
    at PART CHECK.
-6. **LAW4 cfg lookup (environment-dependent):**
+6. **LAW4 cfg lookup — FIXED (Task P0.6).**
    `tests/test_m535_law04.py::test_direct_read_generic_mat_law4` and
-   `::test_direct_read_generic_mat_hyd_jcook` fail in the Linux dev
-   container. `read_generic_mat` reports "no cfg schema found" for
-   `matl4_hyd_jcook.cfg` even when `PYRADIOSS_HM_CFG` is set, so E is never
-   parsed. Both tests pass in GitHub CI, so this is a cfg-path-resolution
-   issue in `pyradioss/input`, not a physics bug.
+   `::test_direct_read_generic_mat_hyd_jcook` failed in the Linux dev
+   container. `read_generic_mat` reported "no cfg schema found" for
+   `matl4_hyd_jcook.cfg` even when `PYRADIOSS_HM_CFG` was set, because
+   `pyradioss/input/mat_reader.py` built its candidate list from
+   `os.environ.get("PYRADIOSS_HM_CFG")` **at import time** plus two
+   hardcoded roots (`C:/OpenRadioss/...`, `/opt/OpenRadioss/...`) — none of
+   which exist on Linux — and returned `None` in silence, so E was never
+   parsed. `pyradioss/paths.py` now owns the lookup: resolution is lazy,
+   existence-checked, memoised, re-read by `paths.reload()`, and a missing
+   tree raises with every candidate location listed (symbolic origin +
+   resolved path). Fix commit: see Task P0.6 in
+   `.superpowers/sdd/01_phase0_oracle_and_licensing/task-6-report.md`.

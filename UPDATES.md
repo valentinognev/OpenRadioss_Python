@@ -1,5 +1,32 @@
 # Updates
 
+## 1.0.1 - Single resource resolver (P0.6), LAW4 cfg bug closed
+
+- **New** `pyradioss/paths.py` — the one place that resolves every external
+  path (`or_src`, `or_root`, `or_build`, `or_starter`, `or_engine`,
+  `hm_cfg_dir`, `rd_decks_dir`, `missing_resource`, `reload`), implementing
+  the order of `plan/00_ORCHESTRATION.md` §4.1: env var (if set **and**
+  existing) → sibling-of-build → Windows compat → **fail loudly** with every
+  candidate listed. Upstream authority: `$OR_SRC/INSTALL.md:34-42` (the Linux
+  env block: `OPENRADIOSS_PATH` / `RAD_CFG_PATH` / `RAD_H3D_PATH` /
+  `LD_LIBRARY_PATH`) and `:110` (the `starter_linux64_gf` name). No import-time
+  filesystem access; `import pyradioss.paths` cannot fail.
+- **Convention** `missing_resource(name, tried)` *returns* a
+  `FileNotFoundError` instance; resolvers `raise` it. Keeps one diagnostic
+  usable by callers that must not abort (the `/MAT` reader logs it).
+- **Fix (OPEN_BUGS item 6)** `pyradioss/input/mat_reader.py` no longer probes
+  an import-time tuple of `os.environ` plus two hardcoded roots; the cfg tree
+  comes from `paths.hm_cfg_dir()`. `tests/test_m535_law04.py` now passes on
+  Linux (76 passed) — before: `no cfg schema found`, `E must be > 0`. The
+  heuristic degradation is kept (a deck must still parse) but its warning now
+  carries the full list of locations searched.
+- **New** `tests/test_p0_paths.py` (35 tests) — every resolver per tier, the
+  stale-env skip, the loud failure message, `reload()`, the vendored deck
+  corpus resolved from any CWD, and `or_build()` never returning the
+  read-only `$OR_SRC`.
+- 22 cfg-dependent test modules that silently skipped on Linux now execute
+  (previously `mat_reader.catalogue().schema("FABRI") is None`): 535 passed.
+
 ## 1.0.0 - Full-port program plan
 
 The first structured plan for taking `pyradioss` from its current state to a

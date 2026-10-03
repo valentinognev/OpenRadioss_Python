@@ -66,10 +66,13 @@ The simplest valid constructor returns a plain
 ``Material(id=r.id, law=<n>, rho0=r.density, title=r.title,
 params={...})`` whose params carry what its ``sigeps`` port needs.
 
-If the cfg tree is not installed (``PYRADIOSS_HM_CFG`` unset and the
-default path missing) the reader degrades to a heuristic: the density is
-taken from the first data card and the raw cards are kept in
-``params['raw_cards']`` — still parse-clean, just without named fields.
+If the cfg tree is installed nowhere (no ``PYRADIOSS_HM_CFG``, no upstream
+``RAD_CFG_PATH``, no sibling-of-build or Windows-compat tree — the resolver
+in :mod:`pyradioss.paths` reports every location it tried) the reader
+degrades to a heuristic: the density is taken from the first data card and
+the raw cards are kept in ``params['raw_cards']`` — still parse-clean, just
+without named fields.  The degradation is never silent: the warning carries
+the resolver's full candidate list.
 """
 
 from __future__ import annotations
@@ -81,6 +84,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from ..common.messages import MessageLog
 from ..model.entities import Material
+from ..paths import hm_cfg_dir
 from .deck_reader import Card, KeywordBlock, parse_fortran_float
 
 # ============================================================================
@@ -92,18 +96,37 @@ from .deck_reader import Card, KeywordBlock, parse_fortran_float
 #: Starter binary).
 MAX_CFG_VERSION = 2022
 
-_DEFAULT_CFG_ROOTS = (
-    os.environ.get("PYRADIOSS_HM_CFG", ""),
-    "C:/OpenRadioss/hm_cfg_files/config/CFG",
-    "/opt/OpenRadioss/hm_cfg_files/config/CFG",
-)
+#: Replayed in the "/MAT: no cfg schema found" warning when the cfg tree is
+#: nowhere to be found — set by :func:`_find_cfg_root`, read by the
+#: heuristic fallback.  Before Task P0.6 the reader probed a tuple built
+#: from ``os.environ`` at IMPORT time plus two hardcoded roots and returned
+#: ``None`` in silence, which is ``docs/OPEN_BUGS.md`` item 6: /MAT/LAW4
+#: lost ``E`` and its test failed with no clue why.
+_CFG_SEARCH_FAILED = ""
 
 
 def _find_cfg_root() -> Optional[str]:
-    for root in _DEFAULT_CFG_ROOTS:
-        if root and os.path.isdir(root):
-            return root
-    return None
+    """The ``config/CFG`` directory of the resolved cfg tree, or ``None``.
+
+    All path knowledge lives in :mod:`pyradioss.paths` (the single
+    resolver, Task P0.6).  Upstream reaches the same tree through
+    ``RAD_CFG_PATH`` (``$OR_SRC/INSTALL.md:34-42``).
+    """
+    global _CFG_SEARCH_FAILED
+    try:
+        cfg = hm_cfg_dir()
+    except FileNotFoundError as exc:
+        _CFG_SEARCH_FAILED = str(exc)
+        return None
+    root = os.path.join(str(cfg), "config", "CFG")
+    if not os.path.isdir(root):
+        _CFG_SEARCH_FAILED = (
+            f"{cfg} exists but has no config/CFG subdirectory; upstream's "
+            f"layout is $OPENRADIOSS_PATH/hm_cfg_files/config/CFG "
+            f"($OR_SRC/INSTALL.md:34-42)")
+        return None
+    _CFG_SEARCH_FAILED = ""
+    return root
 
 
 # ============================================================================
@@ -1230,7 +1253,9 @@ def parse_generic_mat(block: KeywordBlock,
         if log:
             log.warning(f"/MAT/{law_name}/{mat_id}: no cfg schema found "
                         f"(hm_cfg_files not installed or unknown law) — "
-                        f"stored with heuristic density {density:g}",
+                        f"stored with heuristic density {density:g}"
+                        + (f"\n{_CFG_SEARCH_FAILED}"
+                           if _CFG_SEARCH_FAILED else ""),
                         block.source)
         return rec
 
