@@ -61,7 +61,15 @@ What is asserted, and why each shape
 3. **resolution works where the oracle is** — ``oracle_paths()`` returns the
    five keys, and on a box with the oracle built it returns the real
    binaries (existence *and* the executable bit).  Skips when the oracle is
-   absent; fails under ``PYRADIOSS_ORACLE_REQUIRED=1`` (the Phase 0 gate).
+   absent; fails under ``PYRADIOSS_ORACLE_REQUIRED=1``.  That the Phase 0 exit
+   gate really does export the flag is **not** claimed here in prose: it is
+   asserted mechanically, once, in
+   ``tests/test_p0_oracle_build.py::test_the_phase0_exit_gate_requires_the_oracle_before_it_runs_pytest``,
+   which parses the gate out of ``plan/01_phase0_oracle_and_licensing.md`` and
+   replays it.  This docstring used to *state* the promise (and it was false:
+   the gate did not export the flag, so a bare gate run skipped exactly the
+   oracle tests it exists to run); a second parser here could only have drifted
+   from the one that checks it.
 4. **honest degradation** — with an empty install prefix, ``oracle_paths()``
    returns ``None`` for the starter, warns with
    ``pyradioss.paths.missing_resource``'s full candidate list, and
@@ -195,6 +203,9 @@ FORBIDDEN_IN_HARNESS = (r"C:\OpenRadioss", "Intel\\\\oneAPI")
 # Oracle discovery -- pyradioss.paths is the single resolver (plan 00 §4.1);
 # the live-oracle gate itself lives in tests/test_p0_oracle_build.py (one
 # definition, imported by every oracle test module, so the three cannot drift).
+# The *phase exit gate* -- the gate that sets PYRADIOSS_ORACLE_REQUIRED=1 -- is
+# checked there for the same reason: one parser, imported-or-referred-to, never
+# a second copy in a second file that can disagree with it.
 # ---------------------------------------------------------------------------
 
 from tests.test_p0_oracle_build import _require_live_oracle  # noqa: E402

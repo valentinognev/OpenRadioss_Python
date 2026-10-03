@@ -7,12 +7,19 @@ Three layers, in decreasing order of "always applies":
    on this box -- not only when the binaries are missing but also when the
    writable mirror or its ``libhm_reader`` is, because a binary without the
    reader library exists and still dies with a loader error -- and FAIL when
-   ``PYRADIOSS_ORACLE_REQUIRED=1`` (the Phase 0 exit gate sets it).  They
-   used to fail unconditionally, which turned the whole fast tier red for
-   every other agent in the repo.
+``PYRADIOSS_ORACLE_REQUIRED=1`` (the Phase 0 exit gate sets it -- and this
+    file now *asserts* that mechanically, it does not take it on trust:
+    :func:`test_the_phase0_exit_gate_requires_the_oracle_before_it_runs_pytest`
+    parses the gate out of the plan and replays it).  They used to fail
+    unconditionally, which turned the whole fast tier red for every other agent
+    in the repo.
 2. Acquisition assertions (``test_build_script_is_valid_bash``,
-   ``test_provenance_names_the_extlib_source``) always run: the build script
-   and the provenance record must exist whether or not the binaries do.
+   ``test_provenance_names_the_extlib_source``,
+   ``test_the_phase0_exit_gate_requires_the_oracle_before_it_runs_pytest``)
+   always run: the build script, the provenance record and the *phase exit gate
+   itself* must exist and be right whether or not the binaries do.  The gate one
+   is here because the gate is the only thing that makes the whole phase
+   checkable; see the section above ``_oracle_probe_entries``.
 3. ``test_upstream_source_is_untouched`` always runs: ``$OR_SRC`` is read-only
    and must never be dirtied by any of this.
 
@@ -57,6 +64,7 @@ import json
 import os
 import pathlib
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -119,6 +127,9 @@ ENGINE = pathlib.Path(
 
 BUILD_SCRIPT = REPO / "tools" / "oracle" / "build_oracle.sh"
 PROVENANCE = REPO / "tools" / "validation_data" / "oracle_provenance.json"
+
+#: The Phase 0 plan, whose Exit gate section is the phase's only contract.
+PLAN = REPO / "plan" / "01_phase0_oracle_and_licensing.md"
 
 ORACLE_DISABLED = os.environ.get("PYRADIOSS_ORACLE_DISABLED") == "1"
 ORACLE_REQUIRED = os.environ.get("PYRADIOSS_ORACLE_REQUIRED") == "1"
@@ -815,3 +826,290 @@ def test_upstream_source_is_untouched():
     )
     assert proc.returncode == 0, f"git status failed on {OR_SRC}: {proc.stderr}"
     assert proc.stdout.strip() == "", f"$OR_SRC was modified:\n{proc.stdout}"
+
+
+# ---------------------------------------------------------------------------
+# The Phase 0 exit gate is a promise in a plan file; this section makes it
+# mechanical.
+#
+# Two docstrings used to *assert* the promise in prose -- this module's
+# ("the Phase 0 exit gate sets PYRADIOSS_ORACLE_REQUIRED=1") and
+# tests/test_p0_harness_portable.py's ("fails under
+# PYRADIOSS_ORACLE_REQUIRED=1 (the Phase 0 gate)") -- and the gate did not set
+# it.  A bare gate run therefore SKIPPED the oracle tests, i.e. exactly the tests
+# that verify the oracle is real and reproducible, and passed without ever
+# checking the thing it exists to check.  The plan text has since been corrected
+# to export the flag, so the prose is true; the defect is that nothing made it
+# true, and the next edit to the plan (or to a gate script) could drop it again
+# with a green suite.  A promise in a comment is not a gate.
+#
+# So the gate block is PARSED and its shell lines REPLAYED: at the moment the
+# first pytest command runs, the oracle environment must be established and
+# PYRADIOSS_ORACLE_REQUIRED must be in force at 1.  Nothing here is a substring
+# match on the prose, and nothing depends on layout: comments, blank lines,
+# quoting, `export X=1` vs. the `X=1 cmd` prefix form, and the order *among* the
+# environment-setting lines are all free.  Only the semantics are checked.  A
+# check that fails on a reformat is a check the next agent deletes, and the
+# promise goes back to being a comment.
+#
+# WHY THIS FILE: the live-oracle gate above is already the one shared definition
+# imported by the other two oracle test modules rather than copied, so the
+# exit-gate parser follows the same convention -- one implementation, and
+# tests/test_p0_harness_portable.py's docstring points here instead of
+# duplicating a second parser that could disagree with this one.
+# ---------------------------------------------------------------------------
+
+#: The gate section, and the first fenced block inside it.
+_GATE_SECTION = re.compile(r"^#{1,6}[ \t]+Exit gate[ \t]*$", re.M)
+_GATE_BLOCK = re.compile(r"^```[^\n]*\n(.*?)^```[ \t]*$", re.M | re.S)
+
+#: A leading ``NAME=value`` word on a command line.
+_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z_0-9]*=")
+
+#: What must be in force before the gate's first pytest command: the three
+#: variables ``tools/oracle/oracle_env.sh`` itself demands
+#: (``:${OR_BUILD:?...}``, ``${OR_ROOT:?...}``) plus the read-only checkout
+#: ``$OR_SRC`` the provenance citations are read from.  Sourcing
+#: ``oracle_env.sh`` is accepted on its own as "the script established it".
+ORACLE_ENV_VARS = ("OR_SRC", "OR_ROOT", "OR_BUILD")
+ORACLE_ENV_SCRIPT = "oracle_env.sh"
+
+
+def _strip_shell_comment(line):
+    """Drop a trailing ``#`` comment, respecting quotes.
+
+    The gate block is full of load-bearing comments (``# VERIFY the oracle;
+    absence must fail, not skip``), so a reformatter may add, move, reword or
+    delete them freely; none of that may change the verdict.
+    """
+    quote = None
+    for i, ch in enumerate(line):
+        if quote:
+            if ch == quote:
+                quote = None
+        elif ch in "'\"":
+            quote = ch
+        elif ch == "#" and (i == 0 or line[i - 1].isspace()):
+            return line[:i]
+    return line
+
+
+def _shell_tokens(line):
+    """Tokenise one gate line; never raise on odd quoting.
+
+    A malformed line must still be *counted* as a command -- dropping it could
+    hide a pytest invocation -- so a line shlex cannot parse falls back to a
+    whitespace split rather than aborting the replay.
+    """
+    try:
+        return shlex.split(line, comments=False)
+    except ValueError:
+        return line.split()
+
+
+def _render_command(tokens, prefix):
+    """One gate line back to shell, for the synthetic cases below."""
+    return " ".join([f"{name}={value}" for name, value in prefix.items()]
+                    + list(tokens))
+
+
+def phase0_exit_gate_problems(text=None):
+    """Replay the gate's own shell lines; return why it breaks its promise.
+
+    Returns ``(problems, commands)``.  ``problems`` is a list of plain-English
+    reasons, empty when the gate really does establish the oracle environment
+    and really does require the oracle before any pytest runs.  ``commands`` is
+    the parsed command list (``(block line number, tokens, prefix env)``) for
+    diagnostics.
+
+    ``text`` defaults to the plan file; passing a string is how the synthetic
+    cases below (and the pre-fix revision) are replayed without a checkout.
+    """
+    text = PLAN.read_text(encoding="utf-8") if text is None else text
+    section = _GATE_SECTION.search(text)
+    if section is None:
+        return ([f"{PLAN.relative_to(REPO)} has no '## Exit gate' section, so "
+                 "the phase has no gate at all"], [])
+    block = _GATE_BLOCK.search(text, section.end())
+    if block is None:
+        return (["the Exit gate section carries no fenced shell block to run"],
+                [])
+
+    problems, commands, gate_runs_pytest = [], [], False
+    exported, sourced = {}, []
+    for lineno, raw in enumerate(block.group(1).splitlines(), 1):
+        line = _strip_shell_comment(raw).strip()
+        if not line:
+            continue
+        tokens = _shell_tokens(line)
+        if not tokens:
+            continue
+        # Leading NAME=value words are that one command's own environment.
+        prefix = {}
+        while tokens and _ASSIGN.match(tokens[0]):
+            name, _, value = tokens[0].partition("=")
+            prefix[name] = value
+            tokens = tokens[1:]
+        commands.append((lineno, tokens, prefix))
+        if tokens and tokens[0] == "export":
+            for token in tokens[1:]:
+                name, sep, value = token.partition("=")
+                exported[name] = value.strip("'\"") if sep else \
+                    os.environ.get(name, "")
+        elif tokens and tokens[0] in (".", "source"):
+            sourced.extend(tokens[1:])
+
+        if "pytest" not in tokens:
+            continue
+        gate_runs_pytest = True
+        # ORDER MATTERS, and this is the only place it can be got right: the
+        # state is read as of THIS command, never as of the end of the block, so
+        # a gate that exports the flag *below* its pytest lines is the pre-fix
+        # gate again and says so here.
+        env = dict(exported)
+        env.update(prefix)
+        if env.get("PYRADIOSS_ORACLE_REQUIRED") != "1":
+            problems.append(
+                f"gate line {lineno} runs pytest with "
+                f"PYRADIOSS_ORACLE_REQUIRED={env.get('PYRADIOSS_ORACLE_REQUIRED')!r}"
+                " -- the oracle tests SKIP instead of running, so the gate "
+                "passes without verifying the oracle")
+        if not any(s.rstrip("/").endswith(ORACLE_ENV_SCRIPT) for s in sourced) \
+                and [v for v in ORACLE_ENV_VARS if not env.get(v)]:
+            problems.append(
+                f"gate line {lineno} runs pytest with no oracle environment: "
+                f"tools/oracle/{ORACLE_ENV_SCRIPT} is not sourced and "
+                f"{', '.join(v for v in ORACLE_ENV_VARS if not env.get(v))} "
+                "is not exported")
+    if not gate_runs_pytest:
+        problems.append("the gate never runs pytest, so it verifies nothing")
+    return problems, commands
+
+
+def test_the_phase0_exit_gate_requires_the_oracle_before_it_runs_pytest():
+    """The promise in two docstrings, checked rather than believed.
+
+    ``PYRADIOSS_ORACLE_REQUIRED=1`` is what turns "the oracle is not configured
+    here" from a skip into a failure (``_require_live_oracle``), so it is what
+    stops the exit gate from being green while verifying nothing -- the tests
+    that prove the oracle is real are precisely the ones a bare run drops.
+    ``tools/oracle/oracle_env.sh`` must be sourced first, because
+    :func:`_runtime_env` and the harness's own ``fortran_env()`` are the
+    caller's copy of ``INSTALL.md:34-42`` and a gate run has no other.
+    """
+    problems, commands = phase0_exit_gate_problems()
+    pytest_lines = [n for n, tokens, _ in commands if "pytest" in tokens]
+    assert problems == [], (
+        "the Phase 0 exit gate no longer does what "
+        "tests/test_p0_oracle_build.py and tests/test_p0_harness_portable.py "
+        "say it does:\n  - " + "\n  - ".join(problems)
+        + f"\n(gate pytest commands, for reference: lines {pytest_lines})")
+    assert pytest_lines, (
+        "the gate block parsed to no pytest command at all -- the parser "
+        "cannot be vacuously satisfied, check the checker")
+
+
+#: The gate exactly as it stood at 69d8ede, before the export was added.  Kept
+#: verbatim (the block only) so the checker is shown to REJECT the gate that
+#: every docstring used to describe -- the load-bearing proof that this test is
+#: not a tautology about today's text.
+PRE_FIX_GATE_69d8EDE = """\
+## Exit gate
+
+```bash
+source tools/oracle/oracle_env.sh
+python -m pytest -q tests/test_p0_oracle_selftest.py tests/test_p0_compare_t01.py
+python -m pytest -q -m "not slow"
+git -C "$OR_SRC" status --porcelain        # must be empty
+```
+
+All four must pass.
+"""
+
+
+def _reflowed_gate(text):
+    """The current gate, harmlessly reformatted.
+
+    Comments, blank lines, quoting and the order among the environment-setting
+    lines are all things a future edit may legitimately change; the verdict must
+    not move for any of them.  Only the flag and the environment are load-bearing
+    -- and they must still be in force when pytest runs.
+    """
+    _, commands = phase0_exit_gate_problems(text)
+    setup = [(n, t, p) for n, t, p in commands
+             if t and t[0] in ("export", ".", "source")]
+    verify = [(n, t, p) for n, t, p in commands
+              if (n, t, p) not in setup]
+    body = "\n".join(
+        ["# a comment nobody needs", ""] +
+        [f"{_render_command(t, p)}   # trailing commentary {i}"
+         for i, (n, t, p) in enumerate(reversed(setup))] +
+        ["", 'export "PYRADIOSS_ORACLE_REQUIRED"=1', ""] +
+        [_render_command(t, p) for n, t, p in verify])
+    return "## Exit gate\n\nA gate.\n\n```bash\n" + body + "\n```\n"
+
+
+def test_the_gate_checker_survives_reformatting_but_not_a_dropped_flag():
+    """The checker's own two properties, so it cannot rot into a tautology.
+
+    A checker that fails on a reformat gets deleted by the next agent and the
+    promise is unprotected again; a checker that accepts a gate without the flag
+    is the comment it replaced.  Both directions are pinned here, on synthetic
+    text, without needing a second checkout.
+    """
+    assert phase0_exit_gate_problems()[0] == [], (
+        "the checker rejects the gate as it stands in the plan")
+
+    # harmless reformatting: reordered setup, comments, blank lines, quotes, and
+    # the flag re-spelled in the NAME=value prefix form
+    assert phase0_exit_gate_problems(_reflowed_gate(PLAN.read_text("utf-8")))[0] \
+        == [], (
+        "the checker is sensitive to reformatting; a reformat must not be able "
+        "to break the promise -- nor to break the check")
+
+    # the promise itself: the pre-fix gate, verbatim
+    problems, _ = phase0_exit_gate_problems(PRE_FIX_GATE_69d8EDE)
+    assert problems, (
+        "the checker accepts the gate as it stood at 69d8ede -- the one that "
+        "skipped the oracle tests this check exists to catch")
+    assert any("PYRADIOSS_ORACLE_REQUIRED" in p for p in problems), (
+        f"the pre-fix gate is rejected, but not for the missing flag: {problems}")
+
+    # flag dropped from today's gate -> still caught
+    current = PLAN.read_text(encoding="utf-8")
+    dropped = "\n".join(l for l in current.splitlines()
+                        if not l.lstrip().startswith("export PYRADIOSS_ORACLE_REQUIRED"))
+    assert dropped != current, "the gate no longer has the line to drop"
+    problems, _ = phase0_exit_gate_problems(dropped)
+    assert any("PYRADIOSS_ORACLE_REQUIRED" in p for p in problems), (
+        f"dropping the flag export went unnoticed: {problems}")
+
+    # flag set to 0 is not "required" either
+    zeroed = current.replace("export PYRADIOSS_ORACLE_REQUIRED=1",
+                             "export PYRADIOSS_ORACLE_REQUIRED=0")
+    problems, _ = phase0_exit_gate_problems(zeroed)
+    assert any("PYRADIOSS_ORACLE_REQUIRED" in p for p in problems), (
+        f"PYRADIOSS_ORACLE_REQUIRED=0 passed as if it were required: {problems}")
+
+    # environment setup dropped (source line and the OR_* exports) -> caught
+    stripped = "\n".join(
+        l for l in current.splitlines()
+        if "oracle_env.sh" not in l
+        and not re.match(r"\s*export OR_(SRC|ROOT|BUILD)=", l))
+    problems, _ = phase0_exit_gate_problems(stripped)
+    assert any("oracle environment" in p for p in problems), (
+        f"dropping the oracle environment went unnoticed: {problems}")
+
+    # the preamble moved below the pytest commands -> both promises caught
+    _, commands = phase0_exit_gate_problems(current)
+    setup = [(n, t, p) for n, t, p in commands
+             if t and t[0] in ("export", ".", "source")]
+    verify = [(n, t, p) for n, t, p in commands if (n, t, p) not in setup]
+    late = "## Exit gate\n\n```bash\n" + "\n".join(
+        _render_command(t, p) for n, t, p in verify + setup) + "\n```\n"
+    problems, _ = phase0_exit_gate_problems(late)
+    assert any("PYRADIOSS_ORACLE_REQUIRED" in p for p in problems), (
+        f"running pytest before the flag is set went unnoticed: {problems}")
+    assert any("oracle environment" in p for p in problems), (
+        f"running pytest before the oracle environment is established went "
+        f"unnoticed: {problems}")
