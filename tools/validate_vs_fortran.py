@@ -1344,6 +1344,183 @@ def compare_channels(f_hdr, f_dat, p_hdr, p_dat, part_titles=None):
 
 
 # ----------------------------------------------------------------------------
+# Admissibility — what a parity row is allowed to claim
+# ----------------------------------------------------------------------------
+#
+# The oracle's own record decides this, not this module's judgement:
+# ``tools/validation_data/oracle_provenance.json``
+# ``admissible_parity_evidence`` marks the T01, the A-files, the restart and
+# the starter listing admissible, and H3D files, native ``.k`` reading,
+# ``/ALE/STRUCTURED_MESH`` and ``/CHECKSUM_REPORT`` over H3D inadmissible.
+# A row therefore names the evidence it rests on and says whether the record
+# admits it; if the record cannot be read, the row says *that* rather than
+# assuming admissibility.
+
+#: The provenance record, relative to the repo root.
+PROVENANCE_REL = os.path.join("tools", "validation_data", "oracle_provenance.json")
+
+#: The evidence channel a T01 comparison rests on, spelled as the provenance
+#: spells it, because the key is looked up in the record.
+T01_EVIDENCE_KEY = "T01 (binary results table)"
+
+#: The features that record marks inadmissible, with the deck keyword that
+#: requests each.  ``/H3D`` is the engine's h3d output family —
+#: ``engine/source/input/freform.F:2680`` and ``:2696`` dispatch ``KEY3=='H3D'``
+#: with ``NSLASH(KH3D) /= 0``; ``/ALE/STRUCTURED_MESH`` is the S-ALE mesh the
+#: harvested reader cannot create
+#: (``starter/source/ale/s_ale_message.F90:210-215``, MSGERROR 3153);
+#: ``/CHECKSUM_REPORT`` over H3D needs ``libh3dreader.so``, which no reachable
+#: extlib contains (``starter/source/output/checksum/checksum_list.cpp:640-687``).
+INADMISSIBLE_KEYWORDS = {
+    "H3D animation files": ("/H3D",),
+    "/ALE/STRUCTURED_MESH (S-ALE)": ("/ALE/STRUCTURED_MESH",),
+    "/CHECKSUM_REPORT over H3D files": ("/CHECKSUM_REPORT",),
+}
+
+_PROVENANCE_CACHE: Optional[Dict] = None
+
+
+def provenance_record(refresh: bool = False) -> Optional[Dict]:
+    """The oracle provenance record, or ``None`` if it cannot be read.
+
+    Lazy and cached: it is read once per process, and ``refresh=True`` re-reads
+    it (a test that edits the record needs that).  ``None`` is a real answer,
+    not an error to swallow — the caller then refuses to *claim* admissibility.
+    """
+    global _PROVENANCE_CACHE
+    if _PROVENANCE_CACHE is None or refresh:
+        try:
+            with open(os.path.join(REPO, PROVENANCE_REL), encoding="utf-8") as fh:
+                _PROVENANCE_CACHE = json.load(fh)
+        except (OSError, ValueError):
+            return None
+    return _PROVENANCE_CACHE
+
+
+def evidence_admissibility(channel: str = T01_EVIDENCE_KEY,
+                           record: Optional[Dict] = None) -> Tuple[bool, str]:
+    """``(admissible, why)`` for one evidence channel, per the provenance record.
+
+    A channel the record does not mention is **not** admissible: the record is
+    the authority on which channels this oracle's numbers may be read from, and
+    an unlisted channel is an unknown one, not a permitted one.
+    """
+    record = record if record is not None else provenance_record()
+    if record is None:
+        return False, (f"{PROVENANCE_REL} could not be read, so admissibility "
+                       f"is unknown and nothing is claimed")
+    census = record.get("admissible_parity_evidence") or {}
+    verdict = census.get(channel)
+    if verdict is None:
+        listed = ", ".join(sorted(census)) or "nothing"
+        return False, (f"the provenance record does not list {channel!r} as an "
+                       f"evidence channel (it lists: {listed})")
+    admissible = str(verdict).strip().lower().startswith("yes")
+    why = (str(verdict).strip() if admissible
+           else str(record.get("inadmissible_parity_evidence_reasons", {})
+                    .get(channel, verdict)).strip())
+    return admissible, why
+
+
+def deck_inadmissible_features(deck_text: str) -> List[str]:
+    """Which inadmissible features this deck *asks for*, by provenance name.
+
+    A keyword scan, deliberately shallow: it does not claim to be a reader, it
+    states which of the record's inadmissible channels this run would have
+    produced, so a reader of a parity row can see what the row does **not**
+    cover.  Matching is on the keyword at the start of a card or in a comment,
+    case-insensitively.
+    """
+    flagged = []
+    upper = deck_text.upper()
+    for feature, keywords in INADMISSIBLE_KEYWORDS.items():
+        if any(re.search(rf"(^|[\s/]){re.escape(kw.upper())}($|[\s/])", upper)
+               for kw in keywords):
+            flagged.append(feature)
+    return flagged
+
+
+def evidence_record(deck1_text: Optional[str] = None) -> Dict:
+    """The ``evidence`` block every parity row carries.
+
+    Names the channel, the record that admits it, and the inadmissible
+    features the deck asks for.  A row with this block can always answer "what
+    is this claim standing on, and what did it not look at?".
+    """
+    admissible, why = evidence_admissibility()
+    features = deck_inadmissible_features(deck1_text or "")
+    return {"channel": T01_EVIDENCE_KEY, "admissible": admissible,
+            "why": why, "source": PROVENANCE_REL,
+            "inadmissible_features_in_deck": features}
+
+
+# ----------------------------------------------------------------------------
+# The binary-T01 comparison route (tools.compare_t01, commit c679734)
+# ----------------------------------------------------------------------------
+#
+# ``th_to_csv`` is upstream's own renderer and it is not obtainable on this box
+# (``tools/th_to_csv/README.md:1-7`` names a separate repository,
+# ``OpenRadioss/Tools``, that this machine cannot reach — the same class of
+# blockage as the extlib releases recorded in ``oracle_provenance.json``).
+# ``tools/compare_t01.py`` reads the very same binary file
+# (``engine/source/output/th/hist1.F:201-316`` for the header, ``hist2.F:302-477``
+# for the per-step records) and scores it against the port's own T01 CSV with
+# the same 5 % tolerance the recorded sweeps used
+# (``tools/validation_data/parity_m41.json`` ``tolerance_rel_rms``).
+#
+# Two things this route must never do, and does not:
+#   * compare raw bytes — the header carries ``ctime()``
+#     (``hist1.F:210-234`` via ``engine/source/system/timer_c.c:30-40``), so two
+#     runs of one deck differ in 24 bytes and nowhere else;
+#   * claim a channel without significant samples — ``score().worst`` is
+#     ``NODATA`` when nothing carries signal, and that case keeps the harness's
+#     own "no overlapping channels" failure rather than becoming a MATCH.
+
+#: Recorded per row so a reader of ``parity_results.json`` knows which route
+#: produced the numbers.
+CSV_ROUTE = "th_to_csv CSV"
+BINARY_ROUTE = "binary T01 (tools.compare_t01.read_t01)"
+
+
+def compare_binary_t01(fortran_t01: str, port_csv: str) -> Tuple[List[Dict],
+                                                                  Dict]:
+    """Channel rows + the roll-up, from the Fortran **binary** T01.
+
+    Returns ``(rows, summary)`` where each row is
+    ``{"channel", "rel_rms", "max_abs", "n", "verdict"}`` and ``summary`` is
+    ``{"worst_rel_rms", "worst_verdict", "n_significant", "channels"}``.
+
+    The row shape is deliberately **not** the CSV path's: that one also carries
+    ``final_dev``, ``scale`` and the harness's ``significant`` flag, which the
+    scorer does not compute (``tools.compare_t01`` is another task's file and
+    was not modified).  What carries over is the roll-up: ``worst`` is taken
+    over the channels that carry signal
+    (``tools/compare_t01.py`` ``SIGNIFICANCE_FRACTION``, the same 1 %-of-group
+    rule the CSV path applies at ``compare_channels``), so
+    ``row["max_rel_rms"]`` means what it means in ``parity_m41.json`` whichever
+    route produced it.  Consumers that read ``final_dev`` off every row must
+    therefore check ``row["comparison_route"]`` — which is why the route is
+    recorded on the row rather than inferred.
+    """
+    from tools import compare_t01          # local: keeps import-time work lazy
+
+    reference = compare_t01.read_t01(fortran_t01)
+    port = compare_t01.read_port_csv(port_csv)
+    result = compare_t01.score(reference, port)
+    rows = [{"channel": name, "rel_rms": score.rel_rms,
+             "max_abs": score.max_abs, "n": score.n, "verdict": score.verdict}
+            for name, score in sorted(result.per_channel.items())]
+    scored = [r for r in rows if r["verdict"] != "NODATA"]
+    summary = {"worst_rel_rms": result.worst.rel_rms,
+               "worst_verdict": result.worst.verdict,
+               "n_significant": len(scored), "n_channels": len(rows),
+               "n_samples_reference": int(reference.times.size),
+               "n_samples_port": int(port.times.size),
+               "tolerance": compare_t01.MATCH_RMS}
+    return rows, summary
+
+
+# ----------------------------------------------------------------------------
 # Fortran + pyradioss single-example drivers
 # ----------------------------------------------------------------------------
 
@@ -1483,22 +1660,25 @@ def run_fortran(name: str, runname: str, deck0: str, deck1: str,
     converter = oracle.get("th_to_csv")
     if not converter:
         # The engine DID write an admissible T01 (oracle_provenance.json
-        # admissible_parity_evidence); what is missing is the converter that
-        # turns it into the CSV both sides are compared as.  Say which, never
-        # compare something else.
-        info.update(status="th2csv-missing",
+        # admissible_parity_evidence); what is missing is only the converter
+        # that renders it as CSV.  So the T01 itself is handed on: parity
+        # compares it with tools.compare_t01.read_t01 (the binary reader
+        # landed in c679734 for exactly this), and the record says which
+        # route produced its numbers.  Never "compare something else".
+        info.update(status="th2csv-missing", t01=t01,
                     error="the engine wrote its T01, but no th_to_csv "
                           "converter is installed (it is a separate upstream "
                           "tool: $OR_SRC/tools/th_to_csv/README.md:1-7 points "
                           "at the OpenRadioss/Tools repository); the binary "
-                          "T01 is at " + os.path.basename(t01))
+                          "T01 is at " + os.path.basename(t01) + " and will be "
+                          "read by tools.compare_t01.read_t01")
         return info
     rc2, tail2, _ = run_cmd(th_to_csv_argv(converter, t01), rd, 120, env)
     csvp = t01 + ".csv"
     if not os.path.exists(csvp):
         info.update(status="th2csv-fail", error=tail2[-200:])
         return info
-    info.update(status="ok" if normal else "engine-partial", csv=csvp)
+    info.update(status="ok" if normal else "engine-partial", csv=csvp, t01=t01)
     return info
 
 
@@ -1604,6 +1784,22 @@ def find_examples(only: Optional[List[str]]) -> List[Tuple[str, str, str, str]]:
     return [(n, r, a, b) for _, n, r, a, b in items]
 
 
+def channel_text(entry: Dict) -> str:
+    """One channel cell of the console table, for either comparison route.
+
+    A ``NODATA`` channel is printed as ``name=-``: the reader route reports one
+    (with ``rel_rms = inf``, deliberately, so a stray arithmetic use is loud)
+    where the CSV route simply omits it, and printing ``inf`` in a table of
+    deviations would read as a catastrophic mismatch rather than as "not
+    compared".  A compared channel keeps the CSV route's ``~`` marker for one
+    the significance rule excluded from the roll-up.
+    """
+    if entry.get("verdict") == "NODATA":
+        return f"{entry['channel']}=-"
+    marker = "" if entry.get("significant", True) else "~"
+    return f"{marker}{entry['channel']}={entry['rel_rms']:.3G}"
+
+
 def parity(args) -> int:
     workdir = args.workdir
     os.makedirs(workdir, exist_ok=True)
@@ -1666,6 +1862,9 @@ def parity(args) -> int:
                 row["class"] = f"FORTRAN-FAIL({subtag})" if subtag \
                     else "FORTRAN-FAIL"
         row["fortran"] = {k: v for k, v in f.items() if k != "dir"}
+        # What this row is allowed to claim, decided by the oracle's own
+        # provenance record rather than by this module's judgement.
+        row["evidence"] = evidence_record(open(deck1, errors="replace").read())
 
         # ---- pyradioss side ----------------------------------------------
         if budget_left <= 0:
@@ -1685,6 +1884,10 @@ def parity(args) -> int:
 
         # ---- comparison ----------------------------------------------------
         if f.get("csv") and p.get("csv"):
+            # The historical route, unchanged: upstream's own converter rendered
+            # the Fortran T01 as CSV.  It wins whenever it exists.
+            row["comparison_route"] = CSV_ROUTE
+            row["fortran"]["comparison_route"] = CSV_ROUTE
             fh, fd = read_csv_columns(f["csv"])
             ph, pd = read_csv_columns(p["csv"])
             ch = compare_channels(fh, fd, ph, pd)
@@ -1695,8 +1898,55 @@ def parity(args) -> int:
                 row["max_rel_rms"] = worst
                 row["class"] = "MATCH" if worst <= args.tol else "DEVIATION"
             else:
+                # No significant channel -> the guard that predates this route
+                # and that a validation harness may never drop: a MATCH derived
+                # from nothing comparable is the worst thing this file could
+                # print.  (parity_m41.json carries 4 rows of the class it
+                # ought to be emitting here — NO-CHANNELS — which is a
+                # controller decision, see FORTRAN_FAIL_SUBTAGS.)
                 row["class"] = "FORTRAN-FAIL"
                 row["fortran"]["error"] = "no overlapping channels"
+        elif f.get("t01") and p.get("csv") and row["evidence"]["admissible"]:
+            # The route this task adds: read the Fortran side's own binary T01
+            # with tools.compare_t01 (commit c679734) instead of shelling out
+            # to th_to_csv, which is unobtainable on this box.  Same tolerance,
+            # same significance-filtered roll-up, so max_rel_rms still means
+            # what parity_m41.json's means.
+            row["comparison_route"] = BINARY_ROUTE
+            row["fortran"]["comparison_route"] = BINARY_ROUTE
+            row["fortran"]["reader"] = "tools.compare_t01.read_t01"
+            try:
+                ch, summary = compare_binary_t01(f["t01"], p["csv"])
+            except Exception as exc:                # noqa: BLE001 — reported
+                # Anything the reader raises (a missing file, a truncated
+                # record, a format the walk refuses) is a refusal with the
+                # reason quoted — never an empty comparison and never a MATCH.
+                row["channels"] = []
+                row["class"] = "FORTRAN-FAIL(t01-unreadable)"
+                row["fortran"]["error"] = (
+                    f"tools.compare_t01.read_t01 could not use the Fortran T01 "
+                    f"at {f['t01']}: {type(exc).__name__}: {exc}")
+                return row, budget_left
+            row["channels"] = ch
+            row["channel_summary"] = summary
+            if summary["worst_verdict"] == "NODATA":
+                # Same guard as the CSV route above: nothing comparable.
+                row["class"] = "FORTRAN-FAIL"
+                row["fortran"]["error"] = (
+                    f"no comparable channel: {summary['n_significant']} of "
+                    f"{summary['n_channels']} channels carried signal "
+                    f"(reference {summary['n_samples_reference']} samples, port "
+                    f"{summary['n_samples_port']} samples)")
+            else:
+                worst = summary["worst_rel_rms"]
+                row["max_rel_rms"] = worst
+                # The scorer's own verdict, not a re-derivation of it: its
+                # MATCH_RMS is parity_m41.json's tolerance, and its
+                # significance rule is the harness's.  ``--tol`` stays
+                # authoritative so a caller can tighten it.
+                row["class"] = ("MATCH" if worst <= args.tol
+                                and summary["worst_verdict"] == "MATCH"
+                                else "DEVIATION")
         elif "class" not in row:
             row["class"] = "FORTRAN-FAIL"
         return row, budget_left
@@ -1732,13 +1982,26 @@ def parity(args) -> int:
     print("-" * len(hdr))
     for r in results:
         chs = r.get("channels", [])
-        chtxt = " ".join(
-            ("" if c.get("significant", True) else "~") +
-            f"{c['channel']}={c['rel_rms']:.3G}" for c in chs)
+        chtxt = " ".join(channel_text(c) for c in chs)
         rms = f"{r.get('max_rel_rms', float('nan')):.3G}" \
             if "max_rel_rms" in r else "-"
         print(f"{r['example']:<34} {r.get('class', '?'):<26} {rms:>8}  "
               f"{chtxt}")
+    if any(r.get("comparison_route") == BINARY_ROUTE for r in results):
+        from tools import compare_t01      # already imported by the route used
+        print("\nchannels read from the Fortran binary T01 by "
+              "tools.compare_t01.read_t01 (no th_to_csv on this box):\n"
+              "  '-'      not compared — NODATA: only one side asked for the "
+              "channel, or there were\n"
+              "           too few samples to compare it\n"
+              "  maxRMS    the scorer's worst over the channels that carry "
+              "signal\n"
+              "            (compare_t01.SIGNIFICANCE_FRACTION, the same "
+              "1 %-of-group rule the CSV route\n"
+              "             applies), so it means what parity_m41.json's "
+              "max_rel_rms means\n"
+              f"  tolerance {compare_t01.MATCH_RMS} — parity_m41.json's own "
+              f"tolerance_rel_rms")
     return 0
 
 

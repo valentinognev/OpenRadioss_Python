@@ -1,5 +1,58 @@
 # Updates
 
+## 1.4.0 - P0.11: parity produces evidence without `th_to_csv`
+
+Phase 0 exists so later phases can produce differential parity evidence against
+the real Fortran solver. They could not: the oracle ran, wrote its binary `T01`,
+and the harness stopped at `FORTRAN-FAIL(th2csv-missing)` because upstream's
+converter is unobtainable here (`$OR_SRC/tools/th_to_csv/README.md:1-7` points
+at the separate `OpenRadioss/Tools` repository, unreachable from this machine —
+the same class of blockage as the extlib releases).
+
+- **New** `tools/validate_vs_fortran.py` comparison route: when `th_to_csv` is
+  absent, the **Fortran binary T01 is read by `tools.compare_t01.read_t01`**
+  (landed in `c679734` precisely so the converter becomes optional) and scored
+  against the port's own T01 CSV with the same 5 % tolerance
+  `parity_m41.json` records. `run_fortran` now hands the T01 path on instead of
+  discarding it, and every row records its `comparison_route`.
+  **First real evidence on this box:** `examples/tensile_bar` →
+  `MATCH`, `max_rel_rms = 0.00246` over 11 signal-carrying channels of 30
+  (IE 5.8e-4, KE 2.6e-3, EFW 2.9e-4, HE 6.7e-4, XMOM 2.5e-3, MASS 3.5e-8,
+  part IE 5.8e-4, part KE 1.9e-3).
+- **Unchanged** the CSV path: it still runs whenever a converter exists,
+  including its `final_dev` / `scale` / `significant` row shape. The new route
+  is additive and is only reached when there is no Fortran CSV.
+- **Honest degradation, both ways.** A missing/unreadable T01 is
+  `FORTRAN-FAIL(t01-unreadable)` with the reader's own error quoted and **no**
+  `max_rel_rms`; nothing comparable is the pre-existing "no overlapping
+  channels" failure, never a `MATCH`. `--tol` can tighten the reader route but
+  not loosen it past `parity_m41.json`'s own tolerance, so a new sweep stays
+  comparable with every old one.
+- **No raw-byte comparison anywhere.** The T01 header carries `ctime()`
+  (`hist1.F:210-234` via `timer_c.c:30-40`), so two runs of one deck differ in
+  those 24 bytes and nowhere else; a test rewrites the stamp and asserts every
+  number is unchanged.
+- **New** an `evidence` block on every parity row: the evidence channel
+  (`T01 (binary results table)`), whether
+  `tools/validation_data/oracle_provenance.json` admits it, why, and which
+  **inadmissible** features the deck asks for (`/H3D`,
+  `/ALE/STRUCTURED_MESH`, `/CHECKSUM_REPORT` — the H3D family is the engine's,
+  `freform.F:2680,2696`). A channel the record does not list is *not* claimed.
+- **New** `tests/test_p0_parity_t01_path.py` — 15 tests, no oracle needed (the
+  committed golden T01 of the P0.5 reference run is real Fortran output): the
+  reader route is taken without the converter, the CSV route is untouched with
+  it, unreadable input fails loudly, a known offset gives the expected
+  per-channel verdict and number, no verdict can be `MATCH` without significant
+  channels, the run stamp cannot move a verdict, and every class the harness can
+  emit is a recorded class or a subtag of one.
+- **Known limitation surfaced by the end-to-end run** (not this task's file):
+  `tools.compare_t01.read_t01` refuses a deck whose T01 carries five per-step
+  records — e.g. `rd_e/.../BATOZ/Sf_0.6/ROLLING`, whose own hierarchy record
+  says `NSUBS=1` (`hist1.F:297`) and whose data section is 9630 = 5×1926
+  records — because the shared walk `parse_t01` fixes the stride at four.
+  The harness reports it as `FORTRAN-FAIL(t01-unreadable)` with the reason, and
+  generalising the stride belongs in `tools/oracle/oracle_selftest.py`.
+
 ## 1.3.2 - P0.9 fix round 2: the h3d claim, corrected; PATH on Windows; RPATH read from the ELF
 
 Reviewer round 1 on `tools/validate_vs_fortran.py` returned SPEC ok / QUALITY
