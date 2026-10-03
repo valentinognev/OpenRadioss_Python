@@ -114,11 +114,14 @@ label "P0.11" for the binary-T01 parity route, which is a **different** task.
   built is therefore no longer a way to detect a missing oracle; the exit gate
   exports `PYRADIOSS_ORACLE_REQUIRED=1` instead. See `docs/STATE.md`
   §Baseline.)*
-- **P0.15** — false machine facts purged from tooling and packaging: the
+- **P0.15** — false machine facts purged from tooling and packaging; all three
+  were claims about the pre-migration machine. The pre-migration
   `DT_RPATH=/home/valentin/anaconda/lib` claim in `validate_vs_fortran.py`
-  (neither binary carries a DT_RPATH or DT_RUNPATH — `readelf -d`), `numpy
-  2.5.2` in `pyproject.toml` (now points at the lock's `# pin:` lines), and
-  `cmake 4.4.3` in `build_oracle.sh` (`/usr/bin/cmake`, 3.28.3).
+  (neither binary carries a DT_RPATH or DT_RUNPATH — `readelf -d`, measured
+  `[]` for starter and engine); the pre-migration `numpy 2.5.2` in
+  `pyproject.toml`, now a pointer at the lock's `# pin:` lines; and the
+  pre-migration `cmake 4.4.3` in `build_oracle.sh`, where `/usr/bin/cmake`
+  is 3.28.3.
   `tests/test_p0_no_stale_machine_paths.py` (9 tests at P0.15, **10** today)
   keeps them from rotting and distinguishes a claim about this box from a
   quoted specimen of a tool's output.
@@ -261,8 +264,8 @@ untestable. numba is now installed on the shared Linux interpreter; mpi4py is
 deliberately NOT, and the lock says so in a form a test enforces.
 
 - **Installed** `numba==0.68.0` + `llvmlite==0.50.0` into the shared
-  interpreter (anaconda base, Python 3.14.6). `numpy 2.5.2`, `scipy 1.18.0`
-  and `pytest 9.1.1` are **unchanged** — numba 0.68 declares
+  pre-migration interpreter (anaconda base, Python 3.14.6). `numpy 2.5.2`,
+  `scipy 1.18.0` and `pytest 9.1.1` are **unchanged** — numba 0.68 declares
   `numpy<2.6,>=1.22`, so the accel extra needs no numpy downgrade, and
   nothing pre-existing was upgraded or uninstalled. The 6
   "numba is not installed" failures in `tests/test_m40_auto_backend.py` (5)
@@ -347,9 +350,11 @@ correctly identified as **not** this task's files.
   `binary_rpath_hazards()` reports any entry whose directory holds the
   writer. `fortran_env` warns; `run_fortran` **refuses** the run
   (`h3d-writer-in-rpath`) because no environment change can close it.
-  Measured on this box: both oracle binaries carry
-  `DT_RPATH=/home/valentin/anaconda/lib`, which the parser reproduces
-  exactly (cross-checked against `readelf -d`).
+  Measured on the pre-migration box, where that conda prefix existed: both
+  oracle binaries carried `DT_RPATH=/home/valentin/anaconda/lib` (the
+  pre-migration record), which the parser reproduced exactly (cross-checked
+  against `readelf -d`). The rebuilt binaries now read `[]`: no DT_RPATH and
+  no DT_RUNPATH at all (P0.15).
 - **Corrected — the `parity_m41.json` citation was false.** The comment
   claimed its rows read `FORTRAN-FAIL`; they do not. The real invariant, now
   stated: *the class vocabulary of a published `parity_m<NN>.json` must not

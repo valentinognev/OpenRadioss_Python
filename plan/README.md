@@ -226,10 +226,12 @@ These were measured on 2026-10-02 and are the plan's baseline:
 
 - `python -m pytest --collect-only -m "not slow"` → **14,267 collected**
   (20 deselected).
-- Dev box: Python 3.14.6, NumPy 2.5.2, SciPy 1.18.0, pytest 9.1.1,
-  matplotlib 3.11.1. **numba and mpi4py are NOT installed** on this box — every
-  numba/mpi code path is therefore currently untested locally and is a Phase
-  0 install item.
+- Dev box at that date: Python 3.14.6, NumPy 2.5.2, SciPy 1.18.0, pytest
+  9.1.1, matplotlib 3.11.1 — the **pre-migration** machine, where **numba and
+  mpi4py were NOT installed**. The Linux box's pins are
+  `requirements-lock.txt` §[B] (python 3.12.3, numpy 2.5.3, scipy 1.18.1,
+  pytest 9.1.1, numba 0.68.0, llvmlite 0.50.0, mpi4py absent), so numba is
+  exercised here and only the SPMD path remains an install item.
 - Corpus coverage at M41 (last full sweep, **stale**):
   529 decks → 13 CLEAN / 440 SKIPS / 76 ERROR / 0 CRASH / 0 TIMEOUT.
 - Parity at M41: five RD-E-1000 shell cases MATCH; the BT family is DEVIATION

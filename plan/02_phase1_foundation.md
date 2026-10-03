@@ -14,7 +14,8 @@ API; route every external path through `pyradioss.paths`; generate
 freeze the implicit tower behind a pinned surface test; add a module-size
 linter and a regression ledger so "no new failures" is measurable.
 
-**Tech stack:** Python 3.14 dev box, pytest, `tomllib`, `pathlib`.
+**Tech stack:** Python 3.12 dev box (`requirements-lock.txt` §[B]), pytest,
+`tomllib`, `pathlib`.
 **Spec:** `plan/00_ORCHESTRATION.md` §3, §5, §6, §11.
 **Entry criterion: Phase 0 exit gate passed.**
 **Band: M** — small, but nothing downstream is safe without it.

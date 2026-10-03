@@ -35,7 +35,7 @@ so this repo's `AGENTS.md`, `.agents/rules/`, `.agents/skills/` and
 - `.agents/workflows/milestone.md` — the `/milestone N` review-gated flow.
 - `.agents/skills/` — run-reference-openradioss, validation-compare,
   lspp-check.
-- `.venv` — Python 3.14.2 with all dependencies (numpy, scipy, numba, pytest;
+- `.venv` — Python 3.12.3 with all dependencies (numpy, scipy, numba, pytest;
   pins in `requirements-lock.txt`).
 - `tests/data/rd_decks/` — vendored official corpus decks for the guarded
   corpus tests.

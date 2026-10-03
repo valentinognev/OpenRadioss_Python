@@ -8,7 +8,9 @@ inventing.
 ## Environment (do not deviate)
 
 - Windows 11, PowerShell. No WSL, no Git Bash, no Unix commands (ls/rm/cat/grep).
-- Python 3.14.2 in `.venv`. NEVER bare `python` or `pip`. Always exact paths:
+- Python 3.12.3 in `.venv` — this box's interpreter, pinned in
+  `requirements-lock.txt` §[B]. NEVER bare `python` or `pip`. Always exact
+  paths:
   - `.venv\Scripts\python.exe`
   - `.venv\Scripts\pip.exe`
 - All dependencies are preinstalled (numpy 2.4.6, scipy 1.18.0, numba 0.66.0,

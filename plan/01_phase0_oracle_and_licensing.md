@@ -773,10 +773,10 @@ today — `00b5112` added the literal-block case, re-counted 2026-10-03 with
 
 **Evidence:** 5 failed / 3 passed with the test in place and the edits reverted
 to HEAD, 9 passed after; the pre-fix files re-checked in a scratch tree still
-fail all four rules. `numpy 2.5.2` in `pyproject.toml` was replaced by a
-pointer at the lock's `# pin:` lines rather than a third copy of a version.
-The `tests/` exclusion is a recorded decision (9 hits re-measured, none a stale
-claim).
+fail all four rules. The pre-migration `numpy 2.5.2` in `pyproject.toml` was
+replaced by a pointer at the lock's `# pin:` lines rather than a third copy of
+a version. The `tests/` exclusion is a recorded decision (9 hits re-measured,
+none a stale claim).
 
 ### Task P0.16: The toolchain record is a gated fact, not a test side effect
 
@@ -797,7 +797,8 @@ writer), `tools/validation_data/toolchain_probe.json`,
 **Evidence:** `test_probe_json_is_written` used to call `probe.main([])`, so
 every suite run rewrote the claim and the committed copy was a lie between
 runs (it named `/home/valentin/anaconda/bin/{gfortran,cmake,make}`, "cmake
-version 4.4.3"). A suite run now leaves `git status --porcelain` clean. Round 1
+version 4.4.3" — the pre-migration record, a conda prefix this box does not
+have). A suite run now leaves `git status --porcelain` clean. Round 1
 fixed the record's own values: `gfortran_version` is the compiler's version
 (`13.3.0`, digits-and-dots only) rather than the Ubuntu package string, with
 the banner kept in `gfortran_banner`, and every key is now a property of the
