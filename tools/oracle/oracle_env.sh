@@ -17,11 +17,38 @@
 # the working directory and in $ALTAIR_HOME/$ARCH, so keep the stale
 # libh3dwriter.so out of both.
 #
-# LD_LIBRARY_PATH IS required, not cosmetic: the binaries start without it and
-# then die on the first H3D / message call with an unresolved libhm_reader or
-# libapr-1.  Both come straight from $OR_SRC/INSTALL.md:34-42 ("Environment
-# variables settings under Linux"), retargeted from OPENRADIOSS_PATH to the
-# mirror prefix $OR_BUILD.
+# LD_LIBRARY_PATH IS required, not cosmetic -- and it is the STARTER that needs
+# it.  readelf -d on the installed binaries: starter_linux64_gf carries a NEEDED
+# entry for libhm_reader_linux64.so, engine_linux64_gf carries none, and neither
+# binary carries a DT_RPATH or a DT_RUNPATH entry, so this export is the only
+# route to that library.  The failure is therefore NOT a run-time one: with
+# LD_LIBRARY_PATH unset the starter never starts at all.  The dynamic loader
+# rejects it before a single instruction of its own code has run, and it exits
+# 127 with this on stderr:
+#
+#     starter_linux64_gf: error while loading shared libraries:
+#     libhm_reader_linux64.so: cannot open shared object file: No such file or
+#     directory
+#
+# (the loader prefixes whatever path it was handed).  So a 127 here is a loader
+# problem, never an H3D or message-subsystem one: no H3D call is reached,
+# because nothing runs.  Do not go hunting an h3d bug on the strength of this
+# export being absent -- that is the misdiagnosis this paragraph used to carry,
+# and it sent an operator to the wrong subsystem entirely.  The engine needs no
+# reader library and prints its -v banner with LD_LIBRARY_PATH unset (exit 0),
+# which is the whole of why the two binaries look inconsistent here.  libapr-1
+# is not a second symptom to go looking for either: libapr-1.so.0 is a NEEDED
+# entry of libhm_reader_linux64.so itself and ships in the very directory this
+# export names, so one entry covers it, and ldconfig lists no libapr on this box
+# at all, so the loader would find it nowhere else.
+#
+# The requirement is upstream's, and this paragraph is the retarget of it:
+# $OR_SRC/INSTALL.md:34-42 ("Environment variables settings under Linux"), whose
+# line 42 is the export
+#
+#     export LD_LIBRARY_PATH=$OPENRADIOSS_PATH/extlib/hm_reader/linux64/:$LD_LIBRARY_PATH
+#
+# with OPENRADIOSS_PATH moved to the mirror prefix $OR_BUILD.
 #
 # Expects the mirror to already exist (see tools/oracle/mirror_and_fetch.sh) and
 # the oracle to be built (see tools/oracle/build_oracle.sh).
