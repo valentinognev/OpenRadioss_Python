@@ -1011,6 +1011,16 @@ def harvest_port_out(starter_out: str, engine_out: str) -> Dict:
     Starter: ``NUMBER OF NODES . . : 99`` / ``NUMBER OF /BRICK  ELEMENTS``
     (summed) / ``STARTER ELAPSED TIME . . :  0.031 s``.
     Engine: ``CYCLES . . : 1847`` / ``ELAPSED TIME . . :  3.034 s``.
+
+    Plus the compute backend the run actually resolved to:
+    ``COMPUTE BACKEND . . . : numba (auto: 40 elements >= 32)``, emitted by
+    ``pyradioss/accel/__init__.py`` ``_log_backend`` (``:260-262``) through
+    :func:`auto_select_backend` (``:265-268``).  It has to be read back from the
+    listing rather than assumed from ``PYRADIOSS_BACKEND``, because ``auto``
+    resolves per model (``auto: 40 elements >= 32``) — and a parity row that
+    does not say which backend produced its numbers cannot be compared with
+    another one (``plan/00_ORCHESTRATION.md`` §1 item 6: *pin the backend for
+    before/after comparisons*, ``PYRADIOSS_BACKEND=numpy``).
     """
     info: Dict = {}
     if os.path.exists(starter_out):
@@ -1033,6 +1043,11 @@ def harvest_port_out(starter_out: str, engine_out: str) -> Dict:
         m = re.search(r"ELAPSED TIME[ .]*:\s*([\d.]+)", txt)
         if m:
             info["engine_elapsed_self"] = float(m.group(1))
+        m = re.search(r"COMPUTE BACKEND\s*\. \. .*:\s*([A-Za-z0-9_+-]+)"
+                      r"\s*\(([^)]*)\)", txt)
+        if m:
+            info["compute_backend_used"] = m.group(1)
+            info["compute_backend_reason"] = m.group(2).strip()
     return info
 
 
@@ -1486,38 +1501,110 @@ def compare_binary_t01(fortran_t01: str, port_csv: str) -> Tuple[List[Dict],
                                                                   Dict]:
     """Channel rows + the roll-up, from the Fortran **binary** T01.
 
-    Returns ``(rows, summary)`` where each row is
-    ``{"channel", "rel_rms", "max_abs", "n", "verdict"}`` and ``summary`` is
-    ``{"worst_rel_rms", "worst_verdict", "n_significant", "channels"}``.
+    Returns ``(rows, summary)``.  Each row is
+    ``{"channel", "rel_rms", "max_abs", "n", "verdict", "significant"}`` — the
+    ``significant`` flag is the scorer's own
+    (:attr:`tools.compare_t01.Score.significant`), so a reader sees *why* a
+    0.558 next to a ``MATCH`` did not count, exactly as the CSV route's ``~``
+    marker explains it there.
 
-    The row shape is deliberately **not** the CSV path's: that one also carries
-    ``final_dev``, ``scale`` and the harness's ``significant`` flag, which the
-    scorer does not compute (``tools.compare_t01`` is another task's file and
-    was not modified).  What carries over is the roll-up: ``worst`` is taken
-    over the channels that carry signal
-    (``tools/compare_t01.py`` ``SIGNIFICANCE_FRACTION``, the same 1 %-of-group
-    rule the CSV path applies at ``compare_channels``), so
-    ``row["max_rel_rms"]`` means what it means in ``parity_m41.json`` whichever
-    route produced it.  Consumers that read ``final_dev`` off every row must
-    therefore check ``row["comparison_route"]`` — which is why the route is
-    recorded on the row rather than inferred.
+    ``summary`` separates the two counts that an earlier revision conflated:
+
+    * ``n_compared`` — channels both sides produced (a verdict != ``NODATA``);
+    * ``n_signal`` — of those, the ones that carry signal and therefore decided
+      ``worst`` (``Score.significant``), with ``significant_channels`` and
+      ``noise_channels`` naming them.
+
+    On ``examples/tensile_bar`` the two differ (11 compared, 5 signal): ``CE``
+    is identically zero, ``YMOM``/``ZMOM`` are 1e-16 against an axial momentum of
+    2e-4, and ``HE``/``KE``/``P1_2`` sit at 0.02-0.05 % of the dominant energy
+    channel — below the 1 %-of-group rule the harness has always applied.  A
+    summary that called 11 "significant" overstated the evidence, which is why
+    the two counts are separate fields and never one.
+
+    The row shape is otherwise **not** the CSV path's: that one also carries
+    ``final_dev`` and ``scale``, which the scorer does not compute
+    (``tools/compare_t01.py`` is another task's file and was not modified).
+    What carries over is the roll-up, so ``row["max_rel_rms"]`` means what it
+    means in ``parity_m41.json`` whichever route produced it.  Consumers that
+    read ``final_dev`` off every row must therefore check
+    ``row["comparison_route"]`` — which is why the route is recorded on the row
+    rather than inferred.
     """
     from tools import compare_t01          # local: keeps import-time work lazy
 
     reference = compare_t01.read_t01(fortran_t01)
     port = compare_t01.read_port_csv(port_csv)
     result = compare_t01.score(reference, port)
+    signal = set(result.significant)
     rows = [{"channel": name, "rel_rms": score.rel_rms,
-             "max_abs": score.max_abs, "n": score.n, "verdict": score.verdict}
+             "max_abs": score.max_abs, "n": score.n, "verdict": score.verdict,
+             "significant": name in signal}
             for name, score in sorted(result.per_channel.items())]
-    scored = [r for r in rows if r["verdict"] != "NODATA"]
+    compared = [r["channel"] for r in rows if r["verdict"] != "NODATA"]
+    noise = sorted(set(compared) - signal)
     summary = {"worst_rel_rms": result.worst.rel_rms,
                "worst_verdict": result.worst.verdict,
-               "n_significant": len(scored), "n_channels": len(rows),
+               "n_compared": len(compared), "n_signal": len(signal),
+               "n_channels": len(rows),
+               "significant_channels": sorted(signal), "noise_channels": noise,
                "n_samples_reference": int(reference.times.size),
                "n_samples_port": int(port.times.size),
                "tolerance": compare_t01.MATCH_RMS}
     return rows, summary
+
+
+def measured_step_block(t01_path: str, limit: int = 6) -> Optional[Dict]:
+    """Measure the T01's real per-step record block, or ``None``.
+
+    A stopgap diagnostic, and it exists because a refusal must be *informative*:
+    ``tools.oracle.oracle_selftest.parse_t01`` fixes the per-step stride at four
+    records (``hist2.F`` writes one record per ``/TH`` family that has curves,
+    so the shape is **variable**), and when it refuses a file this reports what
+    the file actually contains.  Measured on
+    ``rd_e/RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.6/ROLLING``: six records per
+    step, ``[4, 92, 36, 64, 264, 36]`` bytes, 1605 steps.  Note that the
+    hierarchy record's ``NSUBS`` is **not** evidence of a ``/TH/SUBSET``
+    request — ``starter/source/starter/contrl.F:671-673`` counts the option and
+    then adds one "for global subset", so ``NSUBS >= 1`` always.
+
+    Delete this with the walk fix it works around: once ``parse_t01`` derives
+    the block from the header, the reader stops refusing and this has no
+    caller.
+    """
+    try:
+        from tools.oracle.oracle_selftest import t01_records
+        records = t01_records(Path(t01_path).read_bytes())
+    except Exception:                          # noqa: BLE001 — a diagnostic
+        return None
+    # the per-step time record is one value: 4 bytes (wrtdes.F:121-133)
+    starts = [i for i, (_, payload) in enumerate(records) if len(payload) == 4]
+    if len(starts) < limit + 1:
+        return None
+    gaps: Dict[int, int] = {}
+    for before, after in zip(starts, starts[1:]):
+        gaps[after - before] = gaps.get(after - before, 0) + 1
+    stride, count = max(gaps.items(), key=lambda kv: kv[1])
+    if stride < 1:
+        return None
+    # Only the starts whose gap to the next 4-byte record IS the modal stride
+    # are real steps; a 4-byte record elsewhere (a parameter record before the
+    # data section) is excluded by exactly that test, which is why the shapes
+    # below come out as one entry rather than two.
+    shapes: Dict[Tuple[int, ...], int] = {}
+    for before, after in zip(starts, starts[1:]):
+        if after - before != stride:
+            continue
+        shape = tuple(len(records[before + j][1]) for j in range(stride)
+                      if before + j < len(records))
+        shapes[shape] = shapes.get(shape, 0) + 1
+    return {"stride_records": stride,
+            # steps = the first block plus one per modal gap.  Counting the
+            # 4-byte records instead would add the pre-data one (a parameter
+            # record, not a step) — the gap histogram is what separates them.
+            "steps": 1 + count,
+            "block_byte_lengths": [list(shape) for shape in sorted(shapes)],
+            "records": len(records)}
 
 
 # ----------------------------------------------------------------------------
@@ -1690,7 +1777,15 @@ def run_pyradioss(name: str, runname: str, deck0: str, deck1: str,
     shutil.copytree(os.path.dirname(deck0), rd, dirs_exist_ok=True)
     env = dict(os.environ)
     env["PYTHONPATH"] = REPO
-    info: Dict = {"dir": rd}
+    # The compute backend is part of the evidence, so it is recorded twice: what
+    # was asked for (``PYRADIOSS_BACKEND``, default ``auto`` — see
+    # plan/00_ORCHESTRATION.md §1 item 6, "pin the backend for before/after
+    # comparisons") and, from the run's own listing, what ``auto`` resolved to
+    # (harvest_port_out reads the COMPUTE BACKEND line the engine logs).  A row
+    # that cannot say which backend produced its numbers cannot be compared with
+    # another row, and ``auto`` picks per model.
+    info: Dict = {"dir": rd,
+                  "backend_requested": env.get("PYRADIOSS_BACKEND", "auto")}
     rc, tail, dt = run_cmd([sys.executable, "-m", "pyradioss.starter", "-i",
                             os.path.basename(deck0)], rd, timeout, env)
     info["starter_rc"] = rc
@@ -1732,24 +1827,21 @@ def run_pyradioss(name: str, runname: str, deck0: str, deck1: str,
 #: Fortran-side statuses that end in ``FORTRAN-FAIL``, mapped to the subtag
 #: the class carries.  ``None`` means the BARE class.
 #:
-#: The real invariant, stated correctly (an earlier version of this comment
-#: claimed ``parity_m41.json`` carries ``FORTRAN-FAIL`` rows — it does not):
-#: **the class vocabulary of a published ``parity_m<NN>.json`` must not
-#: shift.**  Its census is ``PORT-ONLY(implicit):27, DEVIATION:25, MATCH:10,
-#: SKIPPED-SLOW:7, PYRADIOSS-FAIL:7, NO-CHANNELS:4,
-#: PORT-ONLY(starter-reject):1`` — zero ``FORTRAN-FAIL``, so those two entries
-#: keep the bare string because it is what this harness has always printed for
-#: them and because every recorded sweep is joined on the class.  Changing
-#: either to a subtagged form would break that join.
+#: The invariant, stated correctly (an earlier version of this comment claimed
+#: ``parity_m41.json`` carries ``FORTRAN-FAIL`` rows — it does not): **the class
+#: vocabulary of a published ``parity_m<NN>.json`` must not shift.**  Its
+#: census over M36..M41 is ``MATCH, DEVIATION, PORT-ONLY(implicit),
+#: PORT-ONLY(starter-reject), PYRADIOSS-FAIL, SKIPPED-SLOW, NO-CHANNELS`` —
+#: **zero ``FORTRAN-FAIL``**.  So:
 #:
-#: **Known gap, recorded not closed:** that census has four ``NO-CHANNELS``
-#: rows and this harness has no way to emit that class — the "both sides ran,
-#: but no channel overlapped" case below writes a bare ``FORTRAN-FAIL`` with
-#: ``error="no overlapping channels"``.  Emitting ``NO-CHANNELS`` is a
-#: one-line change and is deliberately NOT made here: the verdict logic is out
-#: of scope for this task, and a published-evidence class change is a
-#: controller decision.  The mapping below is where it goes when that
-#: decision is made.
+#: * ``engine-fail`` / ``th2csv-fail`` keep the bare ``FORTRAN-FAIL`` they have
+#:   always printed.  They are the two pre-existing emitters and are named here
+#:   so a third cannot join them by accident; they remain the one documented
+#:   deviation from the recorded vocabulary (an earlier revision of this file
+#:   also emitted bare ``FORTRAN-FAIL`` for "nothing comparable", which is now
+#:   ``NO-CHANNELS`` — the recorded class for that condition, 4-9 rows a sweep);
+#: * every other status gets an ADDITIVE subtag, so ``PORT-ONLY(implicit)``-style
+#:   consumers keep working and the base string never appears on its own.
 FORTRAN_FAIL_SUBTAGS = {
     "engine-fail": None,
     "th2csv-fail": None,
@@ -1787,12 +1879,13 @@ def find_examples(only: Optional[List[str]]) -> List[Tuple[str, str, str, str]]:
 def channel_text(entry: Dict) -> str:
     """One channel cell of the console table, for either comparison route.
 
-    A ``NODATA`` channel is printed as ``name=-``: the reader route reports one
+    A ``NODATA`` channel prints as ``name=-``: the reader route reports one
     (with ``rel_rms = inf``, deliberately, so a stray arithmetic use is loud)
-    where the CSV route simply omits it, and printing ``inf`` in a table of
-    deviations would read as a catastrophic mismatch rather than as "not
-    compared".  A compared channel keeps the CSV route's ``~`` marker for one
-    the significance rule excluded from the roll-up.
+    where the CSV route omits it, and ``inf`` in a table of deviations would
+    read as a catastrophic mismatch rather than "not compared".  A channel that
+    was compared but **did not carry signal** prints with the CSV route's ``~``
+    marker — so a 0.558 never sits next to a ``MATCH`` unexplained, on either
+    route.
     """
     if entry.get("verdict") == "NODATA":
         return f"{entry['channel']}=-"
@@ -1864,7 +1957,8 @@ def parity(args) -> int:
         row["fortran"] = {k: v for k, v in f.items() if k != "dir"}
         # What this row is allowed to claim, decided by the oracle's own
         # provenance record rather than by this module's judgement.
-        row["evidence"] = evidence_record(open(deck1, errors="replace").read())
+        row["evidence"] = evidence_record(
+            Path(deck1).read_text(errors="replace"))
 
         # ---- pyradioss side ----------------------------------------------
         if budget_left <= 0:
@@ -1876,6 +1970,17 @@ def parity(args) -> int:
                           min(args.timeout, max(30, budget_left)))
         budget_left -= time.time() - t0
         row["pyradioss"] = {k: v for k, v in p.items() if k != "dir"}
+        # Which compute backend produced the port numbers, requested and
+        # resolved (run_pyradioss records both).  plan/00_ORCHESTRATION.md §1
+        # item 6 pins numpy for before/after comparisons, and ``auto`` picks
+        # numba per model, so a row that does not say which is not comparable
+        # with another row.
+        row["compute_backend"] = {
+            "requested": p.get("backend_requested", "auto"),
+            "used": p.get("compute_backend_used"),
+            "reason": p.get("compute_backend_reason"),
+            "pinned_for_comparison":
+                p.get("compute_backend_used") == "numpy"}
         if p["status"] == "timeout":
             row["class"] = "SKIPPED-SLOW"
             return row, budget_left
@@ -1883,6 +1988,11 @@ def parity(args) -> int:
             row["class"] = "PYRADIOSS-FAIL"
 
         # ---- comparison ----------------------------------------------------
+        # The tolerance the CLASS was decided at, recorded so a row can never
+        # contradict itself (a DEVIATION that satisfies the tolerance printed
+        # beside it).  ``tolerance`` inside channel_summary stays the historical
+        # constant, parity_m41.json's own.
+        row["tolerance_used"] = args.tol
         if f.get("csv") and p.get("csv"):
             # The historical route, unchanged: upstream's own converter rendered
             # the Fortran T01 as CSV.  It wins whenever it exists.
@@ -1901,11 +2011,14 @@ def parity(args) -> int:
                 # No significant channel -> the guard that predates this route
                 # and that a validation harness may never drop: a MATCH derived
                 # from nothing comparable is the worst thing this file could
-                # print.  (parity_m41.json carries 4 rows of the class it
-                # ought to be emitting here — NO-CHANNELS — which is a
-                # controller decision, see FORTRAN_FAIL_SUBTAGS.)
-                row["class"] = "FORTRAN-FAIL"
-                row["fortran"]["error"] = "no overlapping channels"
+                # print.  The class is the recorded one for exactly this
+                # condition -- NO-CHANNELS, 4 rows in parity_m41.json -- and
+                # NOT the bare FORTRAN-FAIL an earlier revision emitted, which
+                # no recorded sweep carries.
+                row["class"] = "NO-CHANNELS"
+                row["fortran"]["error"] = (
+                    f"no overlapping channels: {len(ch)} channel(s) compared, "
+                    f"none carrying signal")
         elif f.get("t01") and p.get("csv") and row["evidence"]["admissible"]:
             # The route this task adds: read the Fortran side's own binary T01
             # with tools.compare_t01 (commit c679734) instead of shelling out
@@ -1923,32 +2036,48 @@ def parity(args) -> int:
                 # reason quoted — never an empty comparison and never a MATCH.
                 row["channels"] = []
                 row["class"] = "FORTRAN-FAIL(t01-unreadable)"
+                detail = ""
+                block = measured_step_block(f["t01"])
+                if block:
+                    detail = (f"; measured on that file: {block['steps']} "
+                              f"steps of {block['stride_records']} records, "
+                              f"block byte lengths "
+                              f"{block['block_byte_lengths']}, because "
+                              f"hist2.F writes one record per /TH family that "
+                              f"has curves, so the per-step block is variable "
+                              f"while tools.oracle.oracle_selftest.parse_t01 "
+                              f"assumes four")
                 row["fortran"]["error"] = (
                     f"tools.compare_t01.read_t01 could not use the Fortran T01 "
-                    f"at {f['t01']}: {type(exc).__name__}: {exc}")
+                    f"at {f['t01']}: {type(exc).__name__}: {exc}{detail}")
                 return row, budget_left
             row["channels"] = ch
             row["channel_summary"] = summary
             if summary["worst_verdict"] == "NODATA":
-                # Same guard as the CSV route above: nothing comparable.
-                row["class"] = "FORTRAN-FAIL"
+                # Same guard as the CSV route above, and the same recorded
+                # class: nothing comparable is NO-CHANNELS.
+                row["class"] = "NO-CHANNELS"
                 row["fortran"]["error"] = (
-                    f"no comparable channel: {summary['n_significant']} of "
-                    f"{summary['n_channels']} channels carried signal "
-                    f"(reference {summary['n_samples_reference']} samples, port "
-                    f"{summary['n_samples_port']} samples)")
+                    f"no comparable channel: {summary['n_compared']} of "
+                    f"{summary['n_channels']} channels compared, 0 carrying "
+                    f"signal (reference {summary['n_samples_reference']} "
+                    f"samples, port {summary['n_samples_port']} samples)")
             else:
                 worst = summary["worst_rel_rms"]
                 row["max_rel_rms"] = worst
                 # The scorer's own verdict, not a re-derivation of it: its
                 # MATCH_RMS is parity_m41.json's tolerance, and its
                 # significance rule is the harness's.  ``--tol`` stays
-                # authoritative so a caller can tighten it.
+                # authoritative downward (it can tighten, never loosen past
+                # MATCH_RMS), and tolerance_used above says which was applied.
                 row["class"] = ("MATCH" if worst <= args.tol
                                 and summary["worst_verdict"] == "MATCH"
                                 else "DEVIATION")
         elif "class" not in row:
-            row["class"] = "FORTRAN-FAIL"
+            # Nothing to compare at all (no Fortran CSV and no readable T01, or
+            # no port history).  The recorded class for "no comparison" is
+            # NO-CHANNELS; a bare FORTRAN-FAIL appears in no recorded sweep.
+            row["class"] = "NO-CHANNELS"
         return row, budget_left
 
     for name, runname, deck0, deck1 in examples:

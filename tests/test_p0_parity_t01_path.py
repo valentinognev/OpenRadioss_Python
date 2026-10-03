@@ -423,7 +423,10 @@ def test_no_verdict_can_be_match_without_significant_channels(tmp_path,
                  fortran_info={"status": "th2csv-missing",
                                "t01": str(GOLDEN_T01), "csv": None},
                  port_info={"status": "ok", "csv": csv})
-    assert row["class"] == "FORTRAN-FAIL", row
+    # NO-CHANNELS, the class parity_m41.json carries for exactly this condition
+    # (4-9 rows per sweep) — and NOT the bare FORTRAN-FAIL an earlier revision
+    # emitted, which no recorded sweep carries at all.
+    assert row["class"] == "NO-CHANNELS", row
     assert "max_rel_rms" not in row
     assert all(c["verdict"] == "NODATA" for c in row["channels"])
     assert "no comparable channel" in row["fortran"]["error"]
@@ -442,13 +445,244 @@ def test_a_single_sample_port_series_never_matches(tmp_path, monkeypatch):
                  fortran_info={"status": "th2csv-missing",
                                "t01": str(GOLDEN_T01), "csv": None},
                  port_info={"status": "ok", "csv": str(csv)})
-    assert row["class"] == "FORTRAN-FAIL", row
+    assert row["class"] == "NO-CHANNELS", row
     assert "max_rel_rms" not in row
 
 
 # ---------------------------------------------------------------------------
 # 6. the run stamp cannot change a verdict (no raw-byte comparison)
 # ---------------------------------------------------------------------------
+
+def test_the_summary_separates_compared_from_signal_carrying(tmp_path,
+                                                             monkeypatch):
+    """``n_compared`` is not ``n_signal``, and neither is the headline number.
+
+    An earlier revision recorded ``n_significant = len(compared)``, which
+    overstates the evidence: on ``examples/tensile_bar`` 11 channels are
+    compared and only **5** carry signal (the rest are an identically-zero
+    contact energy, two 1e-16 transverse momenta, and three channels at
+    0.02-0.05 % of the dominant energy channel, all under the 1 %-of-group rule
+    the harness has always applied).  The roll-up ``worst`` comes from those 5,
+    so the row has to say 5.
+    """
+    from tools.compare_t01 import SIGNIFICANCE_FRACTION
+    t01 = _read_golden()
+    port_csv = _write_port_csv(t01, tmp_path / "port.csv",
+                              scale={"KE": 1.0001, "HE": 1.0001})
+    row = _drive(monkeypatch, tmp_path,
+                 fortran_info={"status": "th2csv-missing",
+                               "t01": str(GOLDEN_T01), "csv": None},
+                 port_info={"status": "ok", "csv": port_csv})
+    summary = row["channel_summary"]
+    assert "n_significant" not in summary, (
+        "the over-counting field is back; use n_compared and n_signal")
+    assert summary["n_channels"] == len(row["channels"])
+    assert summary["n_compared"] == len(
+        [c for c in row["channels"] if c["verdict"] != "NODATA"])
+    assert summary["n_signal"] == len(summary["significant_channels"])
+    assert summary["n_signal"] < summary["n_compared"], (
+        "on this deck the two must differ; if they no longer do the test data "
+        "changed, not the rule")
+    assert set(summary["significant_channels"]) | \
+        set(summary["noise_channels"]) == {
+            c["channel"] for c in row["channels"] if c["verdict"] != "NODATA"}
+    # the signal set is exactly the rows flagged significant, and it is the set
+    # worst came from
+    flagged = {c["channel"] for c in row["channels"] if c.get("significant")}
+    assert flagged == set(summary["significant_channels"])
+    worst_channel = max(
+        (c for c in row["channels"] if c.get("significant")),
+        key=lambda c: c["rel_rms"])
+    assert worst_channel["rel_rms"] == row["max_rel_rms"]
+    assert 0 < SIGNIFICANCE_FRACTION < 1
+
+
+def test_an_insignificant_channel_is_flagged_and_marked_on_both_routes(
+        tmp_path, monkeypatch, capsys):
+    """A 0.4 next to a MATCH must be explained, in the JSON and on the console.
+
+    ``YMOM``/``ZMOM`` compare at 0.41/0.56 on ``examples/tensile_bar`` while the
+    row is a MATCH: they are transverse momenta of an axial test, ~1e-16
+    against an axial momentum of 2e-4.  The CSV route has always marked such a
+    channel with ``~``; the reader route had no flag at all, so the same number
+    appeared unexplained next to the same MATCH.
+    """
+    t01 = _read_golden()
+    csv = _write_port_csv(t01, tmp_path / "port.csv")
+    row = _drive(monkeypatch, tmp_path,
+                 fortran_info={"status": "th2csv-missing",
+                               "t01": str(GOLDEN_T01), "csv": None},
+                 port_info={"status": "ok", "csv": csv})
+    channels = {c["channel"]: c for c in row["channels"]}
+    assert channels["XMOM"]["significant"] is True
+    assert channels["YMOM"]["significant"] is False
+    assert channels["YMOM"]["verdict"] != "NODATA"
+    printed = capsys.readouterr().out
+    assert "~YMOM=" in printed and "~ZMOM=" in printed
+    assert "YMOM=0.41" not in printed.replace("~YMOM=0.41", ""), (
+        "an unflagged 0.41 must not appear beside a MATCH")
+    # and the CSV route marks the same way
+    from tools.validate_vs_fortran import channel_text
+    assert channel_text(channels["YMOM"]).startswith("~YMOM=")
+    assert channel_text(channels["XMOM"]) == "XMOM=" + \
+        f"{channels['XMOM']['rel_rms']:.3G}"
+    assert channel_text({"channel": "X", "rel_rms": float("inf"),
+                         "verdict": "NODATA"}) == "X=-"
+
+
+def test_the_row_records_the_tolerance_the_class_was_decided_at(tmp_path,
+                                                                monkeypatch):
+    """A row must not be a DEVIATION at a tolerance it satisfies.
+
+    ``--tol`` can tighten the reader route below ``parity_m41.json``'s 0.05; the
+    recorded ``tolerance`` in the summary is that historical constant, so
+    without the applied value a ``--tol 0.001`` sweep emits a self-contradictory
+    row (DEVIATION at max_rel_rms 0.00246 next to ``tolerance: 0.05``).
+    """
+    import numpy as np
+    t01 = _read_golden()
+    ie = t01.values[:, t01.channels.index("IE")]
+    # the scale that puts IE's rel-RMS between --tol 0.001 and the recorded
+    # 0.05: rel_rms = (f-1) * rms(IE)/max|IE|, so f = 1 + target/0.542...
+    factor = 1.0 + 0.02 / float(np.sqrt(np.mean(ie ** 2)) / np.max(np.abs(ie)))
+    csv = _write_port_csv(t01, tmp_path / "port.csv", scale={"IE": factor})
+    tight = _drive(monkeypatch, tmp_path,
+                   fortran_info={"status": "th2csv-missing",
+                                 "t01": str(GOLDEN_T01), "csv": None},
+                   port_info={"status": "ok", "csv": csv}, tol=0.001)
+    assert 0.001 < tight["max_rel_rms"] < 0.05, tight["max_rel_rms"]
+    assert tight["class"] == "DEVIATION"
+    assert tight["max_rel_rms"] > tight["tolerance_used"]
+    assert tight["channel_summary"]["tolerance"] == 0.05, (
+        "the historical constant must stay the historical constant")
+    loose = _drive(monkeypatch, tmp_path,
+                   fortran_info={"status": "th2csv-missing",
+                                 "t01": str(GOLDEN_T01), "csv": None},
+                   port_info={"status": "ok", "csv": csv})
+    assert loose["tolerance_used"] == 0.05
+    assert loose["class"] == "MATCH", (
+        "the same numbers must MATCH at the recorded tolerance")
+
+
+def test_the_row_records_the_compute_backend_requested_and_resolved(
+        tmp_path, monkeypatch):
+    """Which backend produced the port numbers, requested *and* resolved.
+
+    ``plan/00_ORCHESTRATION.md`` §1 item 6 pins ``PYRADIOSS_BACKEND=numpy`` for
+    before/after comparisons, and ``auto`` resolves per model (the engine logs
+    ``COMPUTE BACKEND . . . : numba (auto: 40 elements >= 32)``), so a parity row
+    that cannot name the backend is not comparable with another one.
+    """
+    from tools import validate_vs_fortran as V
+    listing = tmp_path / "CASE_0001.out"
+    listing.write_text(
+        "  CYCLES  . . . : 1847\n"
+        "  ELAPSED TIME . . . :  0.697 s\n"
+        " COMPUTE BACKEND  . . . . . . . . . . . : numba "
+        "(auto: 40 elements >= 32)\n", encoding="utf-8")
+    info = V.harvest_port_out(str(tmp_path / "nope.out"), str(listing))
+    assert info["compute_backend_used"] == "numba"
+    assert info["compute_backend_reason"] == "auto: 40 elements >= 32"
+    assert info["n_cycles"] == 1847
+
+    t01 = _read_golden()
+    csv = _write_port_csv(t01, tmp_path / "port.csv")
+    row = _drive(monkeypatch, tmp_path,
+                 fortran_info={"status": "th2csv-missing",
+                               "t01": str(GOLDEN_T01), "csv": None},
+                 port_info={"status": "ok", "csv": csv,
+                            "backend_requested": "auto",
+                            "compute_backend_used": "numba",
+                            "compute_backend_reason": "auto: 40 elements >= 32"})
+    backend = row["compute_backend"]
+    assert backend == {"requested": "auto", "used": "numba",
+                       "reason": "auto: 40 elements >= 32",
+                       "pinned_for_comparison": False}
+    pinned = _drive(monkeypatch, tmp_path,
+                    fortran_info={"status": "th2csv-missing",
+                                  "t01": str(GOLDEN_T01), "csv": None},
+                    port_info={"status": "ok", "csv": csv,
+                               "backend_requested": "numpy",
+                               "compute_backend_used": "numpy"})
+    assert pinned["compute_backend"]["pinned_for_comparison"] is True
+
+
+def test_run_pyradioss_records_the_requested_backend(monkeypatch, tmp_path):
+    """``run_pyradioss`` states what it asked for, before anything runs.
+
+    The default is ``auto`` — the value ``pyradioss`` itself defaults to — so a
+    run that was not pinned says so instead of silently being one.
+    """
+    from tools import validate_vs_fortran as V
+    seen = {}
+
+    def fake_run_cmd(cmd, cwd, timeout, env=None):
+        seen.update(env or {})
+        return 0, "", 0.0
+
+    # the decks need their own directory: run_pyradioss copies the deck's
+    # directory into the scratch tree, and a scratch tree *inside* it would be
+    # copied into itself
+    decks = tmp_path / "decks"
+    decks.mkdir()
+    deck0 = decks / "CASE_0000.rad"
+    deck1 = decks / "CASE_0001.rad"
+    deck0.write_text("#RADIOSS STARTER\n", encoding="utf-8")
+    deck1.write_text("#RADIOSS ENGINE\n", encoding="utf-8")
+    monkeypatch.delenv("PYRADIOSS_BACKEND", raising=False)
+    monkeypatch.setattr(V, "run_cmd", fake_run_cmd)
+    info = V.run_pyradioss("case", "CASE", str(deck0), str(deck1),
+                           str(tmp_path / "wd"), 30.0)
+    assert info["backend_requested"] == "auto"
+    monkeypatch.setenv("PYRADIOSS_BACKEND", "numpy")
+    info = V.run_pyradioss("case", "CASE", str(deck0), str(deck1),
+                           str(tmp_path / "wd"), 30.0)
+    assert info["backend_requested"] == "numpy"
+    assert seen["PYRADIOSS_BACKEND"] == "numpy"
+
+
+def test_a_refused_t01_reports_the_measured_step_block(tmp_path, monkeypatch):
+    """A refusal must say what the file *is*, not only what the walk expected.
+
+    ``tools.oracle.oracle_selftest.parse_t01`` fixes the per-step stride at four
+    records; ``hist2.F`` writes one record per ``/TH`` family that has curves, so
+    the block is variable (six records on
+    ``rd_e/…/BATOZ/Sf_0.6/ROLLING``: ``[4, 92, 36, 64, 264, 36]`` over 1605
+    steps).  An earlier revision of this harness blamed the hierarchy's
+    ``NSUBS``, which is **not** evidence of a ``/TH/SUBSET`` request:
+    ``starter/source/starter/contrl.F:671-673`` counts the option and then adds
+    one "for global subset", so ``NSUBS >= 1`` always.
+    """
+    from tools import validate_vs_fortran as V
+    assert V.measured_step_block(str(GOLDEN_T01))["stride_records"] == 4
+    rolled = Path("/tmp/opencode/p011_e2e_rd/fortran/rolling_batoz/ROLLINGT01")
+    if not rolled.is_file():
+        pytest.skip("the ROLLING reference T01 is not in this scratch dir")
+    block = V.measured_step_block(str(rolled))
+    assert block["stride_records"] == 6
+    assert block["steps"] == 1605, block
+    assert block["block_byte_lengths"] == [[4, 92, 36, 64, 264, 36]], block
+    assert block["records"] == 9656, block
+
+    # … and the refusal a parity row emits must carry that measurement, and
+    # must NOT restate the wrong cause.  (Driven through `parity` because the
+    # text is what a reader of the results file sees.)
+    t01 = _read_golden()
+    csv = _write_port_csv(t01, tmp_path / "port.csv")
+    row = _drive(monkeypatch, tmp_path,
+                 fortran_info={"status": "th2csv-missing", "t01": str(rolled),
+                               "csv": None},
+                 port_info={"status": "ok", "csv": csv})
+    assert row["class"] == "FORTRAN-FAIL(t01-unreadable)"
+    assert "max_rel_rms" not in row
+    error = row["fortran"]["error"]
+    assert "1605 steps of 6 records" in error, error
+    assert "4, 92, 36, 64, 264, 36" in error, error
+    for wrong in ("NSUBS", "SUBSET"):
+        assert wrong not in error, (
+            f"the refusal text must not blame {wrong}: NSUBS >= 1 always "
+            f"(contrl.F:671-673 adds one for the global subset)")
+
 
 def test_the_verdict_ignores_the_ctime_run_stamp(tmp_path):
     """``ctime()`` lives in the header; two runs of one deck differ there.
@@ -555,32 +789,72 @@ def test_every_class_the_harness_emits_is_recorded_or_a_subtag_of_one():
     Every class string this harness can write must be either a class
     ``parity_m41.json`` already carries, or the base class plus a lowercase
     subtag (the ``PORT-ONLY(implicit)`` / ``FORTRAN-FAIL(th2csv-missing)``
-    convention).  That is the invariant the reader route is required to keep:
-    a new *reader* may add a subtag, never a new base class, because every
-    recorded sweep is joined on this column.
+    convention).  The whitelist is **the recorded vocabulary and nothing
+    else** — an earlier revision of this test added ``FORTRAN-FAIL`` to it,
+    which is exactly how a bare ``FORTRAN-FAIL`` slipped through; the two
+    remaining bare emitters are pinned separately and by name.
     """
     import re
     from tools import validate_vs_fortran as V
     record = json.loads(PARITY_M41.read_text(encoding="utf-8"))
     recorded = {r["class"] for r in record["results"]}
+    assert "FORTRAN-FAIL" not in recorded, (
+        "if a sweep ever records a bare FORTRAN-FAIL this test must be "
+        "re-read: the whitelist below is the recorded set")
     src = Path(V.__file__).read_text(encoding="utf-8")
     emitted = set(re.findall(r'row\["class"\]\s*=\s*"([^"]+)"', src))
     emitted |= set(re.findall(r'"(FORTRAN-FAIL\([a-z0-9\-]+\))"', src))
     assert emitted, "the class-assignment pattern changed: this test is stale"
     # the class *stems* the recorded sweeps use: the bare strings plus the part
     # before "(" of every subtagged one (PORT-ONLY(implicit) -> PORT-ONLY)
+    # FORTRAN-FAIL is the ONE stem outside the recorded vocabulary, and it is
+    # a documented deviation: the M36..M41 sweeps record none, but P0.9
+    # established FORTRAN-FAIL(<subtag>) as the additive convention for a
+    # Fortran-side failure a recorded sweep never had.  Two statuses still emit
+    # it bare (pinned by name below).
     stems = {c.split("(")[0] for c in recorded} | {"FORTRAN-FAIL"}
     for value in emitted:
-        if value in recorded or value == "FORTRAN-FAIL":
+        if value in recorded:
             continue
         match = re.fullmatch(r"([A-Z][A-Z\-]*)\(([a-z0-9\-]+)\)", value)
         assert match, f"{value!r} is neither recorded nor a subtagged class"
         assert match.group(1) in stems, (
             f"{value!r} introduces the base class {match.group(1)!r}, which no "
             f"recorded sweep uses")
-    # the two pre-existing statuses keep the bare string M41 joined on
-    assert V.FORTRAN_FAIL_SUBTAGS["engine-fail"] is None
-    assert V.FORTRAN_FAIL_SUBTAGS["th2csv-fail"] is None
+
+    # The ONE documented deviation, pinned by name: two pre-existing statuses
+    # still print a bare FORTRAN-FAIL through the conditional emitter.  A third
+    # must fail here rather than slip through the whitelist.
+    bare = {status for status, subtag in V.FORTRAN_FAIL_SUBTAGS.items()
+            if subtag is None}
+    assert bare == {"engine-fail", "th2csv-fail"}, (
+        f"the bare FORTRAN-FAIL emitters changed: {sorted(bare)}")
     for status, subtag in V.FORTRAN_FAIL_SUBTAGS.items():
         if subtag is not None:
             assert subtag == status, f"{status} -> {subtag} is not self-describing"
+    assert f'"FORTRAN-FAIL({V.FORTRAN_FAIL_SUBTAGS["th2csv-missing"]})"' in src \
+        or 'f"FORTRAN-FAIL({subtag})"' in src
+
+
+def test_the_no_comparable_class_is_the_recorded_one_on_both_routes(
+        tmp_path, monkeypatch):
+    """``NO-CHANNELS`` for "nothing comparable", on the CSV route as well.
+
+    The CSV route had its own bare ``FORTRAN-FAIL`` for this condition; both
+    routes now emit the class the recorded sweeps use, so the two routes cannot
+    disagree about what "no comparison" looks like.
+    """
+    t01 = _read_golden()
+    # the CSV route: two CSVs with no shared column at all
+    port = tmp_path / "port.csv"
+    port.write_text("TIME,SOMETHING_ELSE\n0.0,1.0\n1.0,2.0\n", encoding="utf-8")
+    fortran = tmp_path / "fortran.csv"
+    fortran.write_text("TIME,ANOTHER\n0.0,1.0\n1.0,2.0\n", encoding="utf-8")
+    row = _drive(monkeypatch, tmp_path,
+                 fortran_info={"status": "ok", "csv": str(fortran),
+                               "t01": str(GOLDEN_T01)},
+                 port_info={"status": "ok", "csv": str(port)})
+    assert row["comparison_route"] == CSV_ROUTE
+    assert row["class"] == "NO-CHANNELS", row
+    assert "max_rel_rms" not in row
+    assert "no overlapping channels" in row["fortran"]["error"]
