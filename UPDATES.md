@@ -1,5 +1,72 @@
 # Updates
 
+## 1.6.0 - Migration to Linux: every machine fact re-measured (P0.11–P0.16)
+
+The repo moved off Windows onto a Linux box and the environment was rebuilt
+(venv, oracle mirror + extlib, starter/engine recompiled into `$OR_ROOT`).
+This wave corrected the records that still described the old machine,
+recovered the coverage the migration silently dropped, and turned two
+"machine facts" the suite merely assumed into gated records. Task IDs
+P0.11–P0.16 were assigned by this wave: entries 1.5.1 and 1.4.0 below use the
+label "P0.11" for the binary-T01 parity route, which is a **different** task.
+
+- **Migration / environment rebuild.** Interpreter CPython 3.12.3 (lock §[B]);
+  oracle source `$OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant`
+  (READ-ONLY), writable mirror `OR_BUILD=/home/valentin/OpenRadioss_build`
+  (harvested extlib **v59**), install prefix
+  `OR_ROOT=/home/valentin/OpenRadioss_or`. `bin/starter_linux64_gf` and
+  `bin/engine_linux64_gf` were rebuilt there and are byte-identical (sha256) to
+  the build outputs `$OR_BUILD/exec/{starter,engine}`.
+- **P0.11** — the lock's machine-verified §[B] re-pinned to this interpreter:
+  python 3.14.6→3.12.3, numpy 2.5.2→2.5.3, scipy 1.18.0→1.18.1 (pytest 9.1.1,
+  numba 0.68.0, llvmlite 0.50.0 were already true here). The lock was the
+  defect; `tests/test_p0_optional_deps.py` was not weakened, and §[A] (the
+  maintainer's Windows box) is byte-identical. The mpi4py note kept its NOT
+  INSTALLED annotation but its stated *reason* was false here (this box has
+  OpenMPI, so `pip install mpi4py` is the cheap route).
+- **P0.12** — the oracle records now describe the binaries that exist: both
+  sha256 digests re-hashed (starter `b2f6a19f…`→`8b504acc…`, engine
+  `99e63c5c…`→`6d58d0b1…`) in `oracle_provenance.json` **and**
+  `oracle_smoke.json`, toolchain/host facts rewritten for this box, the gone
+  conda prefix recorded as absent, `upstream.mirror_path` corrected to
+  `$OR_BUILD`. The golden T01 anchor
+  `t01.md5_normalized = e3688899358f35e825cd640f9bd94964` is **unchanged** —
+  three consecutive reference runs on the rebuilt binaries reproduce it — and
+  `tests/test_p0_oracle_provenance.py` now pins it as a literal; until then
+  nothing compared those digests with the binaries on disk.
+- **P0.13** — 12 LAW34/LAW37 input-audit tests that skipped on
+  `not os.path.isdir(r"C:\OpenRadioss\hm_cfg_files")` now EXECUTE and pass
+  (`69 passed` across the two files). The guard is
+  `pyradioss.paths.hm_cfg_dir()`, so it follows §4.1's precedence. No audit
+  assertion was edited and no skip was re-added.
+- **P0.14** — oracle-dependent tests skip **with a reason** when the oracle is
+  not configured, so the bare fast-tier command is reproducible:
+  `56 passed, 9 skipped` bare vs `65 passed` with
+  `OR_SRC`/`OR_BUILD`/`OR_ROOT` exported. One shared gate
+  (`_require_live_oracle`) replaces three private copies that asked only
+  whether the two executables resolve; a *stale* export still FAILS instead of
+  skipping, and `PYRADIOSS_ORACLE_REQUIRED=1` turns absence into a failure.
+- **P0.15** — false machine facts purged from tooling and packaging: the
+  `DT_RPATH=/home/valentin/anaconda/lib` claim in `validate_vs_fortran.py`
+  (neither binary carries a DT_RPATH or DT_RUNPATH — `readelf -d`), `numpy
+  2.5.2` in `pyproject.toml` (now points at the lock's `# pin:` lines), and
+  `cmake 4.4.3` in `build_oracle.sh` (`/usr/bin/cmake`, 3.28.3).
+  `tests/test_p0_no_stale_machine_paths.py` (9 tests) keeps them from rotting
+  and distinguishes a claim about this box from a quoted specimen of a tool's
+  output.
+- **P0.16** — `toolchain_probe.json` is a **gated record**, not a test side
+  effect: `tests/test_p0_toolchain.py` compares every recorded key with a
+  fresh probe (quoting the refresh command) instead of calling
+  `probe.main([])`, which silently rewrote the claim on every suite run. The
+  record no longer names a conda prefix this box does not have — `/usr/bin/
+  {gfortran 13.3.0, cmake 3.28.3, make}` — and `gfortran_version` is the
+  compiler's own version, not the distro package string.
+- **`docs/STATE.md` §Baseline re-measured.** The recorded `13030 passed /
+  4 skipped / 13 failed` with 13 "pre-existing M614 failures" **did not
+  reproduce** on this box: those six modules measure `74 passed, 1 skipped`.
+  The fast tier here is `14489 passed, 27 skipped, 20 deselected, 26 xfailed`
+  and **exits 0**. The old numbers are kept, marked as the previous machine's.
+
 ## 1.5.1 - P0.11 fix round 1: what the verdict actually rests on, and the wrong ROLLING diagnosis withdrawn
 
 Reviewer round 1 on the binary-T01 parity route returned SPEC ok / QUALITY

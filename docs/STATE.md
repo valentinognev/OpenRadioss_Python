@@ -2,36 +2,77 @@
 
 *The onboarding document. Read this + AGENTS.md before any work; everything
 else (PORTING_GUIDE.md 535 KB, VALIDATION.md 233 KB) is grep-only reference.*
-*Last updated: 2026-08-02 (handover preparation, after M41).*
+*Last updated: 2026-10-03 (post-migration re-baseline; before that: 2026-08-02,
+handover preparation, after M41).*
 
 ## What this is
 
 `pyradioss` is a pure-Python port of the OpenRadioss explicit finite-element
 solver (crash/impact dynamics): same Starter/Engine split, same `.rad` deck
 format, same output semantics. The goal is Fortran-faithful, readable physics
-— every ported formula cites its upstream file under `C:\OpenRadioss\source`.
-Speed is explicitly not the goal (an optional numba backend recovers some).
+— every ported formula cites its upstream file under `$OR_SRC`
+(`starter/source/…`, `engine/source/…`, `common_source/…`; on this box
+`OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant`). Speed is explicitly
+not the goal (an optional numba backend recovers some).
 
 ## Quick start
 
 ```
-.venv\Scripts\python.exe -m pytest -q -m "not slow"     # fast tier, the pre-commit gate
-.venv\Scripts\python.exe -m pytest -q                   # full suite (adds 16 slow tests)
-.venv\Scripts\python.exe -m pyradioss.starter -i TENSILE_0000.rad   # (from examples\tensile_bar)
-.venv\Scripts\python.exe -m pyradioss.engine  -i TENSILE_0001.rad
+.venv/bin/python -m pytest -q -m "not slow"     # fast tier, the pre-commit gate
+.venv/bin/python -m pytest -q                   # full suite (adds 20 slow tests)
+.venv/bin/python -m pyradioss.starter -i TENSILE_0000.rad   # (from examples/tensile_bar)
+.venv/bin/python -m pyradioss.engine  -i TENSILE_0001.rad
 ```
 
-Interpreter/terminal discipline, READ-ONLY paths, domain rules: **AGENTS.md**.
+Oracle-dependent tests need the oracle environment exported (see §Baseline):
+`OR_SRC`, `OR_BUILD`, `OR_ROOT`, then `source tools/oracle/oracle_env.sh`.
 
-## Baseline (known-good, this machine)
+Interpreter/terminal discipline, READ-ONLY paths, domain rules: **AGENTS.md**
+(⚠ that file still describes the pre-migration Windows box — task P1.0 owns
+it; until then this section and §Baseline are the authority).
 
-- Venv: Python 3.14.2, numpy 2.4.6, scipy 1.18.0, numba 0.66.0, pytest 9.1.1
-  (`requirements-lock.txt`).
-- Suite: 11205 collected = 11186 fast + 19 `slow`-marked (pre-M614/M_SPH/M_ALE/M_FSI/M_MONVOL).
-- Fast tier (2026-09-12, this venv): **11182 passed / 4 skipped / 0 failed**, 19 slow deselected.
-- Fast tier (2026-09-21, this venv, post-M614+M_SPH+M_ALE+M_FSI+M_MONVOL): **13030 passed / 4 skipped / 13 failed** (13 failures are pre-existing from M614 commit; no regressions from M_SPH/M_ALE/M_FSI/M_MONVOL). 26 new multiphysics tests all green.
-- Full suite (2026-09-11, this venv, Python 3.14.2): **9893 passed / 5 skipped / 0 failed** (in 44 min 00 s). Skips that remain are environmental (optional backends like CHOLMOD/MUMPS, LS-PrePost/Vortex extras, meshio, numpy.trapz in NumPy 2.0+, one 15 MB corpus deck not vendored) and each carries a reason string.
-- Any red on the fast tier is a regression you introduced, not baseline noise. The 13 pre-existing M614 failures (test_m6/m12/m14/numpy_compat) are pre-commit and do not count.
+## Baseline (known-good, this machine — re-measured 2026-10-03)
+
+- Interpreter: **CPython 3.12.3**, numpy 2.5.3, scipy 1.18.1, pytest 9.1.1,
+  numba 0.68.0 (measured with `platform.python_version()` and each module's
+  `__version__`). These agree with `requirements-lock.txt` §[B]'s `# pin:`
+  lines (python 3.12.3 / numpy 2.5.3 / scipy 1.18.1 / pytest 9.1.1 /
+  numba 0.68.0 / llvmlite 0.50.0), which `tests/test_p0_optional_deps.py`
+  enforces on every run.
+- Collected: **14542 non-slow + 20 `slow` = 14562**
+  (`.venv/bin/python -m pytest -q --collect-only -m "not slow"` →
+  `14542/14562 tests collected (20 deselected)`).
+- Fast tier, bare command, `PYRADIOSS_BACKEND=numpy`: **14489 passed,
+  27 skipped, 20 deselected, 26 xfailed, 47 warnings in 908.76s (0:15:08),
+  exit 0** — 0 failed, 0 errored. (Quoted from the run recorded in commit
+  `2e7e598`; not re-measured when this section was rewritten.)
+- Oracle-dependent tests skip **with a reason** when the oracle is not
+  configured, so the bare command above is reproducible. Measured on the four
+  oracle modules: `56 passed, 9 skipped` with nothing exported, `65 passed`
+  with the three variables exported. To make them RUN, export:
+  `OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant`,
+  `OR_BUILD=/home/valentin/OpenRadioss_build`,
+  `OR_ROOT=/home/valentin/OpenRadioss_or`.
+- The oracle is rebuilt and verified here: binaries at `$OR_ROOT/bin/`
+  (sha256 `8b504acc…` starter, `6d58d0b1…` engine — byte-identical to the
+  build outputs `$OR_BUILD/exec/{starter,engine}`), writable mirror at
+  `$OR_BUILD` (harvested extlib **v59**), and its T01 is byte-reproducible
+  across runs: three consecutive reference runs of `examples/tensile_bar`
+  give the committed golden `t01.md5_normalized`
+  `e3688899358f35e825cd640f9bd94964` every time.
+- Any red on the fast tier is a regression you introduced, not baseline noise.
+- **Previous machine (Windows, Python 3.14.2 / numpy 2.4.6, pre-migration) —
+  history, not this box.** Its fast tier measured `11182 passed / 4 skipped /
+  0 failed` (2026-09-12) and then `13030 passed / 4 skipped / 13 failed`
+  (2026-09-21), the 13 attributed to "pre-existing M614 failures
+  (test_m6/m12/m14/numpy_compat)"; the full suite measured `9893 passed /
+  5 skipped / 0 failed` (2026-09-11). **That 13-failure claim does not
+  reproduce here** — `tests/test_m6_engine.py tests/test_m6_eos_thermal.py
+  tests/test_m6_fixes_wave2.py tests/test_m12_implconstr.py
+  tests/test_m14_implgen.py tests/test_numpy_compat.py` measures
+  **74 passed, 1 skipped** (the one skip is `test_numpy_compat.py:109`,
+  "legacy spelling already removed (NumPy >= 2.0)"). It was a property of that
+  interpreter/numpy pair, not a standing exemption: do not carry it forward.
 
 ## Multiphysics Engine (M_SPH, M_ALE, M_FSI, M_MONVOL — 2026-09-21)
 
@@ -99,10 +140,12 @@ Extensive batch porting of constitutive material laws, failure criteria, and con
 - **Rivet Element**: (`rivet.py`) discrete structural fastener with shear/tension coupling.
 - **Implicit Constraint Fix**: `_apply_autos` implicit constraint resolution (9 test failures resolved).
 
-## What is implemented (M1 → M614+multiphysics)
+## What is implemented (M1 → M706)
 
 README's "Milestones 1–11" section is the *narrative* for the foundation; the
-real history is 509 milestones. One line each:
+real history is the table below (last pre-program milestone **M615**; the
+program-era series is **M700+**, one per green phase task — see
+`plan/README.md` §6). One line each:
 
 | # | Theme (headline) |
 |---|---|
@@ -673,6 +716,13 @@ real history is 509 milestones. One line each:
 | M613 | Complete Engine Dynamics, Advanced Mass Scaling (AMS), Nodal Time Stepping, Dynamic Relaxation & Range Damping Suite: Complete Fortran-faithful port of all Engine Dynamics and AMS algorithms in OpenRadioss upstream (`engine/source/ams/`, `time_step/`, `general_controls/`, `loads/`, and `resol.F`). AMS kernel with element-specific off-diagonal coupling factors across all element families (Hexa8, Tetra4, Penta6, Pyra5, Tetra10, Quad/Tri shells, TSHELL8/6, 1D), zero row-sum invariance, PCG Krylov subspace boundary condition projection (`_project_bcs`) and rigid body master-slave condensation/re-distribution (`_rbody_remontee`, `_rbody_descente`), and dual kinetic energy accounting ($E_k^{\text{AMS}}$ and physical $E_k$, `sms_encin_2.F`). Nodal time stepping and mass scaling (`/DT/NODA/CST`, `/DT/NODA/STOP`, `/DT/NODA/SET`) with Fortran `1.00001` safety factor (`ONEP00001`), analytical target added mass auto-tuning (`find_dt_target.F`), Rayleigh damping stiffness scaling (`dtnodarayl.F`), critical entity `ITYPTST='NODE'` tracking, and top mass-changed nodes diagnostics (`sortie_error.F`). Dynamic relaxation (`/DYREL`, `/KEREL`, `/ADYREL`) with exact current annihilated kinetic energy booking (`static.F:116`), acceleration coupling $A \leftarrow -2\beta V + (1 - \beta \Delta t_{12}) A$, adaptive $\beta$ evolution, time-step stability factor ($D_{ampa3}$), and static relaxation convergence stopping. 3-term Maxwell frequency range damping for solids and plane-stress shells (`damping_range_compute_param.F90`, `damping_range_solid.F90`, `damping_range_shell.F90`) and in-situ FIR digital filter with Hamming window and 6 overlapping accumulators (`initnoise.F`, `noise.F`). Fixed `/STOP` parser for mass error thresholds and rigid body spin stability check (`MSGID 110`). 49 comprehensive unit tests across 4 test suites (`test_m613_ams_complete.py`, `test_m613_mass_scaling_complete.py`, `test_m613_range_damping_noise.py`, `test_m613_dynamic_relaxation_complete.py`) and 137 regression tests, all 100% green. |
 | M614 | Complete Implicit Branch & Fatigue Suite (Statics, Modal, Dynamics, All 32 Element Formulations & Advanced Fatigue Models): Complete Fortran-faithful port of the OpenRadioss Implicit Branch (`engine/source/implicit/`, `freimpl.F`, `imp_solv.F`, `nl_solv.F`, `imp_bfgs.F`, `recudis.F`, `imp_dyna.F`, `imp_lanz.F`, `imp_dt.F`, `imp_glob_k.F`) and Spectral Fatigue Tower. (1) Element technology completeness: Ported `tangent()`, `kgeo()`, and `consistent_mass()` across all 16 remaining element families (`solid_hexa8_full` 2x2x2 Gauss B-bar, `solid_hexa8_eas` 9-mode static condensation, `solid_shell_ha8` ANS transverse shear/thickness stretch, `solid_cohesive` traction-separation derivative, `solid_penta6` and `solid_penta6_heph` wedge HEPH, `solid_pyra5` 5-node pyramid, `solid_tetra4_sfem` smoothed cell tetra, `solid_tshell8` thick shell, `thickshell_wedge6`, `thickshell_composite` layered integration, `shell_dkt6` rotation-free DKT macro-patch, `solid_quad4_full` 2D B-bar quad, `solid_tria3` 2D CST, `spring_advanced` TYPE26/27/SPR_MAT, `beam_fiber` fiber beam) — achieving 100% implicit completeness across all 32 element formulations in pyradioss. (2) Implicit Statics: BFGS Quasi-Newton solver (`imp_bfgs.F`) with two-loop recursion and curvature guards; secant and energy directional derivative Line Search (`nl_solv.F:line_s0/line_s1`, `recudis.F`); multi-criteria convergence evaluation (`NITOL` 1, 2, 3, 12, 13, 23, 123) and divergence tracking (`/IMPL/DIVER`); direct linear static solve (`/IMPL/LINE`); quasi-static regularization (`/IMPL/QSTAT`); automatic single-point constraints (`/IMPL/AUTOS`); and springback analysis (`/IMPL/SPRB`). (3) Implicit Dynamics: Generalized-$\alpha$ time integration (Chung & Hulbert 1993, Wood-Bossak), step fixpoints `/IMPL/DT/FIXP` (`IMP_DTF`), tangent update policies `IKT` (KTANG, KTFUL, KTCON), and discrete numerical dissipation energy tracking ($E_{num}$). (4) Modal Analysis: Sparse shift-and-invert Lanczos eigensolver (`imp_lanz.F`) with `scipy.sparse.linalg.eigsh`, Sturm sequence checks with Sylvester's inertia theorem, rigid-body mode detection, 6-DOF modal participation factors, and effective modal mass completeness. (5) Extended Fatigue: Steinberg 3-band technique, Zhao-Baker Weibull spectral model, mean stress corrections (Goodman, Gerber, Soderberg, Morrow, SWT, Walker), Ramberg-Osgood cyclic curve, Coffin-Manson strain-life, Neuber and Glinka notch rules, multi-slope S-N Wöhler curves. (6) Engine Keyword Parsing & Deck Serialization: Full parsing for all `/IMPL/*` cards from `freimpl.F` and fatigue cards, integrated into `EngineControls` and `write_engine_deck`. 70 comprehensive unit tests across 5 suites (`test_m614_implicit_elements_solids.py`, `test_m614_implicit_elements_shells_1d.py`, `test_m614_implicit_statics_bfgs_linesearch.py`, `test_m614_implicit_dynamics_and_modal.py`, `test_m614_fatigue_and_engine_keywords.py`) and 98 pre-existing regression tests, all 100% green. |
 | M615 | SPMD Domain Decomposition & Message Passing (the Fortran MPI layer, `-np N`): port of `starter/source/spmd/` (11 files) and `engine/source/mpi/` (289 files) as `pyradioss/spmd/`. `comm.py`: `SerialComm` (NSPMD=1, zero-cost identities), `ThreadComm` (one thread per domain in-process, queues + barrier collectives — no MPI library needed), `Mpi4pyComm` (mpi4py, `MPI_COMM_SPLIT` by APPNUM colour as `inipar.F`), and the `glob_min.F` custom reduction (slot 0 MIN, slots 1–2 follow the winner, 3/4/6 SUM, 5 MIN, 7–9 MAX; ties to the highest rank as the Fortran's post-MIN equality test). `domdec.py` (Starter): `initwg.F` element cost weights, weighted recursive-bisection partition (pymetis optional via `PYRADIOSS_SPMD_PARTITION=metis`), native / frontier / frontplus'd nodes (`domdec1.F`, `domdec2.F`, `frontplus.F`), `NODGLOB`, `MAIN_PROC` and `WEIGHT` (1 on the main proc — `w_master_proc_weight.F`), entity ownership rules (penalty contacts, monitored volumes and /PLOAD segments OWNED by one rank with a ghost element ring so `Km`/`Ks`/gaps equal the serial values; /RBODY /RBE2 /RBE3 /MPC /RLINK /CYL_JOINT /INTER/TYPE2 and moving /RWALL REPLICATED on every holder to a fixpoint; sensors on all ranks), `check_spmd_support` refusing Lagrange-multiplier interfaces, SPH/ALE/FSI/FVMBAG, XFEM and the few kernels with cross-element buffers, per-domain restarts `RunName_0000_0001.rst`… (`ddsplit.F`) plus the global restart, and the decomposition table in the listing. `exchange.py` (Engine): `SpmdContext` with the per-cycle frontier force/stiffness sum (`spmd_exch_a.F`, MSGOFF 120, accumulated in rank order so every holder is bitwise identical), the 10-slot time-step packet (`spmd_glob_min5.F`) carrying the critical element, the stop flags (all local `break`s become flags synchronised at the packet so no domain hangs in a collective) and /STOP/TIMET, WEIGHT-ed bookings for gravity, /CLOAD, imposed motions, dampers, rigid walls and mass scaling (`gravit.F`, `fixvel.F`, `ecrit.F`), order-independent global sums, and the rank-0 gathers (`spmd_collect.F`) building the global output view for the listing, T01, ANIM, /SECT and the global restart (`wrrestp.F`); only P0 prints (`spmd_chkw.F`, `PYRADIOSS_SPMD_LOG_ALL=1` for per-domain listings). `driver.py`: `pyradioss-engine -np N` runs the domains as threads, or one MPI process each under `mpirun` (the `inipar.F` "REQUIRED (number of .rst files) NSPMD" coherence error on a mismatch; `MPI_ABORT` semantics for a failing domain); `pyradioss-starter -np N`; GUI "CPUs" spinbox driving `-np` for both programs. Serial path bitwise unchanged (tensile_bar T01 byte-identical). Parity: tensile_bar 2/3 thread domains vs serial 1.3e-10 relative on T01, `mpirun -np 2` bit-identical to the thread run, SPMD→SPMD→serial restart chain 9.8e-10; 15 feature decks (TYPE7/TYPE2 contact, rigid wall, /RBODY, /RBE2, /RBE3, /MPC, /DT/NODA(/CST), /DAMP, /SENSOR-gated /CLOAD, /PLOAD, /SECT, /IMPDISP) match serial with identical cycle counts, energies ≤1.5e-8 and T01 ≤1.7e-14 relative. Known limits: ghost-element `off` never updated, element-level /DT/<elem>/STOP stops at the packet sync point, thread mode is GIL-bound (use mpirun for speed). 49 tests across `test_spmd_comm.py` (10, incl. a real `mpirun -np 2`), `test_spmd_exchange.py` (17), `test_spmd_domdec.py` (10), `test_spmd_engine.py` (5), `test_gui_cpus.py` (7). |
+| M700 | Machine migration and environment rebuild (phase-0 task P0.11): the repo moved off Windows onto a Linux box; venv, oracle mirror `$OR_BUILD` + harvested extlib v59, and starter/engine rebuilt into `$OR_ROOT/bin` (sha256 `8b504acc…` / `6d58d0b1…`, byte-identical to the build outputs). Lock §[B] re-pinned to the interpreter that runs the suite (CPython 3.12.3 / numpy 2.5.3 / scipy 1.18.1). |
+| M701 | Oracle records describe the installed oracle (P0.12): both binary sha256 digests re-hashed and re-recorded, host/toolchain facts rewritten, `upstream.mirror_path` corrected to `$OR_BUILD`; golden T01 anchor `e3688899358f35e825cd640f9bd94964` unchanged and now pinned by a test (`tests/test_p0_oracle_provenance.py`, 10 tests). |
+| M702 | LAW34/LAW37 input-audit coverage recovered (P0.13): 12 tests that skipped on a hardcoded `C:\OpenRadioss\hm_cfg_files` guard now execute and pass (69 across the two files); the guard reads `pyradioss.paths.hm_cfg_dir()`. |
+| M703 | Reproducible bare fast tier (P0.14): one shared oracle gate, so oracle tests skip with a reason when `OR_SRC`/`OR_BUILD`/`OR_ROOT` are unexported instead of erroring (56 passed / 9 skipped bare vs 65 passed configured). |
+| M704 | Stale machine facts purged and gated (P0.15): the false `DT_RPATH=/home/valentin/anaconda/lib` claim in `tools/validate_vs_fortran.py`, `numpy 2.5.2` in `pyproject.toml` and `cmake 4.4.3` in `build_oracle.sh` corrected; `tests/test_p0_no_stale_machine_paths.py` (9 tests) keeps them out, distinguishing a machine claim from a quoted specimen. |
+| M705 | The toolchain record is a gated fact (P0.16): `tests/test_p0_toolchain.py` compares `toolchain_probe.json` with a fresh probe instead of rewriting it, so the committed record (/usr/bin/gfortran 13.3.0, cmake 3.28.3) cannot rot silently between runs. |
+| M706 | Records re-baselined to this machine (P0.17): `docs/STATE.md` §Baseline, `UPDATES.md`, `plan/01_phase0_oracle_and_licensing.md` and `.gitignore` brought in line with what this box measures — the recorded "13 pre-existing M614 failures" does not reproduce (those six modules are `74 passed, 1 skipped`). |
 
 
 
@@ -777,11 +827,14 @@ later milestones (M_ALE, M_MONVOL, M47) despite this paragraph's M41 date.
 | `tests/` | `test_mNN_<slug>.py` per milestone + topic modules; `tests/data/rd_decks/` vendored corpus decks |
 | `tools/validate_vs_fortran.py` | THE differential-validation harness (parity + coverage) |
 | `tools/validation_data/` | committed evidence: inventory, coverage/parity/perf JSONs per milestone |
-| `tools/run_reference_or.ps1` | launch the real Fortran solver with the correct env |
+| `tools/oracle/` | the Fortran oracle on this box: `toolchain_probe.py`, `mirror_and_fetch.sh`, `build_oracle.sh`, `oracle_env.sh` (**source it**, do not execute), `oracle_selftest.py` |
+| `tools/run_reference_or.ps1` | launch the real Fortran solver with the correct env — **Windows only**; on Linux use `tools/oracle/oracle_env.sh` |
 | `tools/lspp_check.py` | LS-PrePost headless d3plot verification |
 | `examples/` | runnable native-format decks (tensile_bar is the hello-world) |
-| `C:\OpenRadioss` | reference install: `source\` (cite this!), `exec\`, `hm_cfg_files` — READ-ONLY |
-| `E:\openradioss_run\` | official deck zips, Ryan Lee reference runs — READ-ONLY |
+| `$OR_SRC` = `/home/valentin/Projects/OpenRadioss/OpenCourant` | upstream source (**cite this**: `starter/source/…`, `engine/source/…`, `common_source/…`, `hm_cfg_files/`) — READ-ONLY |
+| `$OR_BUILD` = `/home/valentin/OpenRadioss_build` | writable mirror `git archive`d from `$OR_SRC` + harvested `extlib/` v59; the build writes here (`build/`, `exec/`) |
+| `$OR_ROOT` = `/home/valentin/OpenRadioss_or` | install prefix: `bin/starter_linux64_gf`, `bin/engine_linux64_gf` |
+| `C:\OpenRadioss`, `E:\openradioss_run\` | the **previous** machine's reference install and deck zips — **not present on this box** |
 
 ## How we work (Antigravity)
 
@@ -794,9 +847,11 @@ later milestones (M_ALE, M_MONVOL, M47) despite this paragraph's M41 date.
 
 ## Roadmap — next milestones (small, one conversation each)
 
-Numbering continues from M41. M42–M45 were agreed with the maintainer
-(2026-07-18); the rest is the ranked candidate pool from PORTING_GUIDE §5's
-deferred lists — confirm scope with the maintainer before starting one.
+The milestone series ended at M615/M620; program-era work is numbered **M700+**
+by phase task (`plan/01_phase0_oracle_and_licensing.md` P0.11–P0.16 landed as
+M700–M705, this records pass as M706). The pool below is the ranked candidate
+list from PORTING_GUIDE §5's deferred lists — confirm scope with the
+maintainer before starting one.
 
 ### Candidate pool (bigger — scope with the maintainer first)
 
@@ -811,12 +866,22 @@ Smaller known items:
 - ~~NAN/INF divergence backstop tests only KE (extend to IE/HE)~~ (Done: M67)
 - ~~V0700 solids ~2A--small explicit dt~~ (Done: IDEGE scaling implemented)
 
-## Handover notes (2026-08-02)
+## Handover notes (2026-08-02, Windows box) + migration notes (2026-10-03)
 
-- Reference corpus for benchmarking and validation: `C:\Users\pmqua\PycharmProjects\rad_examples_db` (harvested Radioss/OpenRadioss input-deck corpus with manifest.csv/manifest.jsonl, benchmarks, and validation tools).
+- Reference corpus for benchmarking and validation was
+  `C:\Users\pmqua\PycharmProjects\rad_examples_db` (harvested Radioss/OpenRadioss
+  input-deck corpus with manifest.csv/manifest.jsonl, benchmarks, and validation
+  tools). **That path is not present on this box** — the vendored
+  `tests/data/rd_decks/` is what the corpus tests use here.
 - The corpus tests' decks were re-homed from a dead session scratchpad to
   `tests/data/rd_decks/` (env `PYRADIOSS_RD_DECKS` for a fuller extract).
-- `.venv` + `requirements-lock.txt` are new at handover; numba 0.66.0 is now
-  installed (the pre-handover baseline ran without it).
+- `.venv` + `requirements-lock.txt` are new at handover; numba was **0.66.0**
+  there and is **0.68.0** here (lock §[B] re-pinned, P0.11/M700).
 - README's architecture/GUI sections are current; its "What is implemented"
   narrative covers M1–M11 — this file is the authoritative status.
+- **Migration (2026-10-03):** this is a Linux box. `.venv/bin/python`
+  (never bare `python`), `PYRADIOSS_HM_CFG`/`RAD_CFG_PATH` instead of
+  `C:\OpenRadioss\hm_cfg_files`, and the oracle lives in `$OR_SRC`/`$OR_BUILD`/
+  `$OR_ROOT` (table above) rather than `C:\OpenRadioss`. **`AGENTS.md` has not
+  been updated yet — task P1.0 owns that rewrite**; until it lands, trust this
+  file for the environment and treat AGENTS.md's Windows block as history.

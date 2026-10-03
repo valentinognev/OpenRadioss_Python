@@ -12,10 +12,15 @@ mirror `$OR_BUILD` of `$OR_SRC`; a single resource-resolution module
 (`pyradioss/paths.py`) that replaces the harness's hardcoded `C:\OpenRadioss`;
 and a numeric T01 comparator that turns two runs into one rel-RMS number.
 
-**Tech stack:** cmake ≥ 3.15 (dev box 4.4.3), gfortran (dev box 15.2.0,
-`-fopenmp` verified working), GNU make, python3 on `PATH` (the cmake build
-invokes `Compiling_tools/script/*.py`), extlib v82 from the URL in
-`$OR_SRC/EXTLIB_VERSION.json`, pytest.
+**Tech stack:** cmake ≥ 3.15 (measured 2026-10-03 on this box: `/usr/bin/cmake`
+3.28.3), gfortran (measured: `/usr/bin/gfortran` 13.3.0, `-fopenmp` verified
+working), GNU make, python3 on `PATH` (the cmake build invokes
+`Compiling_tools/script/*.py`), extlib per `$OR_SRC/EXTLIB_VERSION.json`
+(declares **v82**; that release is unreachable from this network, so the
+harvested tree under `$OR_BUILD/extlib` is **v59** — see
+`tools/validation_data/oracle_provenance.json` → `extlib`), pytest.
+*(Pre-migration values, kept for history: cmake 4.4.3, gfortran 15.2.0 — both
+were conda packages of a prefix this box does not have.)*
 
 **Spec:** `plan/README.md` §1 (scope), `plan/00_ORCHESTRATION.md` §1.3
 (licensing), §4 (environment).
@@ -586,6 +591,182 @@ def test_score_reports_rel_rms_per_channel():
 
 ---
 
+## Wave 2 — EXECUTED 2026-10-03: the Linux migration and the record/test repairs
+
+P0.11–P0.16 ran after the repo was migrated from Windows to this Linux box and
+the environment rebuilt (venv, mirror + extlib, starter/engine recompiled into
+`$OR_ROOT`). They are **executed work, not a plan**: each entry records what it
+did and the evidence it left, in the same Fortran / Files / Interfaces shape as
+the tasks above. There is no step checklist because there is nothing left to
+check off. A separate records pass (P0.17, milestone M706) updated
+`docs/STATE.md` §Baseline, `UPDATES.md` and this file.
+
+**Task-ID collision, stated once:** `UPDATES.md` 1.4.0 / 1.5.1 already use the
+label "P0.11" for the binary-T01 parity route, which is NOT one of the tasks
+below and is not in this plan file. The P0.11 here is the lock re-pin.
+
+**One citation rotted:** `tests/test_p0_toolchain.py:96,133` (comment and
+failure message only, not asserted) points at
+`plan/01_phase0_oracle_and_licensing.md:172` for the "GCC major in 11..15"
+rule. P0.17's tech-stack edit above shifted it to **:177**.
+
+### Task P0.11: Re-pin the dependency lock to this interpreter
+
+**Fortran:** none (no physics); the recorded precedent for the fact being
+machine-scoped is `requirements-lock.txt` §[B]'s own header rule.
+**Files:** Modify `requirements-lock.txt` §[B]. No test file touched.
+
+**Interfaces:**
+- Consumes: the interpreter that runs the suite
+  (`platform.python_version()`, each module's `__version__`).
+- Produces: §[B] pins that are true on this box — python 3.14.6→3.12.3,
+  numpy 2.5.2→2.5.3, scipy 1.18.0→1.18.1 (pytest 9.1.1, numba 0.68.0,
+  llvmlite 0.50.0 already true). §[A] (the maintainer's Windows box) is
+  byte-identical.
+
+**Evidence:** the lock was the defect, not the test —
+`tests/test_p0_optional_deps.py` went `3 failed, 17 passed` → `20 passed,
+1 skipped` with no assertion edited. The header now describes the interpreter
+(`.venv` created by `python3 -m venv`, `base_prefix=/usr`, no `conda-meta/`)
+instead of naming version numbers, and the mpi4py note's stated *reason* was
+corrected: this box HAS OpenMPI (`libmpi.so.40`), so `pip install mpi4py`
+would work — 4.1.2 stays a candidate pin, nothing was installed.
+
+### Task P0.12: Make the oracle records describe the installed oracle
+
+**Fortran:** `$OR_SRC/INSTALL.md:34-42` (the Linux environment contract the
+records restate), `$OR_SRC/starter/CMakeLists.txt:14-19` (`set(PYTHON_EXEC
+"python3")` on non-Windows — the fact P0.16 r1 mis-recorded).
+**Files:** Modify `tools/validation_data/oracle_provenance.json`,
+`tools/validation_data/oracle_smoke.json`; Create
+`tests/test_p0_oracle_provenance.py` (10 tests).
+
+**Interfaces:**
+- Consumes: `pyradioss.paths.or_starter()/or_engine()`, `sha256sum`,
+  `<tool> --version`, `CMakeCache.txt`.
+- Produces: two records whose paths, digests and toolchain facts are the
+  binaries on this box — starter `8b504acc…`, engine `6d58d0b1…` (replacing
+  `b2f6a19f…` / `99e63c5c…`, which named binaries the migration removed), the
+  absent conda prefix recorded as absent, `upstream.mirror_path` corrected to
+  `$OR_BUILD` (`= /home/valentin/OpenRadioss_build`, evidence:
+  `build/starter/CMakeCache.txt:CMAKE_HOME_DIRECTORY`).
+
+**Evidence:** the golden T01 anchor did **not** move —
+`t01.md5_normalized = e3688899358f35e825cd640f9bd94964`, reproduced by three
+consecutive reference runs on the rebuilt binaries and now pinned as a literal
+in the new test (`git show e144176 -- …/oracle_smoke.json` touches only the
+two sha256 lines). Before the test existed nothing compared the recorded
+digests with the binaries on disk, so the suite was green over a false record.
+The two-way H3D refusal measurement is marked carried-from-the-pre-migration
+build, not restated: the golden pair has no `/H3D` card
+(`grep -c H3D examples/tensile_bar/TENSILE_0000.rad` → 0).
+
+### Task P0.13: Recover the LAW34/LAW37 input-audit coverage
+
+**Fortran:** `$OR_SRC/hm_cfg_files/config/CFG/radioss110/MAT/matl34_boltzman.cfg`
+and `matl37_biphas.cfg` (the schemas the audit parses; `radioss110` +
+`radioss2018` spellings).
+**Files:** Modify `tests/test_m539_law34_input_audit.py`,
+`tests/test_m540_law37_input_audit.py`. `pyradioss/paths.py` NOT edited — the
+resolver already answered correctly.
+
+**Interfaces:**
+- Consumes: `pyradioss.paths.hm_cfg_dir()` (replaces the hardcoded
+  `not os.path.isdir(r"C:\OpenRadioss\hm_cfg_files")` guard, which cannot hold
+  on Linux).
+- Produces: 12 tests that **execute** — the migration had silently stopped
+  them, and they did not skip on the old Windows box, so this was real coverage
+  loss, not an environment exemption.
+
+**Evidence:** `57 passed, 12 skipped` before → `69 passed` after. No audit
+assertion edited and no skip re-added: the 9/12 physics attributes resolve as
+FLOAT with law_number 34/37, the upstream `CARD("%20lg…")` statements match
+the port's 20-column layouts, and the CFG roundtrip recovers every parameter
+to rel_tol 1e-12. With every candidate blanked (throwaway plugin outside the
+repo) the 12 skip again with the project's standard "CFG tree not found"
+reason.
+
+### Task P0.14: One oracle gate, so the bare fast tier is reproducible
+
+**Fortran:** `$OR_SRC/INSTALL.md:34-42` (`LD_LIBRARY_PATH` is required — the
+binaries start without it and die on the first message call with an unresolved
+`libhm_reader`), `execargcheck.F:1200-1201` (only the starter's `-v` touches
+the reader library).
+**Files:** Modify `tests/test_p0_oracle_build.py` (defines
+`_require_live_oracle`), `tests/test_p0_oracle_selftest.py`,
+`tests/test_p0_harness_portable.py`, `tests/test_p0_oracle_provenance.py`.
+
+**Interfaces:**
+- Consumes: `starter`, `engine`, `$OR_BUILD`, and the extlib reader library.
+- Produces: one shared gate. Absent prerequisites → skip with a reason naming
+  each missing one; a *stale export* → fail, not skip;
+  `PYRADIOSS_ORACLE_REQUIRED=1` / `PYRADIOSS_ORACLE_DISABLED=1` override.
+
+**Evidence:** the three modules each had a private `_require_oracle()` that
+asked only whether the two executables resolve — they do here (the dev-box
+`~/OpenRadioss_or/bin` fallback), so the gate waved them into a run that
+cannot work. `4 failed, 48 passed, 3 errors` bare → `48 passed, 7 skipped`
+(same command); across the four oracle modules `56 passed, 9 skipped` bare vs
+`65 passed` configured. Proven not to be a blanket skip: pointing `OR_BUILD` at
+a non-existent dir FAILS, at an existing-but-empty dir SKIPS naming the absent
+library, and a `/bin/true` "starter" passes the gate and fails its own
+assertion.
+
+### Task P0.15: Purge false machine facts from tooling and packaging
+
+**Fortran:** none; the claims were about the binaries, and the measured answer
+is `readelf -d $OR_ROOT/bin/{starter,engine}_linux64_gf` → **no DT_RPATH, no
+DT_RUNPATH** (`tools.validate_vs_fortran.elf_search_paths()` returns `[]` for
+both).
+**Files:** Modify `tools/validate_vs_fortran.py` (docstrings only),
+`tools/oracle/build_oracle.sh` (comments only), `pyproject.toml` (comment);
+Create `tests/test_p0_no_stale_machine_paths.py` (9 tests).
+
+**Interfaces:**
+- Consumes: `elf_search_paths`, `<tool> --version`, the lock's `# pin:` lines,
+  the filesystem.
+- Produces: four rules (a machine path must exist or be labelled history; a
+  claimed RPATH must be one the binaries carry; the two docstrings must keep
+  the hazard reasoning *and* state the measured fact; a tool/pyproject version
+  must match a measured/locked one) plus self-tests that drive the checkers
+  over synthetic text, and a claim-vs-specimen discriminator that reads
+  document structure (a reST literal block or a fenced block is a quoted
+  specimen, prose is a claim).
+
+**Evidence:** 5 failed / 3 passed with the test in place and the edits reverted
+to HEAD, 9 passed after; the pre-fix files re-checked in a scratch tree still
+fail all four rules. `numpy 2.5.2` in `pyproject.toml` was replaced by a
+pointer at the lock's `# pin:` lines rather than a third copy of a version.
+The `tests/` exclusion is a recorded decision (9 hits re-measured, none a stale
+claim).
+
+### Task P0.16: The toolchain record is a gated fact, not a test side effect
+
+**Fortran:** `$OR_SRC/starter/CMakeLists.txt:14-19` — upstream hardcodes
+`PYTHON_EXEC "python3"` on non-Windows, which is why the record must hold
+`shutil.which("python3")` and not the checkout's `sys.executable`.
+**Files:** Modify `tools/oracle/toolchain_probe.py` (adds `read_record()`,
+`differences()`, `explain()`; `probe()` untouched, `main()` still the only
+writer), `tools/validation_data/toolchain_probe.json`,
+`tests/test_p0_toolchain.py`.
+
+**Interfaces:**
+- Consumes: a fresh `probe()`; the committed record.
+- Produces: a gate that compares every recorded key and quotes the refresh
+  command; skips through `_require_live_oracle(runtime_env=False)` where the
+  oracle is not installed.
+
+**Evidence:** `test_probe_json_is_written` used to call `probe.main([])`, so
+every suite run rewrote the claim and the committed copy was a lie between
+runs (it named `/home/valentin/anaconda/bin/{gfortran,cmake,make}`, "cmake
+version 4.4.3"). A suite run now leaves `git status --porcelain` clean. Round 1
+fixed the record's own values: `gfortran_version` is the compiler's version
+(`13.3.0`, digits-and-dots only) rather than the Ubuntu package string, with
+the banner kept in `gfortran_banner`, and every key is now a property of the
+machine (the run-local classification is gone).
+
+---
+
 ## Reviewer checklist (per task)
 
 Beyond `00_ORCHESTRATION.md` §9.1:
@@ -604,6 +785,14 @@ Beyond `00_ORCHESTRATION.md` §9.1:
 - **P0.5** — two consecutive reference runs give a **byte-identical** T01.
 - **P0.6** — every resolver raises with all attempted locations when missing.
 - **P0.9** — no `C:\` literal remains anywhere in `tools/`.
+- **P0.11** — the lock, not the test, was changed; §[A] is byte-identical.
+- **P0.13** — the recovered tests **execute** (no skip smuggled back in), and
+  the guard resolves through `pyradioss/paths.py`.
+- **P0.14** — the gate is proved *not* to be a blanket skip: a stale export
+  fails, an absent resource skips with a reason, a working oracle runs.
+- **P0.15/P0.16** — the rot-scanner distinguishes a sentence about this box
+  from a quoted specimen, and a suite run leaves the committed records
+  unmodified (`git status --porcelain` clean).
 
 ## Parallelisation
 
@@ -612,16 +801,32 @@ Beyond `00_ORCHESTRATION.md` §9.1:
 - **Wave 1:** P0.6, P0.9, P0.10 all touch shared files
   (`pyproject.toml`, `pyradioss/__init__` neighbours, `tools/`) → serialised,
   one owner each, order P0.6 → P0.9 → P0.10 (each consumes the previous).
+- **Wave 2 (done):** P0.11 → P0.16 ran serially in that order; each fixed a
+  record the previous one's gate had just made falsifiable.
 
 ## Exit gate
 
 ```bash
+export OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant   # READ-ONLY
+export OR_BUILD=/home/valentin/OpenRadioss_build               # writable mirror
+export OR_ROOT=/home/valentin/OpenRadioss_or                   # install prefix
 source tools/oracle/oracle_env.sh
-python -m pytest -q tests/test_p0_oracle_selftest.py tests/test_p0_compare_t01.py
-python -m pytest -q -m "not slow"
+PYTHON=.venv/bin/python                       # never bare `python`
+PYRADIOSS_BACKEND=numpy $PYTHON -m pytest -q tests/test_p0_oracle_selftest.py tests/test_p0_compare_t01.py
+PYRADIOSS_BACKEND=numpy $PYTHON -m pytest -q -m "not slow"
 git -C "$OR_SRC" status --porcelain        # must be empty
 ```
 
 All four must pass. The phase reviewer additionally re-runs Task 0.5's
 determinism check **three** times and confirms the rel-RMS scorer reproduces a
 known verdict from `parity_m41.json` on a stored deck pair.
+
+**Measured 2026-10-03 (P0.17, this box):** line 2 `32 passed, 1 skipped` (the
+skip is `th_to_csv` absent — documented in `test_p0_compare_t01.py:1085` and
+covered by three independent cross-checks); line 3
+`14489 passed, 27 skipped, 20 deselected, 26 xfailed, 47 warnings in 908.76s`,
+**exit 0**; line 4 empty, exit 0. Lines 1 and 2 are stale as written before
+P0.17: the gate said bare `python` (this box has only `.venv/bin/python`) and
+never exported `OR_SRC`/`OR_BUILD`/`OR_ROOT`, which `oracle_env.sh` requires
+(`:${OR_BUILD:?…}`, `${OR_ROOT:?…}`) and without which the oracle-dependent
+tests now skip instead of running.
