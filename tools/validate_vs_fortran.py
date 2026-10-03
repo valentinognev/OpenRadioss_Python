@@ -11,7 +11,8 @@ parity (default)
 
     1. run the real Fortran Starter + Engine on the example's deck pair
        in a scratch directory, convert the binary T01 time-history with
-       ``th_to_csv_win64.exe``;
+       upstream's ``th_to_csv`` converter (resolved by :func:`oracle_paths`;
+       an optional external tool — see the note there);
     2. run the pyradioss Starter + Engine on the *original* deck pair in
        a sibling scratch directory (the port writes its T01 as CSV
        directly);
@@ -70,15 +71,51 @@ Examples
 ========
     python tools/validate_vs_fortran.py parity
     python tools/validate_vs_fortran.py parity --only tensile_bar,box_beam_impact
-    python tools/validate_vs_fortran.py coverage E:/openradioss_run/Ryan_Lee_Examples/ton-mm-s/runs/W12_k2rad/W12_0000.rad
+    python tools/validate_vs_fortran.py coverage <path>/W12_k2rad/W12_0000.rad
+
+    (the Ryan Lee k2rad corpus of the historical sweeps lived on the
+    original Windows reference box, under its ``openradioss_run`` share;
+    on any other box pass whatever deck path you have — the harness never
+    assumes a corpus location.)
 
 Results land in ``<workdir>/parity_results.json`` (parity) /
 ``<workdir>/coverage_<deck>.json`` (coverage) plus a console table.
 
-Environment: the Fortran binaries and their runtime come from
-``C:/OpenRadioss`` and Intel oneAPI, exactly like the proven
-E:/openradioss_run/Ryan_Lee_Examples/ton-mm-s/runs/run_batch.ps1 (non-MPI
-single-process path: starter_win64.exe -np 1 -nt 1, engine_win64.exe -nt 1).
+Where the oracle comes from (this module is platform-neutral)
+============================================================
+Nothing here names a machine.  The oracle location is resolved **per call**
+through :func:`pyradioss.paths` — env var, then sibling-of-build, then the
+Windows compatibility rule inside ``paths`` itself, then a loud failure
+listing every candidate — and never at import time, so importing this module
+touches no filesystem and works with nothing configured
+(``plan/00_ORCHESTRATION.md`` §4.1).  :func:`oracle_paths` reports each of the
+five resources the run needs; when the starter or the engine cannot be
+resolved, ``parity`` stops with exit code 2 rather than reporting an empty
+comparison.
+
+The runtime environment the harness builds is upstream's own
+(``$OR_SRC/INSTALL.md:34-42`` — ``OPENRADIOSS_PATH``, ``RAD_CFG_PATH``,
+``OMP_STACKSIZE``, ``LD_LIBRARY_PATH`` for the native-``.k`` reader), with one
+deliberate omission and one deliberate deletion, both recorded in
+``tools/validation_data/oracle_provenance.json``:
+
+* ``RAD_H3D_PATH`` is **deleted** from the environment, not set.  The h3d
+  writer reachable on the oracle box is one parameter short of what the
+  pinned source calls, so a run with it set reaches NORMAL TERMINATION and
+  writes silently wrong H3D files; without it
+  ``common_source/output/h3d/h3d_build_cpp/h3d_dl.c:920-921`` fails the
+  dlopen and ``engine/source/output/h3d/h3d_results/genh3d.F:729-731`` aborts
+  with MSGID 274.  H3D is refused loudly; T01, A-files, RESTART and the
+  listing are unaffected, and only those are admissible parity evidence
+  (``oracle_provenance.json`` ``admissible_parity_evidence``).
+* the Intel-MPI / oneAPI entries of the historical Windows launch are gone:
+  the Linux oracle is the OpenMP build, and an inherited ``KMP_*`` from the
+  caller's shell still reaches the solver because the environment is copied.
+
+Invocation (``$OR_SRC/INSTALL.md:110-111``, and what was measured on the box):
+the starter is given ``-np 1 -nt 1``; the engine is given ``-nt 1`` and
+**never** ``-np`` — its argument parser does not accept it, prints its usage
+and dies with a SIGSEGV, which reads like a broken oracle but is not.
 """
 
 from __future__ import annotations
@@ -92,27 +129,303 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
+import warnings
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
+from pyradioss import paths  # noqa: E402
 from pyradioss.input.deck_reader import read_deck  # noqa: E402
-
-# ----------------------------------------------------------------------------
-# Fortran toolchain (mirrors run_batch.ps1, non-MPI path)
-# ----------------------------------------------------------------------------
-
-OR_ROOT = r"C:\OpenRadioss"
-ONEAPI = r"C:\Program Files (x86)\Intel\oneAPI"
-STARTER_EXE = os.path.join(OR_ROOT, "exec", "starter_win64.exe")
-ENGINE_EXE = os.path.join(OR_ROOT, "exec", "engine_win64.exe")
-TH2CSV_EXE = os.path.join(OR_ROOT, "exec", "th_to_csv_win64.exe")
 
 DEFAULT_WORKDIR = os.environ.get(
     "VALRUNS_DIR",
-    os.path.join(os.environ.get("TEMP", REPO), "valruns"))
+    os.path.join(os.environ.get("TEMP") or os.environ.get("TMPDIR")
+                 or tempfile.gettempdir(), "valruns"))
+
+
+# ----------------------------------------------------------------------------
+# Oracle resources (P0.9) — resolution is lazy, per call, and machine-neutral
+# ----------------------------------------------------------------------------
+#
+# Upstream / environment origin of every name below (repo-relative under the
+# read-only ``OpenCourant`` tree, i.e. $OR_SRC):
+#
+#   * INSTALL.md:110          starter_linux64_gf        ($OR_ROOT/bin here;
+#                             the modern upstream install prefix is `exec`, see
+#                             RELEASES.md:22-41 — paths.or_starter() lists both)
+#   * INSTALL.md:111          engine_linux64_gf
+#   * INSTALL.md:39,42        RAD_CFG_PATH=$OPENRADIOSS_PATH/hm_cfg_files and
+#                             LD_LIBRARY_PATH=$OPENRADIOSS_PATH/extlib/
+#                             hm_reader/linux64/  -> hm_reader_lib
+#   * INSTALL.md:40           RAD_H3D_PATH=$OPENRADIOSS_PATH/extlib/h3d/lib/
+#                             linux64            -> h3d_lib (resolved, NOT used)
+#   * RELEASES.md:29,52       exec/th_to_csv_linux64_gf  ("Time History file to
+#                             Paraview CSV format converter")
+#   * RELEASES.md:72,106      exec/th_to_csv_win64.exe
+#   * tools/th_to_csv/README.md:1-7  the converter's SOURCE lives in the
+#                             separate OpenRadioss/Tools repository; the pinned
+#                             tree carries only this README, and neither
+#                             starter/CMakeLists.txt nor engine/CMakeLists.txt
+#                             builds it (Apptainer/openradioss.def:31-32 builds
+#                             it from its own checkout).  It is therefore an
+#                             OPTIONAL resource: resolved when present, and
+#                             reported with its candidate list when not.
+#
+# Nothing below is a module-scope path.  Importing this module must resolve
+# nothing (a test booby-traps pathlib to prove it), because a module-scope
+# constant is frozen against whichever box imported the module first.
+
+#: The resources a parity run needs, in the order they are reported.
+ORACLE_KEYS = ("starter", "engine", "th_to_csv", "h3d_lib", "hm_reader_lib")
+
+#: ``th_to_csv`` file names, per platform (RELEASES.md:29,52,72,106).
+_TH_TO_CSV_NAMES = ("th_to_csv_linux64_gf", "th_to_csv_win64.exe")
+
+#: The h3d writer and the native-.k reader, per platform, exactly as
+#: ``$OR_SRC/INSTALL.md:40,42`` spells them under ``$OPENRADIOSS_PATH``.
+_H3D_LIB_NAMES = ("extlib/h3d/lib/linux64/libh3dwriter.so",
+                  "extlib/h3d/lib/win64/h3dwriter.dll")
+_HM_READER_LIB_NAMES = (
+    "extlib/hm_reader/linux64/libhm_reader_linux64.so",
+    "extlib/hm_reader/win64/hm_reader_win64.dll")
+
+
+def _first_file(tried: List[Tuple[str, Path]]) -> Optional[str]:
+    """The first candidate that exists, as a string; ``None`` if none does."""
+    for _origin, candidate in tried:
+        if os.path.isfile(candidate):
+            return str(candidate)
+    return None
+
+
+def _build_candidates(relative_paths) -> List[Tuple[str, Path]]:
+    """``$OR_BUILD/<rel>`` candidates, or an explanation when it is unresolved.
+
+    ``pyradioss.paths`` owns the install prefixes; the extlib payloads below
+    the writable mirror are the remaining piece, and they are named exactly as
+    ``$OR_SRC/INSTALL.md:39-42`` names them.
+    """
+    try:
+        root = paths.or_build()
+    except FileNotFoundError as exc:
+        first_line = str(exc).splitlines()[0]
+        return [(f"$OR_BUILD/{rel} — OR_ROOT unresolved ({first_line})",
+                 f"$OR_BUILD/{rel} — OR_ROOT unresolved ({first_line})")
+                for rel in relative_paths]
+    return [(f"$OR_BUILD/{rel}", root.joinpath(*rel.split("/")))
+            for rel in relative_paths]
+
+
+def _th_to_csv_candidates() -> List[Tuple[str, Path]]:
+    """``$OR_TH_TO_CSV`` first, then the two documented install spellings.
+
+    The override follows the ``OR_*`` naming the rest of the contract uses;
+    the two locations come from ``RELEASES.md:29,52,72,106`` (the modern
+    install prefix and the pre-cmake ``exec/`` one that ``paths.or_starter``
+    also lists).
+    """
+    var = "OR_TH_TO_CSV"
+    tried: List[Tuple[str, Path]] = []
+    value = os.environ.get(var)
+    if value:
+        tried.append((f"env {var}", Path(value)))
+    else:
+        # an unconstructed candidate: origin == path, which is how
+        # paths.missing_resource renders "this one could not even be built"
+        label = f"env {var} (not set)"
+        tried.append((label, label))
+    try:
+        root = paths.or_root()
+    except FileNotFoundError as exc:
+        label = (f"$OR_ROOT/{{bin,exec}}/{_TH_TO_CSV_NAMES[0]} — OR_ROOT "
+                 f"unresolved ({str(exc).splitlines()[0]})")
+        tried.append((label, label))
+        return tried
+    for sub in ("bin", "exec"):
+        for filename in _TH_TO_CSV_NAMES:
+            tried.append((f"$OR_ROOT/{sub}/{filename}", root / sub / filename))
+    return tried
+
+
+def _resolve_oracle_key(key: str) -> Tuple[Optional[str], Optional[str]]:
+    """``(path, None)`` when resolved, ``(None, diagnostic)`` when not.
+
+    The diagnostic is ``str(paths.missing_resource(...))`` — the one that knows
+    the contract's candidate order, which a bespoke message here would only
+    drift away from.  A *set but missing* override is part of it, so a stale
+    ``OR_TH_TO_CSV`` cannot masquerade as "not built here".
+    """
+    if key in ("starter", "engine"):
+        try:
+            return str(getattr(paths, "or_" + key)()), None
+        except FileNotFoundError as exc:
+            return None, str(exc)
+    if key == "th_to_csv":
+        tried = _th_to_csv_candidates()
+    elif key == "h3d_lib":
+        tried = _build_candidates(_H3D_LIB_NAMES)
+    else:
+        tried = _build_candidates(_HM_READER_LIB_NAMES)
+    return _first_file(tried), str(paths.missing_resource(key, tried))
+
+
+def oracle_paths(strict: bool = False) -> Dict[str, Optional[str]]:
+    """Resolve every resource a parity run needs; ``key -> path or None``.
+
+    Keys: ``starter``, ``engine``, ``th_to_csv``, ``h3d_lib``,
+    ``hm_reader_lib`` (:data:`ORACLE_KEYS`).  ``starter``/``engine`` come from
+    :func:`pyradioss.paths.or_starter` / ``or_engine`` — this harness is a
+    consumer of the one resolver, never a rival with a second ordering.
+
+    **Honest degradation.**  An unresolved resource is reported as ``None``
+    and announced with a :class:`RuntimeWarning` carrying every location that
+    was tried; it is never silently turned into an empty string, and never
+    into an empty comparison — :func:`parity` stops instead (exit code 2).
+    The caller decides what an unresolved resource means: ``strict=True``
+    raises the first one (``ORACLE_KEYS`` order, so the starter's own
+    diagnostic first).  ``th_to_csv`` and ``h3d_lib`` are optional by
+    construction — see the block above — so their absence is a fact to
+    report, not a reason to refuse to run.
+
+    Not memoised: the answer depends on the environment, and a validation run
+    must never act on a resolution an earlier run left behind.
+    """
+    resolved: Dict[str, Optional[str]] = {}
+    missing: Dict[str, str] = {}
+    for key in ORACLE_KEYS:
+        value, why = _resolve_oracle_key(key)
+        resolved[key] = value
+        if value is None:
+            missing[key] = (f"{key} is not available.\n{why}\n"
+                            f"Set the variable named above, or fix the install "
+                            f"layout (plan/00_ORCHESTRATION.md §4.1); the "
+                            f"harness will not substitute a default.")
+    for key in ORACLE_KEYS:
+        if key in missing:
+            warnings.warn(missing[key], RuntimeWarning, stacklevel=2)
+    if strict and missing:
+        first = next(k for k in ORACLE_KEYS if k in missing)
+        raise FileNotFoundError(missing[first])
+    return resolved
+
+
+def oracle_report(oracle: Optional[Dict[str, Optional[str]]] = None) -> str:
+    """The loud text for every unresolved resource; ``""`` when all resolve.
+
+    :func:`oracle_paths` announces the same failures as warnings; a driver
+    that is about to *refuse to run* should print the reason itself rather
+    than point at a warning a caller may have filtered away.
+    """
+    if oracle is None:
+        oracle = oracle_paths()
+    blocks = []
+    for key in ORACLE_KEYS:
+        if oracle.get(key) is not None:
+            continue
+        _value, why = _resolve_oracle_key(key)
+        blocks.append(f"{key} is not available.\n{why}")
+    return "\n\n".join(blocks)
+
+
+# ----------------------------------------------------------------------------
+# Solver invocation
+# ----------------------------------------------------------------------------
+
+def starter_argv(starter: str, deck: str, np: int = 1,
+                 nt: int = 1) -> List[str]:
+    """``$OR_SRC/INSTALL.md:110`` — the starter accepts ``-np``.
+
+    Both counts are passed: ``-np`` sizes the (SMP) process pool and ``-nt``
+    the OpenMP threads, and the historical Windows launch used both.
+    """
+    return [str(starter), "-i", os.path.basename(deck),
+            "-np", str(np), "-nt", str(nt)]
+
+
+def engine_argv(engine: str, deck: str, nt: int = 1) -> List[str]:
+    """The engine takes ``-nt`` and **must not** be given ``-np``.
+
+    Measured on the oracle box and recorded in
+    ``tools/validation_data/oracle_provenance.json`` ``invocation``: the
+    engine's argument parser does not accept ``-np``; it prints its usage and
+    then dies with a SIGSEGV, which in a batch log is indistinguishable from
+    a broken oracle.  ``INSTALL.md:111`` shows the bare invocation for the same
+    reason.  Upstream's behaviour is deliberately not "fixed" here —
+    ``execargcheck.F`` is upstream source.
+    """
+    return [str(engine), "-i", os.path.basename(deck), "-nt", str(nt)]
+
+
+def th_to_csv_argv(converter: str, t01: str) -> List[str]:
+    """``th_to_csv <T01>`` — one positional argument, no flags."""
+    return [str(converter), os.path.basename(t01)]
+
+
+def fortran_env(oracle: Optional[Dict[str, Optional[str]]] = None,
+                base: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """The oracle's runtime environment: ``$OR_SRC/INSTALL.md:34-42``.
+
+    ``base`` (default: this process's environment) is copied first, so a
+    caller-supplied ``LD_LIBRARY_PATH``, ``KMP_*`` or locale survives — this
+    function only *adds* what upstream requires and *removes* the one
+    variable that must not be inherited.
+
+    * ``OPENRADIOSS_PATH`` — upstream's name for the prefix; the solvers and
+      the cfg lookup key off it (``INSTALL.md:38``).
+    * ``RAD_CFG_PATH`` — the ``hm_cfg_files`` tree (``INSTALL.md:39``).  The
+      mirror's own copy wins when it is a real cfg tree, because that is the
+      environment the oracle was proved in
+      (``tests/test_p0_oracle_build.py::test_oracle_*``); ``paths.hm_cfg_dir``
+      is the fallback, so a box without the mirror still resolves.
+    * ``LD_LIBRARY_PATH`` (POSIX) or ``PATH`` (Windows) — the native ``.k``
+      reader and its APR dependency.  Not cosmetic: without it the binaries
+      die on the first message call with an unresolved ``libhm_reader``
+      (``tools/oracle/oracle_env.sh``).
+    * ``OMP_STACKSIZE`` / ``OMP_NUM_THREADS`` — upstream's 400 m headroom
+      (``INSTALL.md:41``) and the single-thread cap that keeps a validation
+      run's wall clock meaningful.
+
+    ``RAD_H3D_PATH`` is **removed**: see the module docstring and
+    ``oracle_provenance.json`` ``extlib.version_gaps.enforcement`` — with the
+    reachable writer set, a run writes silently wrong H3D files instead of
+    refusing.  ``h3d_lib`` is therefore resolved but never exported.
+    """
+    if oracle is None:
+        oracle = oracle_paths()
+    env = dict(os.environ if base is None else base)
+    env.pop("RAD_H3D_PATH", None)          # see above; never inherited
+    build = None
+    try:
+        build = paths.or_build()
+    except FileNotFoundError:
+        pass
+    if build is not None:
+        env["OPENRADIOSS_PATH"] = str(build)
+        cfg = build / "hm_cfg_files"
+        if paths.is_cfg_tree(cfg):
+            env["RAD_CFG_PATH"] = str(cfg)
+    if "RAD_CFG_PATH" not in env:
+        try:
+            env["RAD_CFG_PATH"] = str(paths.hm_cfg_dir())
+        except FileNotFoundError as exc:
+            warnings.warn(f"no hm_cfg_files tree for RAD_CFG_PATH: {exc}",
+                          RuntimeWarning, stacklevel=2)
+    env["OMP_STACKSIZE"] = "400m"          # INSTALL.md:41
+    env["OMP_NUM_THREADS"] = "1"
+    reader = oracle.get("hm_reader_lib")
+    if reader:
+        reader_dir = str(Path(reader).parent)
+        if os.name == "nt":
+            env["PATH"] = os.pathsep.join(
+                [reader_dir, env.get("PATH", "")]).strip(os.pathsep)
+        else:
+            env["LD_LIBRARY_PATH"] = os.pathsep.join(
+                [reader_dir, env.get("LD_LIBRARY_PATH", "")]).strip(os.pathsep)
+    return env
 
 
 # ----------------------------------------------------------------------------
@@ -129,8 +442,9 @@ DEFAULT_WORKDIR = os.environ.get(
 # The loader is deliberately lazy and read-only: it reads the JSON inside the
 # function and opens NO deck.  A validation run may legitimately happen with
 # the corpus unmounted, and the recorded hashes must still be readable; it
-# also means importing this module touches no resource (P0.9 replaces the
-# module-scope `C:\...` toolchain literals above with pyradioss.paths).
+# also means importing this module touches no resource — which is why the
+# oracle toolchain lives in oracle_paths() above (P0.9) and not in module-scope
+# constants.
 #
 # A record's `deck` is RELATIVE to a corpus, and the corpus is chosen by the
 # environment (`PYRADIOSS_RD_DECKS`), so a bare `rd_decks_dir() / rec["deck"]`
@@ -323,25 +637,6 @@ def resolve_manifest_record(rec: dict, root: Optional[str] = None, *,
                 f"record {rec.get('deck')!r}: {path} hashes to "
                 f"{digest.hexdigest()}, the manifest says {rec['sha256']}")
     return os.path.abspath(path)
-
-
-def fortran_env() -> Dict[str, str]:
-    env = dict(os.environ)
-    env["RAD_CFG_PATH"] = os.path.join(OR_ROOT, "hm_cfg_files")
-    env["RAD_H3D_PATH"] = os.path.join(OR_ROOT, "extlib", "h3d", "lib", "win64")
-    env["OMP_NUM_THREADS"] = "1"
-    env["KMP_AFFINITY"] = "disabled"
-    env["KMP_STACKSIZE"] = "400m"
-    env["I_MPI_ROOT"] = os.path.join(ONEAPI, "mpi", "latest")
-    env["I_MPI_OFI_LIBRARY_INTERNAL"] = "1"
-    env["PATH"] = ";".join([
-        os.path.join(OR_ROOT, "extlib", "hm_reader", "win64"),
-        os.path.join(OR_ROOT, "extlib", "intelOneAPI_runtime", "win64"),
-        os.path.join(ONEAPI, "mpi", "latest", "bin"),
-        os.path.join(ONEAPI, "mpi", "latest", "libfabric", "bin"),
-        env.get("PATH", ""),
-    ])
-    return env
 
 
 def run_cmd(cmd: List[str], cwd: str, timeout: float,
@@ -758,8 +1053,29 @@ def first_starter_error(out_file: str, log_tail: str) -> str:
 
 
 def run_fortran(name: str, runname: str, deck0: str, deck1: str,
-                workdir: str, shim: str) -> Dict:
-    """Run starter+engine+th_to_csv. Returns dict with status/csv/error."""
+                workdir: str, shim: str,
+                oracle: Optional[Dict[str, Optional[str]]] = None) -> Dict:
+    """Run starter+engine+th_to_csv. Returns dict with status/csv/error.
+
+    ``oracle`` defaults to :func:`oracle_paths`, resolved per call; pass it in
+    to run several examples against one resolution.  A missing starter/engine
+    is an ``oracle-unavailable`` status with the loud diagnostic attached —
+    never an empty comparison (see :func:`parity`, which refuses to start
+    without them at all).
+
+    The two solvers are invoked through :func:`starter_argv` /
+    :func:`engine_argv`, which is where the ``-np`` asymmetry lives
+    (``$OR_SRC/INSTALL.md:110-111``).
+    """
+    if oracle is None:
+        oracle = oracle_paths()
+    starter, engine = oracle.get("starter"), oracle.get("engine")
+    if not starter or not engine:
+        absent = "starter" if not starter else "engine"
+        return {"mode": shim, "dir": None, "status": "oracle-unavailable",
+                "error": f"the oracle {absent} is not available; see "
+                         f"pyradioss.paths and oracle_paths() for every "
+                         f"location that was tried"}
     rd = os.path.join(workdir, "fortran", name)
     shutil.rmtree(rd, ignore_errors=True)
     os.makedirs(rd)
@@ -780,10 +1096,8 @@ def run_fortran(name: str, runname: str, deck0: str, deck1: str,
             info.update(status="untranslatable", missing=missing)
             # still probe with the begin shim to capture the real error
             open(d0, "w").write(shim_begin_only(deck0))
-            env = fortran_env()
-            rc, tail, dt = run_cmd(
-                [STARTER_EXE, "-i", os.path.basename(d0), "-np", "1",
-                 "-nt", "1"], rd, 180, env)
+            env = fortran_env(oracle)
+            rc, tail, dt = run_cmd(starter_argv(starter, d0), rd, 180, env)
             info["probe_error"] = first_starter_error(
                 os.path.join(rd, f"{runname}_0000.out"), tail)
             return info
@@ -795,9 +1109,8 @@ def run_fortran(name: str, runname: str, deck0: str, deck1: str,
     open(d1, "w").write(strip_engine_stop(deck1)
                         if shim != "none" else open(deck1).read())
 
-    env = fortran_env()
-    rc, tail, dt = run_cmd([STARTER_EXE, "-i", os.path.basename(d0),
-                            "-np", "1", "-nt", "1"], rd, 300, env)
+    env = fortran_env(oracle)
+    rc, tail, dt = run_cmd(starter_argv(starter, d0), rd, 300, env)
     info["starter_rc"] = rc
     info["starter_time"] = round(dt, 2)
     out0 = os.path.join(rd, f"{runname}_0000.out")
@@ -811,8 +1124,7 @@ def run_fortran(name: str, runname: str, deck0: str, deck1: str,
                     error=first_starter_error(out0, tail))
         return info
 
-    rc, tail, dt = run_cmd([ENGINE_EXE, "-i", os.path.basename(d1),
-                            "-nt", "1"], rd, 900, env)
+    rc, tail, dt = run_cmd(engine_argv(engine, d1), rd, 900, env)
     info["engine_rc"] = rc
     info["engine_time"] = round(dt, 2)
     info.update(harvest_fortran_out(out0,
@@ -826,7 +1138,20 @@ def run_fortran(name: str, runname: str, deck0: str, deck1: str,
         info.update(status="engine-fail",
                     error=tail.splitlines()[-1] if tail else f"rc={rc}")
         return info
-    rc2, tail2, _ = run_cmd([TH2CSV_EXE, os.path.basename(t01)], rd, 120, env)
+    converter = oracle.get("th_to_csv")
+    if not converter:
+        # The engine DID write an admissible T01 (oracle_provenance.json
+        # admissible_parity_evidence); what is missing is the converter that
+        # turns it into the CSV both sides are compared as.  Say which, never
+        # compare something else.
+        info.update(status="th2csv-missing",
+                    error="the engine wrote its T01, but no th_to_csv "
+                          "converter is installed (it is a separate upstream "
+                          "tool: $OR_SRC/tools/th_to_csv/README.md:1-7 points "
+                          "at the OpenRadioss/Tools repository); the binary "
+                          "T01 is at " + os.path.basename(t01))
+        return info
+    rc2, tail2, _ = run_cmd(th_to_csv_argv(converter, t01), rd, 120, env)
     csvp = t01 + ".csv"
     if not os.path.exists(csvp):
         info.update(status="th2csv-fail", error=tail2[-200:])
@@ -914,6 +1239,19 @@ def parity(args) -> int:
     if not examples:
         print("no examples found", file=sys.stderr)
         return 2
+    # Refuse to start without the oracle.  Every row of a parity table is a
+    # comparison against the Fortran solvers, so a run that cannot launch
+    # them has nothing to report — and a results file full of uncompared
+    # rows would read as evidence.  The diagnostic is the one
+    # pyradioss.paths.missing_resource builds, so it lists every candidate.
+    oracle = oracle_paths()
+    if not (oracle["starter"] and oracle["engine"]):
+        absent = [k for k in ("starter", "engine") if not oracle[k]]
+        print(f"parity needs the reference (Fortran) solvers; "
+              f"{', '.join(absent)} did not resolve. Nothing was run and no "
+              f"results file was written.\n\n"
+              f"{oracle_report(oracle)}\n", file=sys.stderr)
+        return 2
     budget_left = args.budget
     results = []
     retry_queue = []
@@ -928,17 +1266,23 @@ def parity(args) -> int:
             # extensions; the Fortran chain cannot run them.  Probe the
             # starter anyway so the table carries the real error message.
             f = run_fortran(name, runname, deck0, deck1, workdir,
-                            "begin" if args.shim != "none" else "none")
+                            "begin" if args.shim != "none" else "none", oracle)
             f["status"] = "implicit-port-card"
             row["class"] = "PORT-ONLY(implicit)"
         else:
-            f = run_fortran(name, runname, deck0, deck1, workdir, args.shim)
+            f = run_fortran(name, runname, deck0, deck1, workdir, args.shim,
+                            oracle)
             if f["status"] == "untranslatable":
                 row["class"] = "PORT-ONLY(dialect)"
             elif f["status"] == "starter-reject":
                 row["class"] = ("PORT-ONLY(dialect)" if args.shim != "translate"
                                 else "PORT-ONLY(starter-reject)")
-            elif f["status"] in ("engine-fail", "th2csv-fail"):
+            elif f["status"] in ("engine-fail", "th2csv-fail",
+                                 "th2csv-missing", "oracle-unavailable"):
+                # Same class as before for the first two; the last two are
+                # statuses this harness could not produce while the converter
+                # (or a solver) was absent, and they mean the same thing for
+                # the table: the Fortran side produced no comparable CSV.
                 row["class"] = "FORTRAN-FAIL"
         row["fortran"] = {k: v for k, v in f.items() if k != "dir"}
 
