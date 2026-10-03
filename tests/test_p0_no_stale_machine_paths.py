@@ -66,10 +66,60 @@ Three self-tests at the end (:func:`test_the_history_rule_can_still_fail`,
 :func:`test_a_stale_claim_written_inside_a_literal_block_is_still_a_claim`) drive
 both checkers over synthetic text: a checker that accepts everything is worse
 than no checker, and these are the ones that would rot into that.
+
+WIDENED TO THE RECORDS (round 3), because a gate that cannot see the records
+cannot see the files a future agent reads FIRST.  Rounds 1 and 2 scanned
+``tools/**`` plus ``pyproject.toml`` and the lock, which is where the four false
+claims of this task actually lived — but ``docs/STATE.md`` §Baseline is the
+onboarding document, ``UPDATES.md`` is the mandatory change log, and
+``plan/`` is the roadmap: a claim in any of them is the claim that gets quoted.
+The Phase 0 whole-branch review measured the consequence (STATE.md carrying four
+fields no rule could reach) and this round is the fix, so the scope is now the
+tooling surface **plus every record file** (:func:`_record_sources`).
+
+Widening is only legitimate if the records stop being a wall of noise, and they
+nearly were: the discriminators below grew exactly as far as the records forced
+them to, each for one named category —
+
+* **a link target is an address, not a location** (:func:`_in_uri_target`).  The
+  dated bug report carries 18 ``C:/Users/pmqua/…`` permalinks (on 12 lines) into
+  the pre-migration checkout, and ``Path("C:/…").exists()`` measures nothing:
+  there is no such drive here and there never will be.  Only the ``](… )`` span
+  is exempt — the link TEXT stays prose and stays checked.
+* **a Unicode comparison operator is a requirement, not a measurement**
+  (:data:`_CONSTRAINT_TAIL`): ``cmake ≥ 3.15`` says what the build needs, which
+  is the same sentence as the ASCII ``cmake >= 3.15`` the rule already skips.
+* **the old side of a migration arrow is superseded by construction**
+  (``python 3.14.6→3.12.3``, :func:`_version_claim_offenders`); the new side is
+  still compared against the lock.
+* **a version belonging to the OTHER supported machine is legitimate whenever the
+  lock records it** (:func:`_recorded_pins`).  §[A] is the maintainer's Windows
+  box and its pins are part of the record by design, which is what lets
+  ``AGENTS.md``'s ``numpy 2.4.6`` stand while ``numpy 2.5.2`` does not.  §[A] is
+  DESCRIPTIVE — no rule compares it to the running interpreter — and this rule
+  does not either: it compares prose to the RECORD.
+* **``$OR_SRC`` / ``$OR_ROOT`` / ``OR_BUILD`` placeholders** in documented
+  commands were already outside :data:`MACHINE_PATH` (the path root follows the
+  variable name, so there is nothing ``/home``-shaped to match).  That was luck
+  with a regex's good manners, so it is now pinned by
+  :func:`test_a_shell_variable_placeholder_is_not_a_machine_path` instead of
+  being left to a future edit of the lookbehind.
+
+What is deliberately STILL out of reach, stated here so nobody mistakes silence
+for green: **backslash Windows paths** (``C:\\OpenRadioss\\exec``,
+``.venv\\Scripts\\python.exe``, ``C:\\Users\\pmqua\\…``).  :data:`MACHINE_PATH`
+is ``$HOME``-shaped, the Windows box this project still supports is not this
+one, and a rule that declared those false would be inventing a measurement
+nobody can take — task P1.0 owns that rewrite.  ``AGENTS.md`` itself **is** in
+scope for everything this gate can measure (that was measured: zero hits, so it
+is free), which means a Linux-shaped false claim introduced there is caught from
+now on.  ``plan/README.md`` §8 is not in that category — see the hits this
+round surfaced for its owner.
 """
 
 from __future__ import annotations
 
+import functools
 import re
 import shutil
 import subprocess
@@ -77,18 +127,65 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 TOOLS = REPO / "tools"
+DOCS = REPO / "docs"
+PLAN = REPO / "plan"
 PYPROJECT = REPO / "pyproject.toml"
 LOCK = REPO / "requirements-lock.txt"
+AGENTS = REPO / "AGENTS.md"
+README = REPO / "README.md"
+UPDATES = REPO / "UPDATES.md"
+STATE = DOCS / "STATE.md"
 
 
 # ---------------------------------------------------------------------------
 # Scope
 # ---------------------------------------------------------------------------
+#: Suffixes whose prose the scan reads.  ``.md`` joined the three code/script
+#: suffixes in round 3 — the records are markdown, and a scope that lists
+#: ``docs/`` but not ``.md`` is the same unnamed scope this function's docstring
+#: is written to prevent.
+SCANNED_SUFFIXES = (".py", ".sh", ".txt", ".md")
+
+#: The root records a future agent reads before anything else, plus the two
+#: directories of them.  ``AGENTS.md`` is deliberately in: it is the most
+#: read-first file in the repo, it is known to be Windows-shaped (task P1.0
+#: owns the rewrite), and including it was measured to cost **zero** hits —
+#: every path in it is backslash-shaped, which :data:`MACHINE_PATH` cannot see.
+#: So it buys coverage for any Linux-shaped claim added there, and costs
+#: nothing today.
+RECORD_FILES = (README, UPDATES, AGENTS, STATE)
+RECORD_GLOBS = ("docs/**/*.md", "plan/**/*.md")
+
+
+def _record_sources() -> list[Path]:
+    """Every record file, in a stable order, that exists.
+
+    The GLOB is deliberate rather than a list of filenames: ``docs/`` and
+    ``plan/`` grow, and a record added tomorrow must be scanned without anyone
+    remembering to add it here.  :func:`test_the_records_a_future_agent_reads
+    _first_are_in_scope` fails if a file present on disk is missing from this
+    list, which is the regression that undoes the widening silently.  Order is
+    stable and duplicates are dropped (``STATE.md`` is named above AND matched
+    by the glob, and a record scanned twice is a finding reported twice).
+    """
+    files = list(RECORD_FILES)
+    for pattern in RECORD_GLOBS:
+        files.extend(sorted(REPO.glob(pattern)))
+    seen: set[Path] = set()
+    return [p for p in files if p.is_file() and not (p in seen or seen.add(p))]
+
+
 def _scanned_sources() -> list[Path]:
     """The maintained files held to the rule, in a stable order.
 
-    IN: the parity harness, the oracle build/runtime scripts, and the two
-    packaging records at the repo root.
+    IN: the parity harness, the oracle build/runtime scripts, the two packaging
+    records at the repo root, and — since round 3 — **the records themselves**
+    (:func:`_record_sources`): ``docs/**``, ``plan/**``, ``README.md``,
+    ``UPDATES.md`` and ``AGENTS.md``.  Rounds 1–2 scoped ``tools/**`` alone,
+    which is where this task's four false claims lived but NOT where a reader
+    starts: the phase review measured ``docs/STATE.md`` §Baseline carrying four
+    fields nothing could reach, precisely because the gate never opened the
+    onboarding document.
 
     OUT, each for a stated reason — an unnamed scope is how a rule stops being
     enforced:
@@ -120,12 +217,15 @@ def _scanned_sources() -> list[Path]:
       documented prefix and ``/usr/bin/cmake`` is the system toolchain; neither
       is a per-machine fact.  A per-machine fact in this repo is ``$HOME``-shaped
       (or a ``/mnt/...`` bind), which is what :data:`MACHINE_PATH` matches.
+    * backslash Windows paths, wherever they appear (``AGENTS.md``,
+      ``README.md``'s documented fallback) — see the module docstring: this box
+      cannot measure them and task P1.0 owns them.
     """
     scripts = sorted(
         p for p in TOOLS.rglob("*")
         if p.is_file() and p.suffix in (".py", ".sh", ".txt")
     )
-    return [PYPROJECT, LOCK, *scripts]
+    return [PYPROJECT, LOCK, *_record_sources(), *scripts]
 
 
 #: An absolute path rooted in a per-machine location.  ``$HOME``-shaped on both
@@ -135,9 +235,53 @@ MACHINE_PATH = re.compile(
     r"(?:/[A-Za-z0-9._+@%~-]+)*)"
 )
 
+#: ``scheme:`` — the first token of a URI (``C:``, ``file:``, ``https:``).
+_URI_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*:")
+
+
+def _in_uri_target(line: str, start: int) -> bool:
+    """Is the match at ``start`` inside a markdown/HTML link TARGET?
+
+    ``[starter_keywords.py:14847](C:/Users/pmqua/…/starter_keywords.py:14847)``
+    — the span after ``](`` up to the closing ``)``.  Such a span is an address
+    in a link namespace: an editor permalink into whichever checkout the report
+    was written against.  ``Path("C:/Users/pmqua/…").exists()`` is not a
+    measurement of anything (there is no ``C:`` here and there never will be),
+    so reporting it would be the rule asserting something it cannot know.
+
+    Added in round 3 for the records: the dated bug report carries 18 such
+    permalinks on 12 lines and every one of them is a locator into the
+    pre-migration checkout.  Two properties keep this from being a laundering
+    route:
+
+    * only the TARGET is exempt — the link text, where a claim would actually be
+      written, is outside the span and still read by both rules;
+    * a scheme is REQUIRED, so a bare relative target (``](tools/foo.py)``) and
+      an ordinary absolute path in prose are unaffected.
+    """
+    head = line[:start]
+    open_at = head.rfind("](")
+    if open_at < 0:
+        return False
+    target = head[open_at + 2:]
+    if "(" in target:          # a further, unclosed target began before this
+        return False           # match — the span we found is not the real one
+    return bool(_URI_SCHEME.match(target.lstrip("<")))
+
+
 #: Phrases that mark a statement as being about ANOTHER machine (or another
 #: time), which is what makes naming a path that is not here legitimate.  A
 #: provenance record says so; a stale claim, however confident, does not.
+#:
+#: The vocabulary is deliberately NOT extended with the correction register
+#: ("corrected", "false", "withdrawn").  It would buy four fewer reported lines
+#: in the records and cost the rule its teeth: "the corrected prefix is
+#: /home/…" would launder any claim on earth, because the label only has to be
+#: in the same 3-line window.  An honest record that quotes a removed claim
+#: already has a word this list accepts — ``pre-migration``, ``previous record``,
+#: ``no longer`` — and a report that names the exact line is cheaper than a
+#: vocabulary that cannot be trusted.  (The four lines that cost this decision
+#: are listed in the round-3 report as findings for their owners.)
 HISTORY_MARKERS = (
     "pre-migration", "pre migration", "previous record", "prior record",
     "old record", "superseded", "no longer", "not exist", "no such file",
@@ -334,10 +478,16 @@ def _path_claims(lines: list[str]) -> list[tuple[int, str, str]]:
     window is for.  So quoting buys a path nothing at all, and the exemption
     cannot be spent on laundering: the reviewer's planted block is caught by
     this rule whether or not it is indented under a ``::``.
+
+    The one shape skipped here is a path inside a link TARGET
+    (:func:`_in_uri_target`), which is an address rather than a location; the
+    link text beside it is prose and is read.
     """
     claims = []
     for index, line in enumerate(lines):
         for match in MACHINE_PATH.finditer(line):
+            if _in_uri_target(line, match.start()):
+                continue      # an address in a link namespace (round 3)
             path = match.group(1).rstrip(".,;:)'\"")
             claims.append((index, path, _label_window(lines, index)))
     return claims
@@ -347,6 +497,23 @@ def _stale_paths_in(lines: list[str]) -> list[tuple[int, str]]:
     """``(line index, path)`` for the paths that are false here and unmarked."""
     return [(index, path) for index, path, window in _path_claims(lines)
             if not Path(path).exists() and not _marked_history(window)]
+
+
+def _existence_offenders(paths: list[Path]) -> list[str]:
+    """``file:line: path`` for every path claim that is false here and unmarked.
+
+    The scan the first live test performs, extracted so a regression test can
+    drive the SAME scan over a scratch copy of a record file (outside the repo)
+    and prove the rule catches what is planted in it.  A scope regression is
+    otherwise invisible: narrowing the scope does not raise, it silences.
+    """
+    offenders = []
+    for path in paths:
+        for index, stale in _stale_paths_in(_lines(path)):
+            label = (path.relative_to(REPO).as_posix()
+                     if path.is_relative_to(REPO) else path.name)
+            offenders.append(f"{label}:{index + 1}: {stale}")
+    return offenders
 
 
 # ---------------------------------------------------------------------------
@@ -361,12 +528,15 @@ def test_a_machine_path_this_box_does_not_have_is_marked_history():
     regardless of whether the sentence about it is accurate; that is the
     measured half's job, and pretending otherwise is why this rule is not the
     only one.
+
+    Since round 3 the scan covers the RECORDS (:func:`_record_sources`) as well
+    as the tooling, so this is also the rule that reads ``docs/STATE.md``,
+    ``UPDATES.md``, ``plan/**`` and ``README.md``.  The hits it reports there
+    are findings for those files' owners, not defects in the rule: the fix is a
+    label (``pre-migration``, ``previous record``, ``no longer``) or a path that
+    exists here.
     """
-    offenders = []
-    for path in _scanned_sources():
-        lines = _lines(path)
-        for index, stale in _stale_paths_in(lines):
-            offenders.append(f"{path.relative_to(REPO)}:{index + 1}: {stale}")
+    offenders = _existence_offenders(_scanned_sources())
     assert offenders == [], (
         "these lines assert a machine path that does not exist on this box, "
         "with no label within "
@@ -473,10 +643,20 @@ def test_the_rpath_hazard_is_still_explained_and_stated_as_measured():
 #: name it belongs to.  Operator-prefixed forms are deliberately NOT matched:
 #: ``numpy<2.6,>=1.22`` is a constraint the upstream project declares, not a
 #: claim about what is installed, and ``"numba>=0.59"`` is a floor in the extra
-#: itself.
+#: itself.  Case-insensitive since round 3, because the records write ``NumPy
+#: 2.5.2`` and ``Python 3.14.6`` with the distribution's own capitalisation —
+#: the same claim, spelled the way the vendor spells it.
 VERSION_CLAIM = re.compile(
     r"\b(?P<pkg>numpy|scipy|numba|llvmlite|mpi4py|pytest|python)\s+"
-    r"(?P<ver>\d+\.\d+(?:\.\d+)?)\b")
+    r"(?P<ver>\d+\.\d+(?:\.\d+)?)\b", re.I)
+
+#: A migration arrow.  The value on its LEFT is the superseded one by
+#: construction (``python 3.14.6→3.12.3`` is a record of what this box stopped
+#: being), so it is provenance; the value on the right is the live claim and is
+#: compared as usual.  This is the arrow-delta category of the records, and it
+#: is why ``numpy 2.5.2→2.5.3`` in ``UPDATES.md`` passes while a bare
+#: ``numpy 2.5.2`` does not.
+_MIGRATION_ARROW = re.compile(r"\s*(?:→|->|=>|⟶|-->)\s*")
 
 _PIN_LINE = re.compile(r"^#\s*pin:\s*([A-Za-z0-9_.\-]+)==([^\s#]+)")
 
@@ -519,19 +699,43 @@ def _version_agrees(claimed: str, recorded: set[str]) -> bool:
 
 
 def _version_claim_offenders(lines: list[str], pins: dict[str, set[str]],
-                             label: str) -> list[str]:
-    """The ``label:<line>`` entries for comment prose naming an unrecorded version.
+                             label: str, comment_only: bool = True
+                             ) -> list[str]:
+    """The ``label:<line>`` entries for prose naming an unrecorded version.
 
     Extracted so a self-test can drive the real rule over synthetic text (see
-    :func:`test_the_version_rule_can_still_fail`).  Only ``#`` comment lines are
-    read: the requirement arrays themselves declare floors, not measurements.
+    :func:`test_the_version_rule_can_still_fail`).  ``comment_only`` reads just
+    the ``#`` comment lines, which is what ``pyproject.toml`` needs: the
+    requirement arrays themselves declare floors, not measurements.  The RECORDS
+    (round 3) pass ``comment_only=False``, because in markdown every line is
+    prose and a requirement reads ``numpy>=1.22``, which :data:`VERSION_CLAIM`
+    does not match anyway.
+
+    One exemption, and it is narrow: a version on the LEFT of a migration arrow
+    (:data:`_MIGRATION_ARROW`) is the value the box moved away from, so it is a
+    record rather than a claim.  The right-hand side is compared as usual, which
+    is what keeps ``python 3.14.6→3.12.3`` honest — the live claim in it is
+    still the one the lock has to carry.
+
+    And the SAME history label the path rule honours, over the same window
+    (:func:`_marked_history`), added in round 3: ``docs/STATE.md`` §Baseline
+    writes "**Previous machine (Windows, Python 3.14.2 / numpy 2.4.6,
+    pre-migration)**" and that is provenance, exactly as the path beside it
+    would be.  Without it this rule reported the repo's own correctly labelled
+    history section as rot — the crying-wolf failure this file exists to avoid,
+    and it changed no pyproject verdict (zero offenders there before and after).
     """
     offenders = []
     for lineno, line in enumerate(lines, 1):
-        if not line.lstrip().startswith("#"):
+        if comment_only and not line.lstrip().startswith("#"):
             continue              # the requirement arrays themselves, not prose
+        window = _label_window(lines, lineno - 1).lower()
+        if _marked_history(window):
+            continue              # labelled another machine's / another record's
         for match in VERSION_CLAIM.finditer(line):
             pkg, ver = match.group("pkg").lower(), match.group("ver")
+            if _MIGRATION_ARROW.match(line[match.end():]):
+                continue          # the superseded side of a stated migration
             if not _version_agrees(ver, pins[pkg]):
                 offenders.append(
                     f"{label}:{lineno}: {pkg} {ver} "
@@ -569,6 +773,40 @@ def test_packaging_version_claims_agree_with_the_recorded_pins():
         + ". Name the recorded version, or none at all and a pointer to the lock.")
 
 
+def test_record_version_claims_agree_with_the_recorded_pins():
+    """The same pin comparison over the records — the OTHER supported machine.
+
+    Round 3.  The records are where a reader learns what is installed, and
+    ``AGENTS.md`` states it in the imperative: "All dependencies are
+    preinstalled (numpy 2.4.6, scipy 1.18.0, numba 0.66.0, pytest 9.1.1 —
+    exact pins in ``requirements-lock.txt``)".  Those are the maintainer's
+    **Windows** box, which this project deliberately still supports, and they
+    ARE in the lock's §[A] — so they are legitimate and must pass
+    (:func:`test_a_version_of_the_other_supported_machine_is_allowed` pins that
+    direction).  What may not appear is a version the lock never recorded:
+    ``plan/README.md`` §8's "Dev box: Python 3.14.6, NumPy 2.5.2" is exactly
+    that, and it is a LIVE claim ("numba and mpi4py are NOT installed on this
+    box") that this box contradicts.
+
+    §[A] stays DESCRIPTIVE — nothing here compares it to the running
+    interpreter.  This rule compares prose to the RECORD, which is the only
+    comparison the lock supports.
+    """
+    pins = _recorded_pins()
+    offenders = []
+    for path in _record_sources():
+        offenders += _version_claim_offenders(
+            _lines(path), pins, path.relative_to(REPO).as_posix(),
+            comment_only=False)
+    assert offenders == [], (
+        "these record lines name a distribution version the lock never "
+        "recorded (either section): " + "; ".join(offenders)
+        + ". A version that belongs to the other supported machine is fine "
+        "because the lock records it (§[A] is the Windows box); a version "
+        "nobody recorded is not. Name a recorded one, or drop the number and "
+        "point at requirements-lock.txt.")
+
+
 # ---------------------------------------------------------------------------
 # 4. the build script's toolchain versions, against the tools
 # ---------------------------------------------------------------------------
@@ -579,11 +817,26 @@ TOOL_VERSION_CLAIM = re.compile(
     r"\b(?P<tool>cmake|gfortran|gcc|g\+\+|make)\b(?P<tail>[^\n]{0,60}?)"
     r"(?<![\w.])(?P<ver>\d+\.\d+(?:\.\d+)?)\b")
 
-_CONSTRAINT_TAIL = (">=", "<=", "==", "!=", "~>", "~=", ">", "<")
+#: The Unicode operators are here for the records, which are written by hand and
+#: use them naturally: ``plan/01_phase0_oracle_and_licensing.md`` §Tech stack
+#: says "cmake **≥ 3.15** (measured 2026-10-03 on this box: /usr/bin/cmake
+#: 3.28.3)" — the same REQUIREMENT as the ASCII form the rule already skips, and
+#: the measured value beside it is the claim that gets compared.  Without these
+#: three characters the rule reported a requirement as a false measurement, which
+#: is the crying-wolf failure mode, not a finding.
+_CONSTRAINT_TAIL = (">=", "<=", "==", "!=", "~>", "~=", ">", "<",
+                    "≥", "≤", "≫", "≪", "≈", "⩾", "⩽", "⇒")
 
 
+@functools.lru_cache(maxsize=None)
 def _tool_banner(tool: str) -> str | None:
-    """``<tool> --version`` for the tool ``PATH`` resolves, or ``None``."""
+    """``<tool> --version`` for the tool ``PATH`` resolves, or ``None``.
+
+    Cached because the scan is now over ~1.5 MB of records as well: one
+    subprocess per tool, not one per version mentioned.  The measurement is a
+    property of the box, not of the line being read, so the cache cannot change
+    a verdict — it only keeps the gate's cost flat as the records grow.
+    """
     exe = shutil.which(tool)
     if exe is None:
         return None
@@ -640,6 +893,30 @@ def _tool_version_offenders(lines: list[str],
     return offenders, unchecked
 
 
+def _toolchain_offenders(paths: list[Path]) -> tuple[list[str], list[str]]:
+    """``(offenders, unchecked)`` for every scanned file the rule can read.
+
+    The scan :func:`test_the_build_script_names_the_tool_versions_this_box_has`
+    performs, extracted for the same reason as :func:`_existence_offenders` — a
+    regression test has to be able to drive the real scan over a scratch copy of
+    a record file and see the planted claim, and :data:`SCANNED_SUFFIXES` is
+    then stated in ONE place, so widening the scope to a new file type cannot
+    silently skip it (which is what the round-3 gap was: a scope the gate could
+    not see, not a rule that did not fire).
+    """
+    offenders: list[str] = []
+    unchecked: list[str] = []
+    for path in paths:
+        if path.suffix not in SCANNED_SUFFIXES:
+            continue
+        found, skipped = _tool_version_offenders(
+            _lines(path), path.relative_to(REPO).as_posix()
+            if path.is_relative_to(REPO) else path.name)
+        offenders += found
+        unchecked += skipped
+    return offenders, unchecked
+
+
 def test_the_build_script_names_the_tool_versions_this_box_has():
     """``tools/`` prose must not describe a toolchain this box does not have.
 
@@ -666,15 +943,13 @@ def test_the_build_script_names_the_tool_versions_this_box_has():
     The reasoning the corrected build-script comment carries — CMake 4 rejects
     upstream's ``cmake_minimum_required (VERSION 3.15)`` and the gate therefore
     must be explicit — is untouched by any of this.
+
+    Since round 3 the scan reads the records too (:data:`SCANNED_SUFFIXES`
+    gained ``.md``), because a toolchain version quoted in ``docs/STATE.md`` is
+    as load-bearing as one in a build script: both are what a reader copies
+    into their next command.
     """
-    offenders, unchecked = [], []
-    for path in _scanned_sources():
-        if path.suffix not in (".py", ".sh", ".txt"):
-            continue
-        found, skipped = _tool_version_offenders(
-            _lines(path), path.relative_to(REPO).as_posix())
-        offenders += found
-        unchecked += skipped
+    offenders, unchecked = _toolchain_offenders(_scanned_sources())
     assert offenders == [], (
         "toolchain versions asserted in comments that this box contradicts: "
         + "; ".join(offenders)
@@ -881,8 +1156,266 @@ def test_a_stale_claim_written_inside_a_literal_block_is_still_a_claim():
 
 
 # ---------------------------------------------------------------------------
-# 6. the harness still imports (the fix must not break what P0.12-P0.14 bought)
+# 6. the widened scope, and the four categories it had to learn
 # ---------------------------------------------------------------------------
+def test_the_records_a_future_agent_reads_first_are_in_scope():
+    """THE REGRESSION TEST for round 3: the scope cannot be narrowed again.
+
+    The gap this round closed was not a rule that failed to fire — it was a
+    scope that could not see ``docs/``, ``plan/``, ``UPDATES.md``,
+    ``README.md`` or ``AGENTS.md``, so a false claim written into any of them
+    left the gate green.  A "cleanup" that trims the scanned-path list back to
+    ``tools/`` raises nothing and reports nothing: it silently undoes the whole
+    task.  So the list is pinned from three sides —
+
+    * the named files, one by one, by path;
+    * EVERY ``docs/**/*.md`` and ``plan/**/*.md`` on disk, so a record added
+      tomorrow is scanned without anyone remembering to add it;
+    * the tooling surface the rule was born for, so the widening did not buy
+      its coverage by giving something up.
+
+    and then, so the membership assertion is not vacuous, the scan those files
+    feed is driven over a scratch copy carrying a planted false claim
+    (:func:`test_a_false_claim_planted_in_a_record_file_is_caught`).
+    """
+    scope = _scanned_sources()
+
+    for required in (README, UPDATES, AGENTS, STATE, DOCS / "OPEN_BUGS.md",
+                     PLAN / "README.md", PLAN / "00_ORCHESTRATION.md",
+                     PLAN / "01_phase0_oracle_and_licensing.md"):
+        assert required in scope, (
+            f"{required.relative_to(REPO)} is a record a future agent reads "
+            "first and it has left the scanned scope — the round-3 widening is "
+            "being undone. Add it to RECORD_FILES/RECORD_GLOBS, or state in "
+            "_scanned_sources' docstring why a record is exempt.")
+
+    on_disk = {p for pattern in RECORD_GLOBS for p in REPO.glob(pattern)}
+    unscanned = sorted(p.relative_to(REPO).as_posix() for p in on_disk
+                       if p not in scope)
+    assert unscanned == [], (
+        "these record files exist and are not scanned: " + ", ".join(unscanned)
+        + ". A record is in scope by virtue of being in docs/ or plan/ — add "
+          "the glob, do not add a list of filenames.")
+
+    for kept in (PYPROJECT, LOCK, TOOLS / "validate_vs_fortran.py",
+                 TOOLS / "oracle" / "build_oracle.sh",
+                 TOOLS / "oracle" / "toolchain_probe.py"):
+        assert kept in scope, (
+            f"{kept.relative_to(REPO)} left the scanned scope. Widening to the "
+            "records must not cost the tooling surface — that is where this "
+            "task's original four false claims lived.")
+
+    assert ".md" in SCANNED_SUFFIXES, (
+        "the records are markdown: a scope that lists docs/ but not the .md "
+        "suffix is the unnamed scope this rule was written to prevent")
+
+
+def test_a_false_claim_planted_in_a_record_file_is_caught(tmp_path):
+    """A claim planted in a COPY of ``docs/STATE.md`` outside the repo is caught.
+
+    This is the direction the whole task exists for, and it is measured the way
+    the gap was reproduced: the real file is copied to ``tmp_path`` (never
+    planted in the working tree), one false line is appended, and BOTH live
+    scans are driven over the copy by the same functions the live tests use.
+
+    Before round 3 the answer was that nothing reads ``docs/`` at all — the
+    planted line could have been anything and the run stayed green.  Now the
+    planted path and the planted cmake version are both reported, by file and
+    line, with the reason in the message.
+    """
+    gone = "/home/valentin/anaconda/lib"
+    copy = tmp_path / "STATE.md"
+    copy.write_text(STATE.read_text(encoding="utf-8")
+                    + f"\nThe oracle reader library is at {gone} on this box, "
+                      "and cmake is 4.4.3.\n", encoding="utf-8")
+
+    planted = f"{len(_lines(copy))}: {gone}"
+    # the copy is labelled by its bare name and the real file by its repo path,
+    # so compare the "line: path" tails — the append is at the end, so every
+    # earlier line number is identical between the two files
+    tails = lambda offenders: [o.split(":", 1)[1] for o in offenders]  # noqa: E731
+    assert tails(_existence_offenders([copy])) == \
+        tails(_existence_offenders([STATE])) + [planted], (
+        "planting one false claim in a copy of docs/STATE.md must add exactly "
+        f"one offender, the planted line; got "
+        f"{tails(_existence_offenders([copy]))}")
+
+    toolchain, _ = _toolchain_offenders([copy])
+    assert [o for o in toolchain if "claims cmake 4.4.3" in o], (
+        "and so must the planted toolchain version: " + "; ".join(toolchain))
+
+    # the planted line number exists only in the copy, so the comparison above
+    # can only hold if the copy differs from the real file by the two appended
+    assert planted not in tails(_existence_offenders([STATE])) \
+        and len(_lines(copy)) == len(_lines(STATE)) + 2, (
+        "the two files must differ by exactly the two appended lines")
+
+
+def test_a_shell_variable_placeholder_is_not_a_machine_path():
+    """``$OR_SRC`` and friends are placeholders in documented commands.
+
+    The records are full of them — ``docs/STATE.md`` writes "every ported
+    formula cites its upstream file under ``$OR_SRC``", ``UPDATES.md`` writes
+    "``$OR_ROOT/bin``" and "``$OR_BUILD/exec/{starter,engine}``", and README
+    shows ``export OR_ROOT=<your OpenRadioss install prefix>``.  A placeholder
+    is not a filesystem location: there is nothing to stat and nothing that can
+    rot, so :data:`MACHINE_PATH` must not produce a claim for it.  It does not,
+    because the variable name sits where a path root would be — but that is a
+    property of the regex's lookbehind and the character after the root, not a
+    documented rule, and an edit that widened the root list would quietly start
+    flagging them.  Hence the pin.
+
+    Note what IS still read: an ``export`` that names a real directory
+    (``OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant``) is a literal
+    value in a command a reader may run, so it stays a claim and must exist.
+    """
+    placeholders = [
+        "every formula cites its upstream file under `$OR_SRC`"
+        " (`starter/source/…`, `engine/source/…`).",
+        "recompiled into `$OR_ROOT/bin` and mirrored at `$OR_BUILD/extlib`.",
+        "byte-identical to the build outputs `$OR_BUILD/exec/{starter,engine}`.",
+        "so on Linux `export OR_ROOT=<your OpenRadioss install prefix>` is all",
+        "`export OR_SRC=${OR_SRC:-/tmp/whatever}` needs, and `%OR_ROOT%\\bin`",
+        "the oracle lives under $HOME/OpenRadioss_or/bin on every box.",
+    ]
+    assert _path_claims(placeholders) == [], (
+        "a shell variable is a placeholder, not a path: "
+        f"{_path_claims(placeholders)}")
+
+    literal = ["export OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant"]
+    assert [p for _, p, _ in _path_claims(literal)] == [
+        "/home/valentin/Projects/OpenRadioss/OpenCourant"], (
+        "but an export that names a real directory is a value a reader may run, "
+        "so it stays a claim (and this one exists here, so it passes)")
+
+
+def test_a_documented_windows_fallback_is_not_a_false_claim():
+    """The Windows box this project still supports must stay documentable.
+
+    Two independent reasons the record passes, and both are asserted here so
+    neither can be taken away silently:
+
+    * ``README.md`` documents ``C:\\OpenRadioss\\exec`` as an intentional
+      fallback — "the Windows compatibility path ... is still tried last" — and
+      :data:`MACHINE_PATH` is ``$HOME``-shaped, so a backslash path is not a
+      claim this gate can measure.  That is a LIMITATION, not a permission:
+      there is no Windows box here to compare against, and declaring those
+      paths false would be the rule inventing a measurement.  Task P1.0 owns
+      the rewrite of the Windows-shaped files.
+    * ``AGENTS.md``'s ``.venv\\Scripts\\python.exe`` is the same shape, and
+      ``AGENTS.md`` is nevertheless IN the scanned scope, so the forward-slash
+      claims it makes (a ``/home/...`` path added tomorrow, a ``gfortran``
+      version) are read.
+
+    Both are checked against the REAL files, not against a paraphrase, so a
+    rewrite of either line is what would have to keep this test true.
+    """
+    readme = _lines(README)
+    fallback = next(i for i, line in enumerate(readme)
+                    if "compatibility path" in line)
+    window = "\n".join(readme[fallback - 1:fallback + 2])
+    assert "C:\\OpenRadioss\\exec" in window, (
+        "README.md's documented Windows fallback moved; this test is pinned to "
+        "the wording that makes it an intentional fallback, not a stale path")
+    assert _path_claims(readme[fallback - 1:fallback + 2]) == [], (
+        "a backslash Windows path is outside what this box can measure — see "
+        "the module docstring; if this ever fires, MACHINE_PATH was widened")
+
+    agents = _lines(AGENTS)
+    assert any("C:\\OpenRadioss" in line for line in agents), (
+        "AGENTS.md is expected to be Windows-shaped (task P1.0 owns the "
+        "rewrite). If it has been rewritten, this test should be replaced by "
+        "one that pins the new machine's real paths.")
+    assert _path_claims(agents) == [], (
+        "AGENTS.md is in the scanned scope, so any $HOME-shaped path in it is "
+        f"a claim: {_path_claims(agents)}")
+
+
+def test_a_version_of_the_other_supported_machine_is_allowed():
+    """§[A] is the maintainer's Windows box, and its pins are legitimate.
+
+    ``AGENTS.md`` states the environment in the imperative — "All dependencies
+    are preinstalled (numpy 2.4.6, scipy 1.18.0, numba 0.66.0, pytest 9.1.1 —
+    exact pins in ``requirements-lock.txt``)" — and those are the WINDOWS box's
+    numbers.  This project still supports that box, so they are true *there*,
+    they are recorded in §[A], and this rule must accept them.  What it must not
+    accept is a version nobody recorded: ``numpy 2.5.2`` was the number purged
+    from ``pyproject.toml`` in P0.15 and it is in no section of the lock.
+
+    Driven over the real ``AGENTS.md`` line and the real lock, so both halves
+    are measured rather than asserted.
+    """
+    pins = _recorded_pins()
+    assert "2.4.6" in pins["numpy"] and "0.66.0" in pins["numba"] \
+        and "1.18.0" in pins["scipy"], (
+        f"the lock no longer records the Windows box's pins: {pins}")
+
+    windows = next(line for line in _lines(AGENTS)
+                   if "numpy 2.4.6" in line)
+    assert _version_claim_offenders(
+        [windows], pins, "AGENTS.md", comment_only=False) == [], (
+        "AGENTS.md's Windows-box versions are recorded in §[A] and must pass: "
+        f"{windows.strip()}")
+
+    for pkg, dead in (("numpy", "2.5.2"), ("numba", "9.9.9"), ("scipy", "1.7.0")):
+        assert not _version_agrees(dead, pins[pkg]), (
+            f"{pkg} {dead} is recorded nowhere in the lock and must not be "
+            "accepted as a version claim")
+
+
+def test_a_uri_link_target_is_not_a_filesystem_claim():
+    """``[x](C:/Users/pmqua/…)`` is an address; the link TEXT is still prose.
+
+    ``docs/BUG_REPORT_2026-09-05.md`` carries 18 such permalinks (on 12 lines)
+    into the pre-migration checkout, and they are the only machine paths in it.
+    Without :func:`_in_uri_target` the widened scan reported all 18 as false
+    claims — the crying-wolf outcome, since ``Path("C:/…").exists()`` is false
+    for a reason that has nothing to do with the record being wrong.
+
+    The residual is stated and pinned rather than hidden: only the span after
+    ``](`` is exempt, so a claim written in the link TEXT — where a writer would
+    actually put one — is still read, and a relative or scheme-less target is
+    not exempt at all.
+    """
+    permalink = ("Location: [starter_keywords.py:14847]"
+                 "(C:/Users/pmqua/PycharmProjects/OpenRadioss_Python/pyradioss/"
+                 "input/starter_keywords.py:14847).")
+    assert _path_claims([permalink]) == [], (
+        "a Windows permalink target is an address in a link namespace, not a "
+        "filesystem location on this box")
+    assert _in_uri_target(permalink, permalink.index("/Users/")), (
+        "and the span is recognised as the one after '](' specifically")
+
+    assert _stale_paths_in([
+        "the reader library is at /home/valentin/anaconda/lib, see "
+        "[the old prefix](C:/Users/pmqua/x/anaconda/lib) for the record"
+    ])[0][1] == "/home/valentin/anaconda/lib", (
+        "the exemption is the TARGET span only: a claim in the link text is "
+        "still a claim")
+
+    assert not _in_uri_target("see [the oracle](/home/valentin/anaconda/lib)"
+                              " for the claim",
+                              "see [the oracle](/home/valentin/anaconda/lib"
+                              .index("/home")), (
+        "a scheme-less target is not exempt — only a URI is an address")
+    assert _in_uri_target("see [the oracle](https://ci/home/valentin/anaconda/lib)",
+                          "see [the oracle](https://ci/home/valentin/anaconda"
+                          ".lib".index("/home")), (
+        "a scheme is what makes it an address rather than a location")
+    assert [claim[1] for claim in _path_claims(
+        ["the mirror is at /home/valentin/anaconda/bin here"])] == [
+            "/home/valentin/anaconda/bin"], (
+        "and a plain absolute path in prose is a claim, whatever follows it")
+
+    bug_report = DOCS / "BUG_REPORT_2026-09-05.md"
+    raw = sum(1 for line in _lines(bug_report)
+              if "](/C:/Users/pmqua" in line or "](C:/Users/pmqua" in line)
+    assert raw, ("the permalinks this test reasons about are gone from "
+                 f"{bug_report.name}; replace this test with one that pins "
+                 "whatever replaced them")
+    assert _existence_offenders([bug_report]) == [], (
+        "a dated report full of pre-migration permalinks is not 18 false "
+        "claims")
 def test_the_harness_imports_and_resolves_oracle_paths():
     """Importing the harness must still work after editing it.
 
