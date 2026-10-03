@@ -38,9 +38,10 @@ cover a smaller corpus than it claims.
 
 Candidates beyond the contract, and their exact position
 -------------------------------------------------------
-Three candidates are not in §4.1.  All three are placed **after rule 3**,
-so no extra can ever shadow a contract candidate (a reviewer's Important-2
-finding — the first version of this module put the brief's
+The ``hm_cfg_dir`` candidates listed here are not in §4.1.  All of them are
+placed **after rule 3**, so no extra can ever shadow a contract candidate (a
+reviewer's Important-2 finding — the first version of this module put the
+brief's
 ``$OR_ROOT/OpenCourant/hm_cfg_files`` *before* the Windows candidate and
 the rule-3 path was therefore unreachable on a box where both existed):
 
@@ -52,12 +53,27 @@ the rule-3 path was therefore unreachable on a box where both existed):
   with *no* exported variable resolves instead of failing.  They are skipped
   entirely when the tree is not there.
 
+``$OR_BUILD`` (the writable mirror) is itself absent from §4.1's table, so its
+whole candidate list is "beyond the contract"; it carries the same dev-box
+default for the same reason.  ``~/OpenRadioss_build`` is a top-level path — the
+pre-migration ``$OR_ROOT/source`` location was removed, so the install
+prefix's ``source/`` is not where the mirror is on this box, and without the
+default the mirror resolved nowhere and every consumer of its ``extlib``
+(``th_to_csv``, the h3d writer, ``libhm_reader``) degraded to a skip.  Because
+it is the one candidate here that the module *guessed* rather than was told, it
+is existence-checked with :func:`is_or_mirror` — the two gates
+``tools/oracle/build_oracle.sh:169,175`` enforces — and a directory that
+merely shares the name is rejected rather than returned.
+
 So the candidate order for ``hm_cfg_dir`` is: ``$PYRADIOSS_HM_CFG``,
 ``$RAD_CFG_PATH`` (upstream's own spelling, ``INSTALL.md:39``),
 ``$OR_ROOT/../OpenCourant/hm_cfg_files``, ``C:\\OpenRadioss\\hm_cfg_files``,
 ``$OR_ROOT/OpenCourant/hm_cfg_files``, ``$OR_SRC/hm_cfg_files``,
-``<repo>/../OpenCourant/hm_cfg_files``.  ``tests/test_p0_paths.py`` pins
-every one of those precedence relations by name.
+``<repo>/../OpenCourant/hm_cfg_files``.  For ``or_build`` it is:
+``$OR_BUILD``, ``$OR_ROOT/source``, ``~/OpenRadioss_build``.
+``tests/test_p0_paths.py`` pins the ``hm_cfg_dir`` precedence relations by
+name and ``tests/test_p0_or_build_layout.py`` pins the mirror's (the count and
+the order, the loud failure that names all three, and the mirror predicate).
 
 Import contract
 ---------------
@@ -99,6 +115,7 @@ __all__ = [
     "reload",
     "is_cfg_schema_dir",
     "is_cfg_tree",
+    "is_or_mirror",
     "CFG_VERSION_DIR_RE",
 ]
 
@@ -176,12 +193,21 @@ class _Candidate:
     candidate came from one, so a *set but missing* variable can be warned
     about instead of skipped in silence.  ``note`` explains an unconstructed
     candidate in the failure message.
+
+    ``predicate`` is for a candidate that must prove what it is before it is
+    accepted — a *discovered* location, never a configured one.  It defaults to
+    ``None`` (the resolver's resource-level ``exists`` check applies), because
+    §4.1 rule 1 is deliberately permissive about a variable the maintainer set
+    by hand: second-guessing a configured path is this resolver's opportunity to
+    be wrong in a way that is much harder to see than refusing a directory it
+    merely guessed at.
     """
 
     origin: str
     path: Optional[Path] = None
     note: str = ""
     env_var: str = ""
+    predicate: Optional[Callable[[Path], bool]] = None
 
 
 @dataclass(frozen=True)
@@ -214,10 +240,49 @@ def _dev_or_root() -> Path:
     return Path(os.path.expanduser("~")) / "OpenRadioss_or"
 
 
+def _dev_or_build() -> Path:
+    """Dev-box writable mirror, measured 2026-10-03 and recorded in
+    ``plan/01_phase0_oracle_and_licensing.md:669,829`` /
+    ``docs/STATE.md:54,835``: ``~/OpenRadioss_build``.
+
+    A top-level path in its own right — a sibling of nothing — because the
+    pre-migration ``$OR_ROOT/source`` location was *removed* rather than moved
+    (the cmake evidence is
+    ``$OR_BUILD/build/starter/CMakeCache.txt:CMAKE_HOME_DIRECTORY``, recorded
+    in ``tools/validation_data/oracle_provenance.json`` under
+    ``mirror_path_note``).  So the install prefix's own ``source/`` is no
+    longer where this tree lives, and the seam exists for the same reason
+    ``_dev_or_root`` does: to be patched out by the resolver tests.
+    """
+    return Path(os.path.expanduser("~")) / "OpenRadioss_build"
+
+
 def _checkout_hm_cfg() -> Path:
     """``<repo>/../OpenCourant/hm_cfg_files`` — the upstream checkout
     sitting beside this repository (the measured dev-box layout)."""
     return _REPO_ROOT.parent / _UPSTREAM_DIRNAME / "hm_cfg_files"
+
+
+def is_or_mirror(path) -> bool:
+    """True when ``path`` really is a writable OpenRadioss **mirror**.
+
+    A mirror is the ``git archive``d tree plus a fetched ``extlib``
+    (``tools/oracle/mirror_and_fetch.sh``), and ``build_oracle.sh`` refuses to
+    go on without both of them: ``:169`` requires ``CMakeLists.txt`` ("no
+    CMakeLists.txt" is not a mirror) and ``:175`` requires
+    ``extlib/hm_reader``.  Those two gates are the predicate, unchanged,
+    because they are what the build itself enforces — a directory that fails
+    them resolves to a mirror that cannot be built, which is a worse outcome
+    than not resolving at all.
+
+    Applied only to **discovered** locations.  ``$OR_BUILD`` set by hand stays
+    a plain "does it exist" check (§4.1 rule 1): a configured path is the
+    maintainer's decision.
+    """
+    p = Path(str(path))
+    if not (p / "CMakeLists.txt").is_file():
+        return False
+    return p.joinpath("extlib", "hm_reader").is_dir()
 
 
 def _norm(path: Path) -> Path:
@@ -230,6 +295,10 @@ def _resolve(name: str, candidates: Sequence[_Candidate],
              exists: Callable[[Path], bool],
              kind: str = "directory") -> Path:
     """Return the first candidate the predicate accepts; else raise loudly.
+
+    A candidate may carry its own ``predicate`` (a *discovered* location that
+    must prove what it is -- see :func:`is_or_mirror`); it replaces the
+    resource-level ``exists`` for that candidate alone.
 
     A variable that *is* set but points at nothing usable is announced with
     :func:`warnings.warn` — otherwise a stale ``PYRADIOSS_RD_DECKS`` lets a
@@ -244,8 +313,14 @@ def _resolve(name: str, candidates: Sequence[_Candidate],
         if cand.path is None:
             tried.append(_Tried(cand, cand.note or "unresolved"))
             continue
-        if not exists(cand.path):
-            reason = f"{_norm(cand.path)}: {kind} does not exist"
+        accepted = cand.predicate or exists
+        if not accepted(cand.path):
+            if cand.predicate is not None:
+                reason = (f"{_norm(cand.path)}: not an OpenRadioss mirror "
+                          f"(needs CMakeLists.txt and extlib/hm_reader; the "
+                          f"two gates build_oracle.sh:169,175 enforces)")
+            else:
+                reason = f"{_norm(cand.path)}: {kind} does not exist"
             if cand.env_var:
                 warnings.warn(
                     f"{cand.env_var} is set to {cand.path} but that {kind} "
@@ -318,14 +393,31 @@ def or_build() -> Path:
     """The writable mirror of the source tree ($OR_BUILD) — the only
     tree the build may write into; see ``tools/oracle/mirror_and_fetch.sh``.
 
+    Candidates, in order:
+
+    1. ``$OR_BUILD`` if set and the path exists (§4.1 rule 1);
+    2. ``$OR_ROOT/source`` — the sibling-of-build spelling rule 2 gives, and
+       still the right answer for a layout that puts the mirror inside the
+       install prefix;
+    3. ``~/OpenRadioss_build`` — the dev-box location measured 2026-10-03 and
+       recorded in ``plan/01_phase0_oracle_and_licensing.md:669,829``.  It is a
+       top-level path in its own right: the pre-migration
+       ``$OR_ROOT/source`` was removed, so on this box candidate 2 cannot fire
+       and the mirror was invisible to every resolver.  It is **verified, not
+       assumed** (:func:`is_or_mirror`), because it is the one candidate here
+       that this module guessed rather than was told.
+
     Deliberately never falls back to ``$OR_SRC``: the build writes into
     this tree (``load_extlib.py`` extracts there, and the starter/engine
     POST_BUILD rules create ``../exec``), and ``$OR_SRC`` is READ-ONLY by
     rule (``plan/00_ORCHESTRATION.md`` §1.2).
     """
+    dev = _dev_or_build()
     return _resolve("OR_BUILD", [
         _env_candidate("OR_BUILD"),
         _under_or_root("$OR_ROOT/source (writable mirror)", "source"),
+        _Candidate("~/OpenRadioss_build (dev-box default)", dev,
+                   predicate=is_or_mirror),
     ], Path.is_dir)
 
 

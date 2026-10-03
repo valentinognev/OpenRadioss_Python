@@ -84,6 +84,14 @@ def _isolated(monkeypatch):
     for var in _SCRUBBED:
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(paths, "_dev_or_root", lambda: Path("/nonexistent/prefix"))
+    # Same for the writable mirror's dev-box seam (``~/OpenRadioss_build``,
+    # added by the P0 mirror-layout fix): without this the two or_build()
+    # failure-path tests below would resolve against the real mirror on this
+    # box and pass or fail depending on where it lives.  The candidate itself
+    # is pinned, with its mirror predicate and its ordering, in
+    # tests/test_p0_or_build_layout.py.
+    monkeypatch.setattr(paths, "_dev_or_build",
+                        lambda: Path("/nonexistent/mirror"))
     paths.reload()
     yield
     paths.reload()

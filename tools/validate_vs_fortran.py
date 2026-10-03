@@ -419,9 +419,21 @@ def fortran_env(oracle: Optional[Dict[str, Optional[str]]] = None,
       (``tests/test_p0_oracle_build.py::test_oracle_*``); ``paths.hm_cfg_dir``
       is the fallback, so a box without the mirror still resolves.
     * ``LD_LIBRARY_PATH`` (POSIX) or ``PATH`` (Windows) — the native ``.k``
-      reader and its APR dependency.  Not cosmetic: without it the binaries
-      die on the first message call with an unresolved ``libhm_reader``
-      (``tools/oracle/oracle_env.sh``).
+      reader and its APR dependency.  Not cosmetic, and the failure it
+      prevents is **load-time**: ``starter_linux64_gf`` carries ``NEEDED
+      libhm_reader_linux64.so`` and neither binary carries an ``DT_RPATH`` or
+      ``DT_RUNPATH``, so with the variable unset the dynamic loader refuses
+      the starter before any of its own code runs — exit 127 and
+      ``error while loading shared libraries: libhm_reader_linux64.so: cannot
+      open shared object file: No such file or directory``.  No message call
+      is ever reached, so a 127 here is a loader problem and never an h3d or
+      message-subsystem one.  ``engine_linux64_gf`` needs no reader library at
+      all, so its ``-v`` banner prints with the variable unset — the whole of
+      why the two binaries look inconsistent here; and ``libapr-1.so.0`` is a
+      ``NEEDED`` entry *of the reader*, shipped in the very directory this
+      export names, so it can never be the object the loader complains about.
+      Upstream states the export at ``$OR_SRC/INSTALL.md:34-42``;
+      ``tools/oracle/oracle_env.sh`` is the same fact, measured.
     * ``OMP_STACKSIZE`` / ``OMP_NUM_THREADS`` — upstream's 400 m headroom
       (``INSTALL.md:41``) and the single-thread cap that keeps a validation
       run's wall clock meaningful.
