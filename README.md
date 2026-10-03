@@ -163,11 +163,17 @@ python -m pyradioss.gui             # without installing
     time-history `<Run>T01` (pyradioss runs already emit the T01 as CSV
     natively, so this is greyed for a port-native run).
 
-  The Fortran converter directory defaults to `C:\OpenRadioss\exec` and is
-  overridable in the tab (persisted to the config). The **After run:** toggles
-  in the Job panel (`d3plot` / `VTK` / `TH→CSV`) run the selected conversions
-  automatically after a clean, NORMAL Engine run. The d3plot bridge is an
-  optional extra (it is not part of the base install):
+  The Fortran converter directory is **resolved, never hardcoded**: the tab asks
+  `pyradioss/paths.py` — the single external-path resolver — for your
+  OpenRadioss install prefix and looks for the exes in its `bin/` and `exec/`
+  subdirectories, so on Linux `export OR_ROOT=<your OpenRadioss install prefix>`
+  is all that is needed; the Windows compatibility path `C:\OpenRadioss\exec`
+  (the pre-cmake Windows install) is still tried last. With nothing configured
+  and nothing found, the tab names every location it tried and what to export.
+  The entry stays editable in the tab (persisted to the config). The **After
+  run:** toggles in the Job panel (`d3plot` / `VTK` / `TH→CSV`) run the selected
+  conversions automatically after a clean, NORMAL Engine run. The d3plot bridge
+  is an optional extra (it is not part of the base install):
 
   ```bash
   pip install "pyradioss[postproc]"   # lasso-python + Vortex-Radioss @ v1.021

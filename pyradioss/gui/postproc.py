@@ -38,8 +38,16 @@ The three converters
    (pyradioss runs already emit the T01 as CSV natively, so this is only for
    a *Fortran* binary time-history file.)
 
-The binary-converter exe paths default to ``C:\\OpenRadioss\\exec`` and are
-overridable through the GUI JSON config (``exec_dir``).
+Where the binary converters live
+-------------------------------
+The two Fortran converter exes are located through
+:mod:`pyradioss.paths` — the project's single resource resolver — and never
+through a path hardcoded here: the GUI JSON config (``exec_dir``) wins, else
+the install prefix the resolver accepts is searched for a ``bin/`` or ``exec/``
+subdirectory that actually carries a converter, else the Windows compatibility
+path ``C:\\OpenRadioss\\exec``.  When nothing carries one, the converters say
+where they looked and what to export (see :func:`exec_dir_error`) instead of
+reporting a directory that does not exist.
 
 Streaming
 ---------
@@ -67,6 +75,8 @@ import threading
 import time
 from typing import Callable, Dict, List, Optional, Tuple
 
+from .. import paths
+
 # ---------------------------------------------------------------------------
 # Constants (pin + tool locations)
 # ---------------------------------------------------------------------------
@@ -80,10 +90,43 @@ VORTEX_INSTALL_HINT = (
     'pip install "git+https://github.com/Vortex-CAE/Vortex-Radioss.git@'
     + VORTEX_PIN + '"  (also needs: pip install lasso-python)')
 
-#: default install location of the OpenRadioss Fortran converter exes.
-DEFAULT_EXEC_DIR = r"C:\OpenRadioss\exec"
+#: the documented Windows install location of the OpenRadioss Fortran
+#: converter exes.
+#: Rule 3 of :mod:`pyradioss.paths`' order — the Windows compatibility path,
+#: and the documented fallback when no configured prefix carries a converter.
+#: It is a *fallback*, not the answer: :func:`resolve_exec_dir` searches the
+#: install prefix first, so a user on Linux is never handed a ``C:\`` path when
+#: ``$OR_ROOT`` resolves.  See :func:`default_exec_dir`.
+_WIN_COMPAT_EXEC_DIR = r"C:\OpenRadioss\exec"
 ANIM_TO_VTK_EXE = "anim_to_vtk_win64.exe"
 TH_TO_CSV_EXE = "th_to_csv_win64.exe"
+
+#: subdirectories of an OpenRadioss install prefix that carry executables, in
+#: the order the rest of the repository searches them: ``bin`` first (where
+#: ``tools/oracle/oracle_env.sh`` puts the built ``starter_linux64_gf`` /
+#: ``engine_linux64_gf``, and what ``paths.or_starter`` tries first), then
+#: ``exec`` — upstream's pre-cmake install layout, which
+#: ``$OR_SRC/RELEASES.md:29,52`` names ``exec/th_to_csv_linux64_gf`` for and
+#: ``paths.or_starter`` falls back to as ``exec/starter_win64.exe``.
+#: ``tools/validate_vs_fortran.py``'s ``th_to_csv`` candidates use these two
+#: subdirectories too.
+#: A directory counts only if it really carries a converter exe (see
+#: :func:`_carries_converter`).
+_EXEC_SUBDIRS = ("bin", "exec")
+
+#: the converters this module actually runs, as basenames.  A directory counts
+#: as an exec dir only if it holds one of *these* files, because accepting a
+#: differently-spelled binary would select a directory this module then cannot
+#: run anything from — the same silent degradation as selecting the wrong
+#: directory.  For the record, the per-platform Linux spellings upstream also
+#: ships (``th_to_csv_linux64_gf``, ``$OR_SRC/RELEASES.md:29,52``) are named in
+#: ``tools/validate_vs_fortran.py``'s ``_TH_TO_CSV_NAMES``; running those is a
+#: different decision from finding the directory, and is not made here.
+_CONVERTER_EXES = (ANIM_TO_VTK_EXE, TH_TO_CSV_EXE)
+
+#: how this resource is named in :func:`paths.missing_resource` messages.
+_EXEC_DIR_RESOURCE = ("the OpenRadioss converter exec dir "
+                      "(anim_to_vtk / th_to_csv)")
 
 #: subprocess driver that runs the Vortex conversion (mirrors oropt's bridge).
 _VORTEX_DRIVER = (
@@ -214,10 +257,147 @@ def detect_artifacts(run_dir: str) -> Dict[str, object]:
 # Tool-path resolution + command construction (pure, testable)
 # ---------------------------------------------------------------------------
 
+def _carries_converter(directory: str) -> bool:
+    """True when ``directory`` really holds one of the converter exes.
+
+    The existence predicate every candidate must pass — ``pyradioss.paths``
+    holds its own candidates to a resource-specific check for the same reason:
+    a wrong-but-existing directory is worse than a missing one, because it
+    turns "nothing is configured" into a confident run of the wrong binary.
+    Here that would be ``$OR_ROOT/bin`` holding the starter and the engine and
+    no converter at all."""
+    if not os.path.isdir(directory):
+        return False
+    try:
+        entries = os.listdir(directory)
+    except OSError:
+        return False
+    return any(name in _CONVERTER_EXES for name in entries)
+
+
+def _or_root_soft() -> Tuple[Optional[str], str]:
+    """``(prefix, report)`` from :func:`paths.or_root`; never raises, because
+    these candidates must be buildable in order to *report* a failure."""
+    try:
+        return str(paths.or_root()), ""
+    except FileNotFoundError as exc:
+        return None, str(exc)
+
+
+def exec_dir_candidates() -> List[Tuple[str, str]]:
+    """``(origin, path)`` for every location searched, in the order
+    :mod:`pyradioss.paths` and ``tools/validate_vs_fortran.py`` already use:
+    the environment variable first, then the install prefix the resolver
+    accepts (sibling-of-build / dev-box / Windows compatibility) in its
+    ``bin`` / ``exec`` subdirectories, and the Windows compatibility ``exec/``
+    last because it is rule 3 and may never shadow a configured prefix.
+
+    A pair whose origin *is* its path is a candidate that could not even be
+    built — the variable is unset, or ``$OR_ROOT`` is unresolved — which is how
+    :func:`paths.missing_resource` renders "this one was never on the table".
+
+    Nothing here is a new mechanism: the prefix is :func:`paths.or_root`, and
+    every entry is existence-checked before it is used."""
+    tried: List[Tuple[str, str]] = []
+    env_root = os.environ.get("OR_ROOT")
+    if env_root:
+        tried.extend((f"env OR_ROOT/{sub}", os.path.join(env_root, sub))
+                     for sub in _EXEC_SUBDIRS)
+    else:
+        label = "env OR_ROOT (not set)"
+        tried.append((label, label))
+    root, report = _or_root_soft()
+    if root is not None:
+        tried.extend((f"$OR_ROOT/{sub}", os.path.join(root, sub))
+                     for sub in _EXEC_SUBDIRS)
+    else:
+        head = str(report).splitlines()[0] if report else "no candidate"
+        label = f"$OR_ROOT/{{{','.join(_EXEC_SUBDIRS)}}} — OR_ROOT unresolved"
+        tried.append((f"{label} ({head})", f"{label} ({head})"))
+    tried.append(("Windows compatibility path (pyradioss.paths rule 3)",
+                  _WIN_COMPAT_EXEC_DIR))
+    return tried
+
+
+def resolve_exec_dir(explicit: Optional[str] = None) -> Optional[str]:
+    """The converter directory to use, or ``None`` when none was found.
+
+    ``explicit`` (the GUI's ``exec_dir`` entry, or a caller's argument) is
+    returned verbatim and unvalidated — the override has always been
+    authoritative, and the converters report a missing exe for it.  Otherwise
+    the candidates of :func:`exec_dir_candidates` are tried in order and the
+    first one that carries a converter wins; ``None`` means the caller should
+    report :func:`exec_dir_error` rather than silently run a path that is not
+    there.
+
+    Never raises: the GUI entry has to render even with nothing configured, and
+    :mod:`pyradioss.paths` fails loudly by *listing* what it tried."""
+    if explicit:
+        return explicit
+    for origin, path in exec_dir_candidates():
+        if origin == path:
+            continue                     # a candidate that was never buildable
+        if _carries_converter(path):
+            return path
+    return None
+
+
+def default_exec_dir(explicit: Optional[str] = None) -> str:
+    """:func:`resolve_exec_dir`, falling back to the documented Windows
+    compatibility path — the last-resort string a command is built from when
+    no converter was found.  The exe is never executed without an existence
+    check, so the fallback can only ever appear in a diagnostic."""
+    return resolve_exec_dir(explicit) or _WIN_COMPAT_EXEC_DIR
+
+
+def exec_dir_error(explicit: Optional[str] = None) -> FileNotFoundError:
+    """Build and **return** the diagnostic for an unresolvable converter
+    directory: every location :func:`exec_dir_candidates` searched, rendered by
+    :func:`paths.missing_resource` exactly as the rest of the repository
+    renders a failed resolution, plus the file names looked for and the two
+    things a user can set.
+
+    Returned, not raised — the converters never raise (they stream a
+    ``post_done`` event instead), so they put ``str(...)`` in the message they
+    emit."""
+    if explicit:
+        return FileNotFoundError(
+            f"converter not found under {explicit}: neither "
+            + " nor ".join(_CONVERTER_EXES) + " is in that directory.")
+    lines = [str(paths.missing_resource(_EXEC_DIR_RESOURCE,
+                                        exec_dir_candidates()))]
+    lines.append("Each candidate is accepted only if it holds one of "
+                 + " / ".join(_CONVERTER_EXES) + " (the exes this module "
+                 "runs; see ANIM_TO_VTK_EXE / TH_TO_CSV_EXE).")
+    lines.append("Set one of:")
+    lines.append("  export OR_ROOT=<the OpenRadioss install prefix> — the "
+                 "converters are in its bin/ or exec/ subdirectory;")
+    lines.append("  or the exec dir in the GUI config (Post-processing tab).")
+    return FileNotFoundError("\n".join(lines))
+
+
 def exec_path(exec_dir: Optional[str], exe: str) -> str:
     """Full path to a converter exe under ``exec_dir`` (default
-    :data:`DEFAULT_EXEC_DIR`)."""
-    return os.path.join(exec_dir or DEFAULT_EXEC_DIR, exe)
+    :func:`default_exec_dir`: the resolved directory, else the documented
+    Windows compatibility path)."""
+    return os.path.join(default_exec_dir(exec_dir), exe)
+
+
+def __getattr__(name: str):
+    """``postproc.DEFAULT_EXEC_DIR`` — kept as this module's public default,
+    now *resolved* on every access (PEP 562).
+
+    The GUI pre-fills its exec-dir entry from this attribute
+    (``gui/app.py:121-123``), so it must not be a Windows path on a box where
+    ``$OR_ROOT`` resolves.  Resolution is deliberately lazy rather than done
+    once at import: :mod:`pyradioss.paths` resolves nothing on import (its
+    stated import contract), an import-time answer would be frozen before a
+    caller could export a variable or call :func:`paths.reload`, and reading
+    the attribute is cheap enough for a GUI entry.  Every *other* missing
+    attribute still raises ``AttributeError``, as it must."""
+    if name == "DEFAULT_EXEC_DIR":
+        return default_exec_dir()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def vortex_available() -> bool:
@@ -282,6 +462,20 @@ def _line(emit: EmitFn, text: str) -> None:
     emit(("line", "postproc", text))
 
 
+def _search_report(explicit: Optional[str]) -> str:
+    """The resolution diagnostic to append to a "converter not found"
+    message.
+
+    Only when the caller configured *nothing*: with an explicit ``exec_dir``
+    the message already names the directory that was asked for, and repeating
+    the machine-wide search would only bury it.  This is what turns "no such
+    file on this machine" into "here is the search, and here is what to
+    export"."""
+    if explicit:
+        return ""
+    return " " + str(exec_dir_error())
+
+
 def convert_to_d3plot(run_dir: str, emit: Optional[EmitFn] = None,
                       python_exe: Optional[str] = None,
                       timeout: float = 1800.0) -> Dict[str, object]:
@@ -331,7 +525,7 @@ def convert_anim_to_vtk(run_dir: str, exec_dir: Optional[str] = None,
     if not os.path.exists(exe):
         return _finish(emit, "vtk", False, [],
                        f"converter not found: {exe} — set the exec dir in "
-                       f"the config")
+                       f"the config" + _search_report(exec_dir))
     outputs: List[str] = []
     _line(emit, f" anim -> VTK ({len(cmds)} file(s), {exe})")
     for cmd, out_path in cmds:
@@ -388,7 +582,7 @@ def convert_th_to_csv(run_dir: str, exec_dir: Optional[str] = None,
     if not os.path.exists(cmd[0]):
         return _finish(emit, "th_csv", False, [],
                        f"converter not found: {cmd[0]} — set the exec dir in "
-                       f"the config")
+                       f"the config" + _search_report(exec_dir))
     _line(emit, f" TH -> CSV ({cmd[0]})")
     rc = _stream_subprocess(cmd, run_dir, emit, timeout)
     ok = rc == 0 and os.path.exists(out_path)
@@ -420,7 +614,7 @@ class PostProcRunner:
         import queue as _queue
         self.run_dir = run_dir
         self.actions = [a for a in actions if a in self.ALL_ACTIONS]
-        self.exec_dir = exec_dir or DEFAULT_EXEC_DIR
+        self.exec_dir = default_exec_dir(exec_dir)
         self.python_exe = python_exe or sys.executable
         self.queue = event_queue or _queue.Queue()
         self.results: Dict[str, Dict[str, object]] = {}
