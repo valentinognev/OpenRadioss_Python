@@ -99,15 +99,19 @@ The runtime environment the harness builds is upstream's own
 deliberate omission and one deliberate deletion, both recorded in
 ``tools/validation_data/oracle_provenance.json``:
 
-* ``RAD_H3D_PATH`` is **deleted** from the environment, not set.  The h3d
-  writer reachable on the oracle box is one parameter short of what the
-  pinned source calls, so a run with it set reaches NORMAL TERMINATION and
-  writes silently wrong H3D files; without it
-  ``common_source/output/h3d/h3d_build_cpp/h3d_dl.c:920-921`` fails the
-  dlopen and ``engine/source/output/h3d/h3d_results/genh3d.F:729-731`` aborts
-  with MSGID 274.  H3D is refused loudly; T01, A-files, RESTART and the
-  listing are unaffected, and only those are admissible parity evidence
-  (``oracle_provenance.json`` ``admissible_parity_evidence``).
+* ``RAD_H3D_PATH`` is **deleted** from the environment, not set — and so
+  are the other three ways ``h3dlib_load_`` looks for the writer
+  (``$OR_SRC/common_source/output/h3d/h3d_build_cpp/h3d_dl.c:616-923``:
+  ``:623-632`` the variable, ``:634-644`` ``getcwd()``, ``:647-658``
+  ``$ALTAIR_HOME/hwsolvers/common/bin/$ARCH``, ``:660-666`` the loader's
+  search path).  With the reachable writer reachable by any of them, a run
+  reaches NORMAL TERMINATION and writes silently wrong H3D files; with all
+  four closed ``h3d_dl.c:920-922`` sets ``*IERROR = 1`` and
+  ``engine/source/output/h3d/h3d_results/genh3d.F:728-732`` aborts with
+  MSGID 274.  H3D is refused loudly; T01, A-files, RESTART and the listing
+  are unaffected, and only those are admissible parity evidence
+  (``oracle_provenance.json`` ``admissible_parity_evidence``).  See
+  :func:`fortran_env` and :func:`run_fortran`, which close them.
 * the Intel-MPI / oneAPI entries of the historical Windows launch are gone:
   the Linux oracle is the OpenMP build, and an inherited ``KMP_*`` from the
   caller's shell still reaches the solver because the environment is copied.
@@ -139,12 +143,26 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO)
 
 from pyradioss import paths  # noqa: E402
-from pyradioss.input.deck_reader import read_deck  # noqa: E402
 
-DEFAULT_WORKDIR = os.environ.get(
-    "VALRUNS_DIR",
-    os.path.join(os.environ.get("TEMP") or os.environ.get("TMPDIR")
-                 or tempfile.gettempdir(), "valruns"))
+#: Where a run's scratch directories go.  A **function**, not a constant:
+#: ``tempfile.gettempdir()`` creates and deletes a probe file when the
+#: platform's temp location is not already known, and doing that at import
+#: time would make "importing this harness touches no filesystem" a claim
+#: with an exception in it (the guard is
+#: tests/test_p0_harness_portable.py::test_harness_import_touches_no_filesystem).
+def default_workdir() -> str:
+    """``$VALRUNS_DIR``, else ``<platform temp>/valruns``.
+
+    ``TEMP`` is the Windows spelling and ``TMPDIR`` the POSIX one; a POSIX
+    box with neither falls back to :func:`tempfile.gettempdir`, which is why
+    this cannot be a module constant.  Resolved per call so the value always
+    reflects the environment at run time.
+    """
+    override = os.environ.get("VALRUNS_DIR")
+    if override:
+        return override
+    base = os.environ.get("TEMP") or os.environ.get("TMPDIR")
+    return os.path.join(base or tempfile.gettempdir(), "valruns")
 
 
 # ----------------------------------------------------------------------------
@@ -184,6 +202,11 @@ ORACLE_KEYS = ("starter", "engine", "th_to_csv", "h3d_lib", "hm_reader_lib")
 
 #: ``th_to_csv`` file names, per platform (RELEASES.md:29,52,72,106).
 _TH_TO_CSV_NAMES = ("th_to_csv_linux64_gf", "th_to_csv_win64.exe")
+
+#: The h3d writer's file names — ``h3d_dl.c:63`` (POSIX) / ``:58`` (Windows)
+#: initialise ``h3dlib`` to exactly these, and ``h3dlib_load_``
+#: (``h3d_dl.c:616-923``) dlopens them from four different places.
+_H3D_WRITER_NAMES = ("libh3dwriter.so", "h3dwriter.dll")
 
 #: The h3d writer and the native-.k reader, per platform, exactly as
 #: ``$OR_SRC/INSTALL.md:40,42`` spells them under ``$OPENRADIOSS_PATH``.
@@ -291,8 +314,14 @@ def oracle_paths(strict: bool = False) -> Dict[str, Optional[str]]:
     construction — see the block above — so their absence is a fact to
     report, not a reason to refuse to run.
 
-    Not memoised: the answer depends on the environment, and a validation run
-    must never act on a resolution an earlier run left behind.
+    **Caching is ``paths``' business, not this function's.**  Nothing is
+    memoised here, but :func:`pyradioss.paths.or_starter` and friends *are*:
+    their answers live in ``paths._CACHE`` until :func:`pyradioss.paths.reload`
+    clears it.  So moving ``OR_ROOT`` mid-process still hands back the old
+    starter from here — the answer is per *call* but the resolver underneath
+    is not per *call* — and a test that changes the environment must call
+    ``paths.reload()`` first.  That asymmetry is stated rather than papered
+    over with a second cache that could disagree with the first.
     """
     resolved: Dict[str, Optional[str]] = {}
     missing: Dict[str, str] = {}
@@ -371,8 +400,8 @@ def fortran_env(oracle: Optional[Dict[str, Optional[str]]] = None,
 
     ``base`` (default: this process's environment) is copied first, so a
     caller-supplied ``LD_LIBRARY_PATH``, ``KMP_*`` or locale survives — this
-    function only *adds* what upstream requires and *removes* the one
-    variable that must not be inherited.
+    function only *adds* what upstream requires and *removes* what must never
+    be inherited.
 
     * ``OPENRADIOSS_PATH`` — upstream's name for the prefix; the solvers and
       the cfg lookup key off it (``INSTALL.md:38``).
@@ -389,15 +418,51 @@ def fortran_env(oracle: Optional[Dict[str, Optional[str]]] = None,
       (``INSTALL.md:41``) and the single-thread cap that keeps a validation
       run's wall clock meaningful.
 
-    ``RAD_H3D_PATH`` is **removed**: see the module docstring and
-    ``oracle_provenance.json`` ``extlib.version_gaps.enforcement`` — with the
-    reachable writer set, a run writes silently wrong H3D files instead of
-    refusing.  ``h3d_lib`` is therefore resolved but never exported.
+    **The h3d writer is unreachable — all four of upstream's routes, not one.**
+    ``$OR_SRC/common_source/output/h3d/h3d_build_cpp/h3d_dl.c:616-923`` is
+    ``h3dlib_load_`` and it tries four places, in order:
+
+    ============  ====================================================
+    ``:623-632``  ``$RAD_H3D_PATH/<h3dlib>``
+    ``:634-644``  ``<getcwd()>/<h3dlib>`` — the working directory
+    ``:647-658``  ``$ALTAIR_HOME/hwsolvers/common/bin/$ARCH/<h3dlib>``
+    ``:660-666``  a bare ``dlopen(<h3dlib>)``, i.e. the loader's default
+                  search path, which ``LD_LIBRARY_PATH`` feeds
+    ============  ====================================================
+
+    (``h3dlib`` is ``libh3dwriter.so`` on POSIX, ``h3dwriter.dll`` on
+    Windows — ``h3d_dl.c:63`` / ``:58``.)  Deleting only ``RAD_H3D_PATH``
+    therefore leaves three live routes: an inherited ``ALTAIR_HOME``/``ARCH``
+    pair, and any ``LD_LIBRARY_PATH`` entry whose directory carries the
+    writer.  All of them defeat the refusal, and a run that loads the writer
+    reaches NORMAL TERMINATION and writes silently **wrong** H3D files
+    (``oracle_provenance.json`` ``extlib.version_gaps.enforcement``).  So this
+    function drops the two variables, drops every poisoned search-path entry
+    (loudly, naming each one), and refuses to prepend a reader directory that
+    holds the writer.  With all four routes closed ``h3dhandle`` stays NULL,
+    ``*IERROR = 1`` (``:920-922``), and
+    ``$OR_SRC/engine/source/output/h3d/h3d_results/genh3d.F:728-732`` turns
+    that into MSGID 274 + ``ARRET(2)`` — h3d refused loudly, while T01,
+    A-files, RESTART and the listing stay admissible
+    (``oracle_provenance.json`` ``admissible_parity_evidence``).
+
+    One route is outside an environment's control and is stated rather than
+    pretended away: a ``libh3dwriter.so`` installed **system-wide** (ld.so
+    cache / default directories) is found by ``:660-666`` no matter what this
+    function does.  The working-directory route is the harness's own choice,
+    so :func:`run_fortran` refuses a scratch directory containing the writer.
     """
     if oracle is None:
         oracle = oracle_paths()
     env = dict(os.environ if base is None else base)
-    env.pop("RAD_H3D_PATH", None)          # see above; never inherited
+    # h3d_dl.c:623-632 (trial 1), :647-658 (trial 3) — see the docstring.
+    env.pop("RAD_H3D_PATH", None)
+    env.pop("ALTAIR_HOME", None)
+    env.pop("ARCH", None)
+    # h3d_dl.c:660-666 (trial 4) — drop the search-path entries that hold the
+    # writer, saying which, instead of quietly running with a live route.
+    for var in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):
+        _scrub_h3d_search_path(env, var)
     build = None
     try:
         build = paths.or_build()
@@ -419,13 +484,61 @@ def fortran_env(oracle: Optional[Dict[str, Optional[str]]] = None,
     reader = oracle.get("hm_reader_lib")
     if reader:
         reader_dir = str(Path(reader).parent)
-        if os.name == "nt":
+        if _dirs_holding_h3d_writer([reader_dir]):
+            warnings.warn(
+                f"{reader_dir} holds the ABI-incompatible h3d writer, so it is "
+                f"NOT added to the loader path (h3d_dl.c:660-666 would dlopen "
+                f"it from there); the oracle run will fail loudly instead of "
+                f"writing wrong H3D files",
+                RuntimeWarning, stacklevel=2)
+        elif os.name == "nt":
             env["PATH"] = os.pathsep.join(
                 [reader_dir, env.get("PATH", "")]).strip(os.pathsep)
         else:
             env["LD_LIBRARY_PATH"] = os.pathsep.join(
                 [reader_dir, env.get("LD_LIBRARY_PATH", "")]).strip(os.pathsep)
     return env
+
+
+def _dirs_holding_h3d_writer(entries) -> List[str]:
+    """Which of ``entries`` contain an h3d writer ``h3dlib`` file.
+
+    ``h3d_dl.c:58,63`` spell the two names; a directory is only listed when a
+    read actually finds one, so an unreadable entry is not accused.
+    """
+    found = []
+    for entry in entries:
+        directory = entry or os.curdir
+        try:
+            names = os.listdir(directory)
+        except OSError:
+            continue
+        if any(name in names for name in _H3D_WRITER_NAMES):
+            found.append(directory)
+    return found
+
+
+def _scrub_h3d_search_path(env: Dict[str, str], var: str) -> None:
+    """Drop every ``var`` entry that holds the h3d writer; warn about each.
+
+    The warning is not decoration: a caller who put that directory on the
+    loader path expects it to be there, and silently dropping it would trade
+    a visible hazard for an invisible change.
+    """
+    value = env.get(var)
+    if not value:
+        return
+    entries = value.split(os.pathsep)
+    poisoned = _dirs_holding_h3d_writer(entries)
+    if not poisoned:
+        return
+    kept = [e for e in entries if e not in poisoned]
+    env[var] = os.pathsep.join(kept)
+    warnings.warn(
+        f"{var} entries dropped because they hold the ABI-incompatible h3d "
+        f"writer and h3d_dl.c:660-666 would dlopen it from there: "
+        f"{', '.join(poisoned)}",
+        RuntimeWarning, stacklevel=2)
 
 
 # ----------------------------------------------------------------------------
@@ -1066,6 +1179,15 @@ def run_fortran(name: str, runname: str, deck0: str, deck1: str,
     The two solvers are invoked through :func:`starter_argv` /
     :func:`engine_argv`, which is where the ``-np`` asymmetry lives
     (``$OR_SRC/INSTALL.md:110-111``).
+
+    The scratch directory is also the solvers' working directory, which is
+    upstream's **second** h3d dlopen trial (``h3d_dl.c:634-644``,
+    ``getcwd()`` + ``/`` + ``h3dlib``).  So a deck directory that carries a
+    writer would be copied into it, and the run would then load the
+    ABI-incompatible writer and write silently wrong H3D files.  That is
+    refused here — before anything is launched — as an
+    ``h3d-writer-in-workdir`` status; :func:`fortran_env` closes the other
+    three routes.
     """
     if oracle is None:
         oracle = oracle_paths()
@@ -1080,6 +1202,16 @@ def run_fortran(name: str, runname: str, deck0: str, deck1: str,
     shutil.rmtree(rd, ignore_errors=True)
     os.makedirs(rd)
     shutil.copytree(os.path.dirname(deck0), rd, dirs_exist_ok=True)
+    poisoned = _dirs_holding_h3d_writer([rd])
+    if poisoned:
+        return {"mode": shim, "dir": rd, "status": "h3d-writer-in-workdir",
+                "error": f"{rd} holds an h3d writer "
+                         f"({', '.join(_H3D_WRITER_NAMES)}), and it is the "
+                         f"solvers' working directory — h3d_dl.c:634-644 "
+                         f"dlopens the writer from getcwd(), so this run is "
+                         f"refused rather than allowed to write silently "
+                         f"wrong H3D files. Move the deck out of that "
+                         f"directory and re-run."}
     d0 = os.path.join(rd, os.path.basename(deck0))
     d1 = os.path.join(rd, os.path.basename(deck1))
     info: Dict = {"mode": shim, "dir": rd}
@@ -1207,6 +1339,18 @@ def run_pyradioss(name: str, runname: str, deck0: str, deck1: str,
 # parity mode
 # ----------------------------------------------------------------------------
 
+#: Fortran-side statuses that end in ``FORTRAN-FAIL``, mapped to the subtag
+#: the class carries.  ``None`` means the BARE class, and only the two
+#: pre-existing statuses may say ``None``: ``tools/validation_data/parity_m41.json``
+#: rows read ``FORTRAN-FAIL`` and must keep matching a future sweep.
+FORTRAN_FAIL_SUBTAGS = {
+    "engine-fail": None,
+    "th2csv-fail": None,
+    "th2csv-missing": "th2csv-missing",
+    "oracle-unavailable": "oracle-unavailable",
+    "h3d-writer-in-workdir": "h3d-writer-in-workdir",
+}
+
 def find_examples(only: Optional[List[str]]) -> List[Tuple[str, str, str, str]]:
     """[(name, runname, deck0, deck1)] sorted explicit-first."""
     exdir = os.path.join(REPO, "examples")
@@ -1277,13 +1421,19 @@ def parity(args) -> int:
             elif f["status"] == "starter-reject":
                 row["class"] = ("PORT-ONLY(dialect)" if args.shim != "translate"
                                 else "PORT-ONLY(starter-reject)")
-            elif f["status"] in ("engine-fail", "th2csv-fail",
-                                 "th2csv-missing", "oracle-unavailable"):
-                # Same class as before for the first two; the last two are
-                # statuses this harness could not produce while the converter
-                # (or a solver) was absent, and they mean the same thing for
-                # the table: the Fortran side produced no comparable CSV.
-                row["class"] = "FORTRAN-FAIL"
+            elif f["status"] in FORTRAN_FAIL_SUBTAGS:
+                # ``engine-fail`` and ``th2csv-fail`` keep the BARE class they
+                # have always had: tools/validation_data/parity_m41.json is
+                # keyed on those strings and must stay comparable.  The
+                # statuses this harness could not produce before (the
+                # converter absent, a solver unresolvable, an h3d writer in
+                # the working directory) get an ADDITIVE subtag, exactly like
+                # the existing ``PORT-ONLY(implicit)`` convention, so a reader
+                # of the console table is not left to guess whether a solver
+                # failed or the converter was never installed.
+                subtag = FORTRAN_FAIL_SUBTAGS[f["status"]]
+                row["class"] = f"FORTRAN-FAIL({subtag})" if subtag \
+                    else "FORTRAN-FAIL"
         row["fortran"] = {k: v for k, v in f.items() if k != "dir"}
 
         # ---- pyradioss side ----------------------------------------------
@@ -1368,6 +1518,10 @@ def parity(args) -> int:
 def coverage(args) -> int:
     workdir = args.workdir
     os.makedirs(workdir, exist_ok=True)
+    # Both imports are local: coverage mode is the only consumer of either,
+    # and a module-scope import of the reader is module-scope work a parity
+    # run never needs.
+    from pyradioss.input.deck_reader import read_deck
     from pyradioss.input.starter_keywords import KEYWORD_PARSERS
     rc_all = 0
     for deck in args.decks:
@@ -1453,12 +1607,12 @@ def main(argv=None) -> int:
     pp.add_argument("--shim", choices=["none", "begin", "translate"],
                     default="translate",
                     help="Fortran-side deck handling (see module docstring)")
-    pp.add_argument("--workdir", default=DEFAULT_WORKDIR)
+    pp.add_argument("--workdir", default=default_workdir())
 
     cp = sub.add_parser("coverage", help="pyradioss starter keyword census")
     cp.add_argument("decks", nargs="+", help=".rad starter decks")
     cp.add_argument("--timeout", type=float, default=900)
-    cp.add_argument("--workdir", default=DEFAULT_WORKDIR)
+    cp.add_argument("--workdir", default=default_workdir())
 
     args = ap.parse_args(argv)
     if args.mode == "coverage":

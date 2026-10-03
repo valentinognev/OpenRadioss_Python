@@ -1,5 +1,42 @@
 # Updates
 
+## 1.2.1 - P0.9: the validation harness runs on any box, and cannot be fooled into writing wrong H3D
+
+- **Fixed** `tools/validate_vs_fortran.py` no longer names one machine:
+  `OR_ROOT` / `ONEAPI` / the three executable paths are gone, replaced by
+  `oracle_paths() -> {starter, engine, th_to_csv, h3d_lib, hm_reader_lib}`,
+  resolved **per call** through `pyradioss.paths` — so importing the module
+  touches no filesystem and works with nothing configured. An unresolved
+  resource is reported as `None` + a warning listing every candidate
+  (`paths.missing_resource`), and `parity` exits 2 with the full diagnostic
+  rather than writing a results file with nothing compared in it.
+- **Fixed** all **four** of upstream's h3d dlopen routes are now closed, not
+  one: `h3dlib_load_` (`h3d_dl.c:616-923`) tries `$RAD_H3D_PATH` (`:623-632`),
+  the working directory (`:634-644`), `$ALTAIR_HOME/hwsolvers/common/bin/$ARCH`
+  (`:647-658`) and a bare `dlopen` fed by the loader path (`:660-666`). The
+  harness drops the three variables, drops (and loudly names) any
+  `LD_LIBRARY_PATH` entry holding the writer, refuses to prepend a reader
+  directory that holds it, and refuses a scratch directory that holds it.
+  With all four closed the writer stays unreachable and `genh3d.F:728-732`
+  turns `*IERROR = 1` (`:920-922`) into the loud MSGID 274 refusal.
+- **Fixed** `tools/benchmark_rad_db.py` and `tools/compare_t01_tab1.py` no
+  longer hardcode a harvested-corpus path or a per-session scratchpad; both
+  take an environment variable (`RAD_EXAMPLES_DB`, `TAB1_BASE_DIR`) and fail
+  loudly, naming what was tried. `benchmark_rad_db.py` also got the
+  `sys.path` seam its CLI needed.
+- **Changed** the console table distinguishes a missing `th_to_csv` from a
+  failing solver (`FORTRAN-FAIL(th2csv-missing)`), additively: the two
+  pre-existing statuses still print the bare `FORTRAN-FAIL` string that
+  `tools/validation_data/parity_m41.json` is keyed on.
+- **New** `tests/test_p0_harness_portable.py` — 27 tests (from 15): import
+  resolves nothing and needs no temp-dir probe, `read_deck` and the workdir
+  default are lazy, the four h3d routes stay closed, the loader-path scrub and
+  the working-directory guard bite, the invocation asymmetry (`-np 1` starter,
+  `-nt 1` engine, never `-np`) is pinned at argv *and* driver level, and no
+  `tools/*.py` spells a Windows drive letter outside a named, justified
+  exemption. Oracle-dependent tests skip when it is absent and fail under
+  `PYRADIOSS_ORACLE_REQUIRED=1`.
+
 ## 1.2.0 - P0.5: golden reference run + the oracle's determinism, proved
 
 - **New** `tools/oracle/oracle_selftest.py` — runs the oracle built by

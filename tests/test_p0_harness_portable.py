@@ -130,6 +130,36 @@ WINDOWS_ORACLE_LITERALS = (
     r"program files \(x86\)",
 )
 
+#: A Windows drive letter in **source**: one letter, a colon, a separator —
+#: and not the tail of a longer word, so prose like ``"instead:\n"`` inside a
+#: string literal is not a false positive.
+DRIVE_LETTER = re.compile(r"(?<![A-Za-z0-9_])[A-Za-z]:[\\/]")
+
+#: ``tools/*.py`` files that legitimately keep a Windows literal, and why.
+#: The sweep fails on any file NOT listed here, so the list is the whole
+#: exemption surface and cannot grow by accident.  Each entry is also checked
+#: to still *contain* the literal it excuses: delete the literal and the
+#: entry has to be deleted with it, which stops an exemption from silently
+#: becoming a permanent hole.
+DELIBERATE_WINDOWS_LITERALS = {
+    "lspp_check.py":
+        "LS-PrePost ships no Linux build, so its install paths can only be "
+        "Windows; find_lsprepost() honours $LSPP_EXE before this list and the "
+        "function returns None when neither exists",
+}
+
+#: Non-Python sources and recorded data, deliberately outside the sweep.
+#: Named here so the scope of the claim is visible, not implied.
+DELIBERATE_NON_SWEEP = {
+    "tools/run_reference_or.ps1":
+        "the Windows reference-box launcher: a PowerShell script whose "
+        "defaults are that box's OpenRadioss install and Intel oneAPI MPI, "
+        "the layout tools/oracle_env.sh replaces on the Linux oracle",
+    "tools/validation_data/**":
+        "recorded evidence from the historical Windows sweeps - a JSON "
+        "record of what ran where; rewriting it would falsify the provenance",
+}
+
 #: The exact assertions the brief's Step 1 makes, kept verbatim in spirit.
 FORBIDDEN_IN_HARNESS = (r"C:\OpenRadioss", "Intel\\\\oneAPI")
 
@@ -241,12 +271,16 @@ def test_harness_names_no_drive_letter():
     """No drive letter anywhere in the harness — code, f-string or comment.
 
     Stronger than the brief's two literals on purpose: a default hidden in a
-    comment or an f-string is still a default somebody will believe.
+    comment or an f-string is still a default somebody will believe.  The
+    harness is held to this rule **instead of** the ``DELIBERATE_WINDOWS_LITERALS``
+    exemption every other ``tools/*.py`` may claim, so its historical
+    docstring (the Ryan Lee corpus paragraph) and its ``h3d_dl.c`` citations
+    are demonstrably literal-free rather than merely excused.
     """
     src = HARNESS.read_text(encoding="utf-8")
     for lit in FORBIDDEN_IN_HARNESS:
         assert lit not in src, f"{lit!r} survived in {HARNESS}"
-    hits = sorted(set(re.findall(r"[A-Za-z]:[\\/]", src)))
+    hits = sorted(set(DRIVE_LETTER.findall(src)))
     assert hits == [], (
         f"{HARNESS.name} still spells a Windows drive letter at {hits}; resolve "
         "it through pyradioss.paths instead")
@@ -267,6 +301,56 @@ def test_no_tools_python_source_keeps_a_windows_oracle_or_toolchain_default():
                 offenders.append(f"{src.relative_to(REPO)}: {pattern}")
     assert offenders == [], (
         "Windows oracle/toolchain literals left in tools/: " + "; ".join(offenders))
+
+
+def test_no_tools_python_source_names_a_windows_drive_letter():
+    """No ``tools/**/*.py`` may spell a Windows drive letter, period.
+
+    The reviewer's check for this task, made mechanical: every Python source
+    under ``tools/`` must be literal-free except the files listed in
+    :data:`DELIBERATE_WINDOWS_LITERALS`, whose entries state why.  Those
+    files are additionally required to still contain the literal they excuse,
+    so an exemption cannot outlive its reason.
+    """
+    excused, offenders = set(DELIBERATE_WINDOWS_LITERALS), []
+    for src in sorted(TOOLS.rglob("*.py")):
+        name = src.name
+        if name == HARNESS.name:
+            continue                      # held to the stricter rule above
+        text = src.read_text(encoding="utf-8", errors="replace")
+        hits = sorted(set(DRIVE_LETTER.findall(text)))
+        if not hits:
+            assert name not in excused, (
+                f"{name} no longer needs its DELIBERATE_WINDOWS_LITERALS entry "
+                f"({DELIBERATE_WINDOWS_LITERALS.get(name)}); delete the entry so "
+                f"the exemption surface stays honest")
+            continue
+        if name in excused:
+            continue
+        offenders.append(f"{src.relative_to(REPO)}: {hits}")
+    assert offenders == [], (
+        "Windows drive letters left in tools/*.py — resolve them through the "
+        "environment, or add a documented entry to "
+        "DELIBERATE_WINDOWS_LITERALS: " + "; ".join(offenders))
+
+
+def test_deliberate_windows_literal_exemptions_are_still_needed():
+    """Every exemption names a real file and still has work to do.
+
+    Two failure modes this closes: an exemption for a file that no longer
+    exists (the sweep would silently stop covering a *new* file of the same
+    name), and one whose literal has been removed.
+    """
+    for name, reason in DELIBERATE_WINDOWS_LITERALS.items():
+        src = TOOLS / name
+        assert src.is_file(), f"{name} does not exist but is excused: {reason}"
+        assert reason.strip(), f"{name} is excused without a reason"
+        text = src.read_text(encoding="utf-8", errors="replace")
+        assert DRIVE_LETTER.search(text), (
+            f"{name} is excused from the drive-letter sweep but spells none")
+    for path in DELIBERATE_NON_SWEEP:
+        head = path.split("*")[0].rstrip("/")
+        assert (REPO / head).exists(), f"{path} is declared out of scope but absent"
 
 
 # --------------------------------------------------------------------------
@@ -478,6 +562,112 @@ def test_fortran_env_is_upstreams_block_and_refuses_h3d(monkeypatch):
     assert os.pathsep in env["PATH"] or env["PATH"] == ""
 
 
+def test_fortran_env_closes_every_h3d_dlopen_route(monkeypatch):
+    """``h3dlib_load_`` has FOUR routes to the writer; all four are closed.
+
+    ``$OR_SRC/common_source/output/h3d/h3d_build_cpp/h3d_dl.c:616-923``
+    (``h3dlib_load_``; ``h3dlib`` is ``libh3dwriter.so``, ``:63``) tries, in
+    order: ``$RAD_H3D_PATH`` (``:623-632``), ``getcwd()`` (``:634-644``),
+    ``$ALTAIR_HOME/hwsolvers/common/bin/$ARCH`` (``:647-658``) and a bare
+    ``dlopen`` fed by the loader's search path (``:660-666``).  Deleting only
+    the first leaves three live routes, and any of them loads the writer that
+    ``oracle_provenance.json`` calls one parameter short of the pinned API —
+    a run that does reaches NORMAL TERMINATION and writes silently wrong H3D
+    files.  The first three are environment variables, so they are dropped
+    here even when inherited; the fourth and the cwd route are covered by
+    :func:`test_fortran_env_drops_a_poisoned_loader_path_entry` and
+    :func:`test_run_fortran_refuses_a_workdir_holding_the_h3d_writer`.
+    """
+    from tools import validate_vs_fortran as V
+    monkeypatch.setenv("RAD_H3D_PATH", "/should/not/be/here")
+    monkeypatch.setenv("ALTAIR_HOME", "/opt/altair")
+    monkeypatch.setenv("ARCH", "linux64")
+    env = V.fortran_env(base={"RAD_H3D_PATH": "/x", "ALTAIR_HOME": "/y",
+                              "ARCH": "z", "PATH": ""})
+    for var in ("RAD_H3D_PATH", "ALTAIR_HOME", "ARCH"):
+        assert var not in env, f"{var} reaches the solver, so h3d_dl.c can " \
+                               f"still dlopen the incompatible writer"
+
+
+def test_fortran_env_drops_a_poisoned_loader_path_entry(tmp_path, monkeypatch):
+    """An ``LD_LIBRARY_PATH`` entry holding the writer is dropped AND named.
+
+    ``h3d_dl.c:660-666`` is a bare ``dlopen("libh3dwriter.so")``, which the
+    loader resolves through ``LD_LIBRARY_PATH``.  A caller who has a stale
+    writer on that path would otherwise get silently wrong H3D output from an
+    oracle run; a silent *drop* is no better, so the warning says which
+    directory went and why.
+    """
+    from tools import validate_vs_fortran as V
+    poisoned = tmp_path / "poisoned"
+    poisoned.mkdir()
+    (poisoned / "libh3dwriter.so").write_bytes(b"\x7fELF not really")
+    honest = tmp_path / "honest"
+    honest.mkdir()
+    monkeypatch.setenv("LD_LIBRARY_PATH",
+                       os.pathsep.join([str(honest), str(poisoned)]))
+    with pytest.warns(RuntimeWarning) as caught:
+        env = V.fortran_env()
+    entries = env["LD_LIBRARY_PATH"].split(os.pathsep)
+    assert str(poisoned) not in entries
+    assert str(honest) in entries, "an unrelated entry must survive"
+    message = "\n".join(str(w.message) for w in caught)
+    assert str(poisoned) in message and "h3d" in message.lower()
+
+
+def test_fortran_env_refuses_a_reader_dir_that_holds_the_h3d_writer(tmp_path):
+    """The reader directory the harness *adds* is checked too.
+
+    Prepending ``$OR_BUILD/extlib/hm_reader/linux64`` is the harness's own
+    doing, so if that directory ever carried the writer the harness would be
+    creating the ``:660-666`` route itself.  It is then not added, and the
+    run fails loudly instead of writing wrong H3D files.
+    """
+    from tools import validate_vs_fortran as V
+    reader_dir = tmp_path / "lib"
+    reader_dir.mkdir()
+    (reader_dir / "libh3dwriter.so").write_bytes(b"\x7fELF not really")
+    (reader_dir / "libhm_reader_linux64.so").write_bytes(b"\x7fELF not really")
+    oracle = {"hm_reader_lib": str(reader_dir / "libhm_reader_linux64.so")}
+    with pytest.warns(RuntimeWarning) as caught:
+        env = V.fortran_env(oracle=oracle, base={"LD_LIBRARY_PATH": ""})
+    assert str(reader_dir) not in env.get("LD_LIBRARY_PATH", "")
+    assert "h3d" in "\n".join(str(w.message) for w in caught).lower()
+
+
+def test_run_fortran_refuses_a_workdir_holding_the_h3d_writer(tmp_path,
+                                                              monkeypatch,
+                                                              bare_env):
+    """The scratch directory IS the solvers' cwd, so it is checked too.
+
+    ``h3d_dl.c:634-644`` dlopens ``getcwd() + "/" + h3dlib``, and
+    ``run_fortran`` copies the deck's own directory into the scratch
+    directory — so a writer sitting next to a deck would be copied in and
+    then loaded.  The run is refused before anything is launched.
+    """
+    from tools import validate_vs_fortran as V
+    case = tmp_path / "case"
+    case.mkdir()
+    deck0 = case / "CASE_0000.rad"
+    deck1 = case / "CASE_0001.rad"
+    deck0.write_text("#RADIOSS STARTER\n", encoding="utf-8")
+    deck1.write_text("#RADIOSS ENGINE\n", encoding="utf-8")
+    (case / "libh3dwriter.so").write_bytes(b"\x7fELF not really")
+
+    launched = []
+    monkeypatch.setattr(V, "oracle_paths", lambda *a, **k: {
+        "starter": "/opt/or/bin/starter_linux64_gf",
+        "engine": "/opt/or/bin/engine_linux64_gf", "th_to_csv": None,
+        "h3d_lib": None, "hm_reader_lib": None})
+    monkeypatch.setattr(V, "run_cmd",
+                        lambda *a, **k: launched.append(a) or (0, "", 0.0))
+    info = V.run_fortran("case", "CASE", str(deck0), str(deck1),
+                         str(tmp_path / "wd"), "none")
+    assert info["status"] == "h3d-writer-in-workdir", info
+    assert "h3d_dl.c:634-644" in info["error"]
+    assert launched == [], "a solver was launched from a poisoned directory"
+
+
 def test_fortran_env_uses_the_platform_path_separator():
     """``;`` is a Windows separator; a POSIX loader would not split on it."""
     from tools import validate_vs_fortran as V
@@ -488,6 +678,161 @@ def test_fortran_env_uses_the_platform_path_separator():
         if os.pathsep == ":":
             assert ";" not in env.get(var, ""), (
                 f"{var} is joined with the Windows separator: {env.get(var)!r}")
+
+
+# --------------------------------------------------------------------------
+# 6b. import-time laziness, and the subtag convention
+# --------------------------------------------------------------------------
+
+def test_default_workdir_is_lazy():
+    """``tempfile.gettempdir()`` must not run at import.
+
+    It creates and deletes a probe file when the platform's temp location is
+    not already known, so evaluating it in a module constant would make
+    "importing the harness touches no filesystem" false with an exception in
+    it — and the pathlib booby-trap above cannot see it, because the probe
+    goes through ``os``, not ``pathlib``.
+    """
+    from tools import validate_vs_fortran as V
+    assert not hasattr(V, "DEFAULT_WORKDIR")
+    assert callable(V.default_workdir)
+
+
+def test_import_needs_no_tempdir_probe():
+    """Import the module with ``tempfile.gettempdir`` booby-trapped."""
+    env = {k: v for k, v in os.environ.items() if k not in ORACLE_ENV_VARS}
+    env["PYTHONPATH"] = str(REPO)
+    code = textwrap.dedent(
+        """
+        import numpy                       # noqa: F401
+        import pyradioss.paths             # noqa: F401
+        import tempfile
+
+        def _boom(*a, **k):
+            raise AssertionError("import asked for the platform temp dir")
+
+        tempfile.gettempdir = _boom
+        tempfile.mkdtemp = _boom
+        tempfile.mkstemp = _boom
+        import tools.validate_vs_fortran as V
+        print("imported", V.__name__)
+        """)
+    proc = subprocess.run([sys.executable, "-c", code], cwd=str(REPO), env=env,
+                          capture_output=True, text=True, timeout=180)
+    assert proc.returncode == 0, proc.stderr
+    assert "imported tools.validate_vs_fortran" in proc.stdout
+
+
+def test_read_deck_is_not_imported_at_module_scope():
+    """Only ``coverage()`` reads decks, so only ``coverage()`` imports the reader.
+
+    A module-scope ``from pyradioss.input.deck_reader import read_deck`` pulls
+    numpy and the whole keyword table into every parity run — work a parity
+    run never uses, imported before anything can report it.
+    """
+    from tools import validate_vs_fortran as V
+    assert not hasattr(V, "read_deck")
+    assert "read_deck" in V.coverage.__code__.co_varnames, (
+        "coverage() must import read_deck locally")
+
+
+def test_a_missing_converter_is_not_reported_as_a_failing_solver(tmp_path,
+                                                                  monkeypatch,
+                                                                  capsys):
+    """``th2csv-missing`` gets its own class subtag; the old classes do not move.
+
+    The console table collapsed every Fortran-side problem into one bare
+    ``FORTRAN-FAIL``, so a reader could not tell "the engine died" from "the
+    converter was never installed" — and the second is a *tooling* fact, not
+    a physics verdict.  ``tools/validation_data/parity_m41.json`` is keyed on
+    the bare string, so the two pre-existing statuses must keep producing it.
+    """
+    from tools import validate_vs_fortran as V
+    assert V.FORTRAN_FAIL_SUBTAGS["engine-fail"] is None
+    assert V.FORTRAN_FAIL_SUBTAGS["th2csv-fail"] is None
+    assert V.FORTRAN_FAIL_SUBTAGS["th2csv-missing"] == "th2csv-missing"
+
+    def run(status, workdir):
+        monkeypatch.setattr(V, "oracle_paths", lambda *a, **k: {
+            key: "/opt/or/bin/x" for key in V.ORACLE_KEYS})
+        monkeypatch.setattr(V, "run_fortran",
+                            lambda *a, **k: {"status": status, "mode": "none"})
+        monkeypatch.setattr(V, "run_pyradioss",
+                            lambda *a, **k: {"status": "ok", "csv": None})
+        args = argparse_namespace(workdir=str(workdir), only="tensile_bar",
+                                  budget=10.0, timeout=10.0, tol=0.05,
+                                  shim="translate")
+        assert V.parity(args) == 0
+        import json
+        rows = json.loads((Path(workdir) / "parity_results.json")
+                          .read_text(encoding="utf-8"))
+        return rows[0]["class"]
+
+    assert run("th2csv-missing", tmp_path / "a") == \
+        "FORTRAN-FAIL(th2csv-missing)"
+    assert run("engine-fail", tmp_path / "b") == "FORTRAN-FAIL"
+    printed = capsys.readouterr().out
+    assert "FORTRAN-FAIL(th2csv-missing)" in printed
+
+
+# --------------------------------------------------------------------------
+# 6c. the other two tools: no machine named in the source
+# --------------------------------------------------------------------------
+
+def test_benchmark_rad_db_corpus_root_follows_the_environment(tmp_path,
+                                                               monkeypatch):
+    """The harvested corpus is named by ``$RAD_EXAMPLES_DB``, or loudly not.
+
+    ``tools/benchmark_rad_db.py`` used to hardcode one developer's home
+    directory; ``load_gold_set()`` then died with a bare
+    ``FileNotFoundError`` on a path no reader could act on.  A candidate must
+    also *carry the gold set*, so a wrong-but-existing directory is refused
+    rather than half-read.
+    """
+    from tools import benchmark_rad_db as B
+    corpus = tmp_path / "rad_examples_db"
+    (corpus / "candidates" / "bench").mkdir(parents=True)
+    (corpus / "candidates" / "bench" / "gold_set.json").write_text("[]",
+                                                                  encoding="utf-8")
+    monkeypatch.setenv(B.CORPUS_ROOT_ENV, str(corpus))
+    assert B.corpus_root() == corpus
+    assert B.gold_set_path().is_file()
+    assert B.load_gold_set() == []
+
+    monkeypatch.setenv(B.CORPUS_ROOT_ENV, str(tmp_path / "empty"))
+    with pytest.raises(FileNotFoundError) as raised:
+        B.corpus_root()
+    assert B.CORPUS_ROOT_ENV in str(raised.value)
+
+    monkeypatch.delenv(B.CORPUS_ROOT_ENV)
+    with pytest.raises(FileNotFoundError) as raised:
+        B.corpus_root()
+    assert B.CORPUS_ROOT_ENV in str(raised.value)
+
+
+def test_compare_t01_tab1_finds_its_inputs(tmp_path, monkeypatch, capsys):
+    """No scratchpad path: ``$TAB1_BASE_DIR``, else the working directory.
+
+    And a missing input is reported by name — both files, the directory
+    searched, and the variable to set — instead of a bare numpy
+    ``FileNotFoundError``.
+    """
+    from tools import compare_t01_tab1 as T
+    monkeypatch.setenv(T.BASE_DIR_ENV, str(tmp_path))
+    assert T.default_base_dir() == tmp_path
+    monkeypatch.delenv(T.BASE_DIR_ENV)
+    monkeypatch.chdir(tmp_path)
+    assert T.default_base_dir() == tmp_path
+
+    assert T.main([]) == 2
+    err = capsys.readouterr().err
+    assert T.FORTRAN_CSV_NAME in err and T.PORT_CSV_NAME in err
+    assert T.BASE_DIR_ENV in err
+
+    (tmp_path / T.FORTRAN_CSV_NAME).write_text("t,IE\n0,1\n1,2\n", encoding="utf-8")
+    (tmp_path / T.PORT_CSV_NAME).write_text("t,IE\n0,1\n1,2\n", encoding="utf-8")
+    assert T.main([]) == 0
+    assert "Match (rtol=0.05" in capsys.readouterr().out
 
 
 # --------------------------------------------------------------------------

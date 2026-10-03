@@ -1,7 +1,30 @@
 """
-Benchmark and verification harness against rad_examples_db corpus.
+Benchmark and verification harness against the rad_examples_db corpus.
 Validates pyradioss starter parsing and engine execution against
 the reference OpenRadioss gold set benchmarks.
+
+The corpus itself
+-----------------
+``rad_examples_db`` is an **external, harvested** benchmark corpus: it is not
+part of this repository and there is no default location for it anywhere.
+It used to be a hardcoded path into one developer's home directory, which
+made this file unusable on every other machine — importing it was fine, but
+the first :func:`load_gold_set` died with a bare ``FileNotFoundError`` on a
+name no reader could act on.
+
+So the location is the environment variable :data:`CORPUS_ROOT_ENV`
+(``RAD_EXAMPLES_DB``), resolved per call by :func:`corpus_root`, which
+validates the candidate against the corpus' own layout
+(``candidates/bench/gold_set.json``) rather than against "the string looks
+like a directory", and otherwise raises
+:func:`pyradioss.paths.missing_resource` — the same loud, candidate-listing
+failure every other tool in ``tools/`` uses.
+
+Upstream origin of the *numbers* this compares against: the gold set records
+what the reference (Fortran) OpenRadioss Starter/Engine produced for each
+harvested deck, so a difference here is a port-vs-oracle difference.  The
+comparison rules are ``tools/validate_vs_fortran.py``'s; this file is the
+bulk-throughput variant and shares no threshold with it.
 """
 
 from __future__ import annotations
@@ -16,27 +39,76 @@ import tempfile
 import time
 from pathlib import Path
 
+# `python tools/benchmark_rad_db.py` puts tools/ on sys.path, not the repo
+# root, so the package below (and the starter/engine modules main() imports
+# later) would be unimportable without this seam.
+REPO = str(Path(__file__).resolve().parent.parent)
+if REPO not in sys.path:
+    sys.path.insert(0, REPO)
+
+from pyradioss import paths  # noqa: E402
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-CORPUS_ROOT = Path(r"C:\Users\pmqua\PycharmProjects\rad_examples_db")
-GOLD_SET_PATH = CORPUS_ROOT / "candidates" / "bench" / "gold_set.json"
-MANIFEST_PATH = CORPUS_ROOT / "manifest.jsonl"
+#: The environment variable naming the harvested corpus root.
+CORPUS_ROOT_ENV = "RAD_EXAMPLES_DB"
+
+#: What makes a directory *the* corpus rather than any directory: the gold
+#: set the benchmarks are selected from.
+_GOLD_SET_RELPATH = ("candidates", "bench", "gold_set.json")
+_MANIFEST_RELPATH = ("manifest.jsonl",)
 
 
-def load_gold_set():
-    with open(GOLD_SET_PATH, encoding="utf-8") as f:
+def corpus_root() -> Path:
+    """The harvested ``rad_examples_db`` root, or a loud ``FileNotFoundError``.
+
+    Rule: ``$RAD_EXAMPLES_DB`` if set **and** it carries the gold set.  There
+    is deliberately no fallback candidate — an invented default would be
+    another machine's directory, and a wrong-but-existing path is worse than
+    a loud failure (``pyradioss.paths``' module docstring states the same
+    rule).  Resolved per call so a test can move the environment.
+    """
+    value = os.environ.get(CORPUS_ROOT_ENV)
+    if not value:
+        raise paths.missing_resource(
+            CORPUS_ROOT_ENV,
+            [(f"env {CORPUS_ROOT_ENV} (not set)", CORPUS_ROOT_ENV)])
+    root = Path(value)
+    if (root.joinpath(*_GOLD_SET_RELPATH)).is_file():
+        return root
+    raise paths.missing_resource(
+        CORPUS_ROOT_ENV,
+        [(f"env {CORPUS_ROOT_ENV}", root)])
+
+
+def gold_set_path(root: Path | None = None) -> Path:
+    """``<corpus>/candidates/bench/gold_set.json``."""
+    return (root if root is not None else corpus_root()).joinpath(
+        *_GOLD_SET_RELPATH)
+
+
+def manifest_path(root: Path | None = None) -> Path:
+    """``<corpus>/manifest.jsonl`` (optional; absent means "no index")."""
+    return (root if root is not None else corpus_root()).joinpath(
+        *_MANIFEST_RELPATH)
+
+
+def load_gold_set(root: Path | None = None):
+    with open(gold_set_path(root), encoding="utf-8") as f:
         return json.load(f)
 
 
-def load_manifest_index(ids_needed: set[int]) -> dict[int, dict]:
+def load_manifest_index(ids_needed: set[int],
+                        root: Path | None = None) -> dict[int, dict]:
     """Load manifest rows only for the IDs we are testing to save memory/time."""
     index = {}
-    if not MANIFEST_PATH.exists():
+    target = manifest_path(root)
+    if not target.exists():
         return index
-    with open(MANIFEST_PATH, encoding="utf-8") as f:
+    with open(target, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -67,9 +139,11 @@ def filter_gold_decks(gold_decks, manifest_index=None, max_nodes=50, max_cycles=
     return candidates[:limit] if limit else candidates
 
 
-def stage_deck(deck_info, manifest_row, dest_dir: Path):
+def stage_deck(deck_info, manifest_row, dest_dir: Path,
+               root: Path | None = None):
     """Copy starter package tree plus any out-of-tree includes (as run_bench.py does)."""
-    src_starter = CORPUS_ROOT / deck_info["stored"]
+    root = root if root is not None else corpus_root()
+    src_starter = root / deck_info["stored"]
     src_dir = src_starter.parent
     if not dest_dir.exists():
         dest_dir.mkdir(parents=True, exist_ok=True)
@@ -84,7 +158,7 @@ def stage_deck(deck_info, manifest_row, dest_dir: Path):
     # 2. Stage engine deck if located elsewhere
     if manifest_row:
         for e in manifest_row.get("engine_files") or []:
-            ep = CORPUS_ROOT / e
+            ep = root / e
             tgt = dest_dir / ep.name
             if not tgt.exists() and ep.exists():
                 shutil.copy2(ep, tgt)
@@ -95,7 +169,7 @@ def stage_deck(deck_info, manifest_row, dest_dir: Path):
         for name, rp in zip(incs, res):
             if not rp or rp == name:
                 continue
-            src = CORPUS_ROOT / rp
+            src = root / rp
             if not src.exists():
                 continue
             rel = name.replace("\\", "/").strip().strip('"')
@@ -216,8 +290,19 @@ def main():
     parser.add_argument("--starter-only", action="store_true", help="Only run Starter stage, skip Engine")
     args = parser.parse_args()
 
-    print(f"Loading gold set from {GOLD_SET_PATH}...")
-    gold = load_gold_set()
+    # The corpus is external and has no default location, so say so once,
+    # naming the variable, instead of dying inside json.load with a bare
+    # FileNotFoundError on a path the reader cannot act on.
+    try:
+        root = corpus_root()
+    except FileNotFoundError as exc:
+        print(str(exc), file=sys.stderr)
+        print(f"Set {CORPUS_ROOT_ENV}=<path to the harvested rad_examples_db "
+              f"corpus> and re-run.", file=sys.stderr)
+        return 2
+
+    print(f"Loading gold set from {gold_set_path(root)}...")
+    gold = load_gold_set(root)
     print(f"Loaded {len(gold)} reference gold decks.")
 
     if args.tier == 0:
@@ -229,7 +314,7 @@ def main():
 
     print("Loading manifest index...")
     all_gold_ids = {d["id"] for d in gold}
-    manifest_index = load_manifest_index(all_gold_ids)
+    manifest_index = load_manifest_index(all_gold_ids, root)
     print("Manifest index loaded.")
 
     candidates = filter_gold_decks(
@@ -306,4 +391,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # sys.exit, so a loud failure is a non-zero exit and not a green run in
+    # a batch script.
+    sys.exit(main())
