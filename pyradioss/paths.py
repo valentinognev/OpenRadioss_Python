@@ -53,6 +53,19 @@ the rule-3 path was therefore unreachable on a box where both existed):
   with *no* exported variable resolves instead of failing.  They are skipped
   entirely when the tree is not there.
 
+``or_src()`` carries the matching fourth candidate ``<repo>/../OpenCourant``
+(after rule 3, for the same reason and the same measured layout): the resolver
+already knew this checkout for the cfg tree, while ``$OR_SRC`` — the resource
+the checkout *is* — did not resolve in a bare shell, which cost two test skips
+(``tests/test_p0_oracle_env_script.py:619`` and
+``tests/test_p0_oracle_provenance.py:636``).  The directory it names is exactly
+the one §4.1's own dev-box column records as ``OR_SRC`` —
+``/home/valentin/Projects/OpenRadioss/OpenCourant`` — which is a sibling of the
+**repository checkout**, not of ``$OR_ROOT``, so rule 2 cannot reach it here.
+It is existence-checked like the cfg-tree sibling of the same name;
+``tests/test_p0_paths.py`` pins that it resolves, that rules 1/2/3 each outrank
+it, and that the rule-4 failure still enumerates all four origins in order.
+
 ``$OR_BUILD`` (the writable mirror) is itself absent from §4.1's table, so its
 whole candidate list is "beyond the contract"; it carries the same dev-box
 default for the same reason.  ``~/OpenRadioss_build`` is a top-level path — the
@@ -69,7 +82,9 @@ So the candidate order for ``hm_cfg_dir`` is: ``$PYRADIOSS_HM_CFG``,
 ``$RAD_CFG_PATH`` (upstream's own spelling, ``INSTALL.md:39``),
 ``$OR_ROOT/../OpenCourant/hm_cfg_files``, ``C:\\OpenRadioss\\hm_cfg_files``,
 ``$OR_ROOT/OpenCourant/hm_cfg_files``, ``$OR_SRC/hm_cfg_files``,
-``<repo>/../OpenCourant/hm_cfg_files``.  For ``or_build`` it is:
+``<repo>/../OpenCourant/hm_cfg_files``.  For ``or_src`` it is:
+``$OR_SRC``, ``$OR_ROOT/../OpenCourant``, ``C:\\OpenRadioss``,
+``<repo>/../OpenCourant``.  For ``or_build`` it is:
 ``$OR_BUILD``, ``$OR_ROOT/source``, ``~/OpenRadioss_build``.
 ``tests/test_p0_paths.py`` pins the ``hm_cfg_dir`` precedence relations by
 name and ``tests/test_p0_or_build_layout.py`` pins the mirror's (the count and
@@ -257,10 +272,26 @@ def _dev_or_build() -> Path:
     return Path(os.path.expanduser("~")) / "OpenRadioss_build"
 
 
+def _checkout_upstream() -> Path:
+    """``<repo>/../OpenCourant`` — the upstream checkout sitting **beside the
+    repository** (the measured dev-box layout, and the one
+    ``plan/00_ORCHESTRATION.md`` §4.1 records as ``OR_SRC``).
+
+    A *sibling of the checkout*, not of ``$OR_ROOT``: rule 2's
+    ``$OR_ROOT/../OpenCourant`` cannot reach it on this box, because
+    ``$OR_ROOT`` is ``~/OpenRadioss_or`` while the checkout pair lives under
+    ``~/Projects/OpenRadioss``.  ``hm_cfg_dir()`` has resolved through this
+    layout since P0.6; ``or_src()`` did not, so ``$OR_SRC`` was the one
+    resource of the pair that a bare shell could not find.  A seam for the
+    tests, which patch ``_REPO_ROOT``.
+    """
+    return _REPO_ROOT.parent / _UPSTREAM_DIRNAME
+
+
 def _checkout_hm_cfg() -> Path:
-    """``<repo>/../OpenCourant/hm_cfg_files`` — the upstream checkout
-    sitting beside this repository (the measured dev-box layout)."""
-    return _REPO_ROOT.parent / _UPSTREAM_DIRNAME / "hm_cfg_files"
+    """``<repo>/../OpenCourant/hm_cfg_files`` — the cfg tree inside the
+    upstream checkout that sits beside this repository."""
+    return _checkout_upstream() / "hm_cfg_files"
 
 
 def is_or_mirror(path) -> bool:
@@ -371,11 +402,28 @@ def _or_src_maybe() -> Optional[Path]:
 # ---------------------------------------------------------------------------
 
 def or_src() -> Path:
-    """The read-only upstream OpenRadioss source tree ($OR_SRC)."""
+    """The read-only upstream OpenRadioss source tree ($OR_SRC).
+
+    Candidates, in order:
+
+    1. ``$OR_SRC`` if set and the path exists (§4.1 rule 1);
+    2. ``$OR_ROOT/../OpenCourant`` — the sibling-of-build spelling rule 2 gives;
+    3. ``C:\\OpenRadioss`` — the Windows compatibility path (§4.1 rule 3);
+    4. ``<repo>/../OpenCourant`` — the upstream checkout sitting beside *this
+       repository*, which is where §4.1's own dev-box column puts ``OR_SRC``
+       (``/home/valentin/Projects/OpenRadioss/OpenCourant``, a sibling of the
+       checkout rather than of ``$OR_ROOT``).  Beyond the contract, and last,
+       so it can never shadow a contract candidate — the same placement
+       ``hm_cfg_dir()`` has had for this layout since P0.6.  It is existence-
+       checked and nothing more: a *discovered* directory is only accepted when
+       it exists, and rule 4 still fires, naming all four, when none does.
+    """
     return _resolve("OR_SRC", [
         _env_candidate("OR_SRC"),
         _under_or_root("$OR_ROOT/../OpenCourant", "..", _UPSTREAM_DIRNAME),
         _Candidate(str(_WIN_ROOT), _WIN_ROOT),
+        _Candidate("<repo>/../OpenCourant (upstream checkout beside this repo)",
+                   _checkout_upstream()),
     ], Path.is_dir)
 
 

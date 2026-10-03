@@ -58,18 +58,52 @@ import os
 import pathlib
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
+#: The variables that name an oracle resource; scrubbed for the subprocess
+#: probes below so a contributor's exported environment cannot make them vacuous.
+_ORACLE_VARS = (
+    "OR_SRC", "OR_ROOT", "OR_BUILD", "OR_STARTER", "OR_ENGINE",
+    "PYRADIOSS_HM_CFG", "RAD_CFG_PATH", "OPENRADIOSS_PATH",
+)
+
 DEFAULT_OR_ROOT = pathlib.Path("/home/valentin/OpenRadioss_or")
 DEFAULT_OR_BUILD = DEFAULT_OR_ROOT / "source"
 DEFAULT_OR_SRC = pathlib.Path("/home/valentin/Projects/OpenRadioss/OpenCourant")
 
+
+def _resolve_or_build():
+    """The writable mirror for a shell that exported no ``OR_BUILD``.
+
+    Asked of ``pyradioss.paths``, never guessed here.  This module's previous
+    spelling, ``$OR_ROOT/source``, is the *pre-migration* location that
+    ``tools/validation_data/oracle_provenance.json`` records (under
+    ``mirror_path_note``) as removed rather than moved, so a default built from
+    it produced an ``LD_LIBRARY_PATH`` into a directory that does not exist --
+    and the two live-oracle tests below failed on a loader error instead of
+    running.  Only the resolver knows where the mirror is on any given box.
+
+    Falls back to the old spelling when the resolver cannot answer at all: in
+    that case ``_require_live_oracle`` skips (or, with
+    ``PYRADIOSS_ORACLE_REQUIRED=1``, fails) before ``_runtime_env()`` is ever
+    consulted, so the value is only ever a name in a diagnostic.
+    """
+    from pyradioss import paths
+
+    paths.reload()
+    try:
+        return paths.or_build()
+    except FileNotFoundError:
+        return DEFAULT_OR_BUILD
+
+
 OR_ROOT = pathlib.Path(os.environ.get("OR_ROOT") or DEFAULT_OR_ROOT)
-OR_BUILD = pathlib.Path(os.environ.get("OR_BUILD") or DEFAULT_OR_BUILD)
+OR_BUILD = pathlib.Path(os.environ.get("OR_BUILD") or _resolve_or_build())
 OR_SRC = pathlib.Path(os.environ.get("OR_SRC") or DEFAULT_OR_SRC)
 
 STARTER = pathlib.Path(
@@ -303,6 +337,100 @@ def test_build_script_is_valid_bash():
         ["bash", "-n", str(BUILD_SCRIPT)], capture_output=True, text=True
     )
     assert proc.returncode == 0, f"bash -n {BUILD_SCRIPT} failed:\n{proc.stderr}"
+
+
+# ---------------------------------------------------------------------------
+# The runtime environment must come from the resolver, not from this file's own
+# guess at where the mirror is.
+#
+# It used to spell the mirror `$OR_ROOT/source` (DEFAULT_OR_BUILD, below).  That
+# was the *pre-migration* location, and `tools/validation_data/oracle_provenance.json`
+# records under `mirror_path_note` that it was removed rather than moved -- yet
+# only `pyradioss.paths.or_build()` learned the real one.  So the gate
+# (_require_live_oracle) resolved the mirror, the two tests below then built an
+# LD_LIBRARY_PATH into a directory that does not exist, and they failed in a bare
+# shell with a loader error (exit 127, libhm_reader_linux64.so) instead of
+# skipping as an unconfigured oracle.  A duplicate of the resolver's job is the
+# defect; these tests are the pin.
+# ---------------------------------------------------------------------------
+
+def test_the_or_build_default_is_the_resolvers_answer_not_a_guess(monkeypatch):
+    """A fresh interpreter, no exported variable: this module's mirror IS
+    ``pyradioss.paths.or_build()``.
+
+    Measured in a subprocess so the contributor's exported ``OR_BUILD`` cannot
+    make the assertion vacuous, and so the module-level derivation is executed
+    exactly as a bare shell executes it."""
+    from pyradioss import paths
+
+    env = {k: v for k, v in os.environ.items() if k not in _ORACLE_VARS}
+    env["PYTHONPATH"] = str(REPO)
+    code = (
+        "import os, sys, pathlib;"
+        "sys.path.insert(0, os.environ['PYTHONPATH']);"
+        "from pyradioss import paths;"
+        "import test_p0_oracle_build as m;"
+        "print(m.OR_BUILD);"
+        "print(pathlib.Path(paths.or_build()))"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", code], env=env, cwd=str(Path(__file__).parent),
+        capture_output=True, text=True, timeout=120)
+    if proc.returncode != 0 and "FileNotFoundError" in proc.stderr:
+        pytest.skip(f"no mirror resolves on this box, so there is nothing to "
+                    f"compare: {proc.stderr.strip().splitlines()[-1]}")
+    assert proc.returncode == 0, proc.stderr
+    resolved, from_resolver = proc.stdout.split()
+    assert resolved == from_resolver, (
+        f"this module's default mirror is {resolved} but the resolver answers "
+        f"{from_resolver}; one of them is a hardcoded guess that has gone stale"
+    )
+
+
+def test_the_runtime_library_path_exists_whenever_the_gate_opens():
+    """The regression, as an invariant rather than as a loader error.
+
+    ``_require_live_oracle(runtime_env=True)`` already refused to open unless
+    ``paths.or_build()`` resolved *and* ``libhm_reader`` was found under it --
+    so by the time a test runs, ``$OR_BUILD/extlib/hm_reader/linux64`` exists.
+    ``_runtime_env()`` must therefore point at a directory that is really there.
+    It did not: it pointed into the removed ``$OR_ROOT/source``, so the loader
+    failed before the solver was ever started."""
+    from pyradioss import paths
+
+    _require_live_oracle()
+    library_dir = Path(_runtime_env()["LD_LIBRARY_PATH"].split(os.pathsep)[0])
+    assert library_dir.is_dir(), (
+        f"LD_LIBRARY_PATH names {library_dir}, which does not exist -- the "
+        f"runtime environment is built from a default the resolver does not "
+        f"agree with (the gate resolved the mirror to {paths.or_build()})"
+    )
+    assert (library_dir / "libhm_reader_linux64.so").is_file(), (
+        f"{library_dir} does not hold libhm_reader_linux64.so"
+    )
+
+
+def test_a_bogus_or_build_export_does_not_pass_silently(tmp_path):
+    """Direction two: an ``OR_BUILD`` pointing nowhere must not go green.
+
+    ``OR_BUILD`` wins the derivation (it is the maintainer's decision), so the
+    loader path is the bogus one and the starter dies on it -- as a failure,
+    never as a pass.  Asserted on the exit code of a real pytest run so no
+    assertion here can be satisfied by a skipped test."""
+    env = dict(os.environ)
+    env["OR_BUILD"] = str(tmp_path / "not-a-mirror")
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:randomly",
+         "test_p0_oracle_build.py::test_oracle_binary_runs"],
+        cwd=str(Path(__file__).parent), env=env, capture_output=True, text=True,
+        timeout=900)
+    assert proc.returncode != 0, (
+        "a bogus OR_BUILD export still produced a green run:\n"
+        + proc.stdout[-2000:])
+    assert "127" in proc.stdout or "libhm_reader" in proc.stdout, (
+        "the run failed, but not for the reason a bogus export must be caught "
+        f"by:\n{proc.stdout[-2000:]}"
+    )
 
 
 def test_provenance_names_the_extlib_source():

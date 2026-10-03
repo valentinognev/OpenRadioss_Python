@@ -263,6 +263,90 @@ def test_hm_cfg_falls_back_to_the_upstream_checkout_beside_the_repo(
     assert paths.hm_cfg_dir() == cfg
 
 
+def test_or_src_falls_back_to_the_upstream_checkout_beside_the_repo(
+        monkeypatch, tmp_path):
+    """``<repo>/../OpenCourant`` — the upstream tree checked out **beside the
+    repository**, which is the layout ``plan/00_ORCHESTRATION.md`` §4.1's own
+    dev-box column records (``OR_SRC`` =
+    ``/home/valentin/Projects/OpenRadioss/OpenCourant``, a sibling of the
+    checkout, not of ``$OR_ROOT``).
+
+    ``hm_cfg_dir()`` has resolved through this very candidate since P0.6, so
+    the resolver already knew the layout for one resource and not for the other;
+    ``$OR_SRC`` was the one that did not, and two tests skipped on it in a bare
+    shell for that reason alone."""
+    fake_repo = tmp_path / "wt" / "repo"
+    fake_repo.mkdir(parents=True)
+    monkeypatch.setattr(paths, "_REPO_ROOT", fake_repo)
+    upstream = fake_repo.parent / "OpenCourant"
+    upstream.mkdir()
+    assert paths.or_src() == upstream
+
+
+def test_the_repo_adjacent_source_never_shadows_the_contract_candidates(
+        monkeypatch, tmp_path):
+    """The dev-box convenience tier is last for ``or_src()`` too.
+
+    Rule 1 (env), rule 2 (sibling-of-``$OR_ROOT``) and rule 3 (the Windows
+    compatibility path) each outrank the extra candidate.  Every competing
+    candidate is built here, so only the ordering decides; transposing the new
+    candidate into place 1 must break this test."""
+    fake_repo = tmp_path / "wt" / "repo"
+    fake_repo.mkdir(parents=True)
+    adjacent = fake_repo.parent / "OpenCourant"
+    adjacent.mkdir()
+    win = tmp_path / "C_OpenRadioss"
+    win.mkdir()
+    exported = tmp_path / "exported"
+    exported.mkdir()
+    monkeypatch.setattr(paths, "_REPO_ROOT", fake_repo)
+    monkeypatch.setattr(paths, "_WIN_ROOT", win)
+
+    # rule 1 beats the extra
+    root = _prefix(tmp_path)
+    (tmp_path / "OpenCourant").mkdir()
+    monkeypatch.setenv("OR_ROOT", str(root))
+    monkeypatch.setenv("OR_SRC", str(exported))
+    paths.reload()
+    assert paths.or_src() == exported
+    # rule 2 beats the extra
+    monkeypatch.delenv("OR_SRC")
+    paths.reload()
+    assert paths.or_src() == tmp_path / "OpenCourant"
+    # rule 3 beats the extra: the prefix resolves but has no OpenCourant
+    # beside it, so rule 2 cannot fire
+    prefix = tmp_path / "win_case" / "prefix"
+    prefix.mkdir(parents=True)
+    monkeypatch.setenv("OR_ROOT", str(prefix))
+    paths.reload()
+    assert paths.or_src() == win
+    assert paths.or_src() not in (adjacent, tmp_path / "OpenCourant")
+
+
+def test_or_src_failure_enumerates_the_repo_adjacent_candidate(
+        monkeypatch, tmp_path):
+    """§4.1 rule 4 still applies to the new candidate: with nothing present,
+    the failure names every location tried, the contract ones first and the
+    dev-box one last.  This is the safety net the extra candidate must not
+    weaken."""
+    fake_repo = tmp_path / "wt" / "repo"
+    fake_repo.mkdir(parents=True)
+    monkeypatch.setattr(paths, "_REPO_ROOT", fake_repo)
+    monkeypatch.setenv("OR_ROOT", str(_prefix(tmp_path)))
+    with pytest.raises(FileNotFoundError) as e:
+        paths.or_src()
+    msg = str(e.value)
+    assert "OR_SRC not found" in msg
+    for origin in ("env OR_SRC", "$OR_ROOT/../OpenCourant",
+                   "C:\\OpenRadioss", "<repo>/../OpenCourant"):
+        assert origin in msg, f"{origin} missing from:\n{msg}"
+    assert msg.index("[env OR_SRC]") < \
+        msg.index("[$OR_ROOT/../OpenCourant]") < \
+        msg.index("[C:\\OpenRadioss]") < \
+        msg.index("<repo>/../OpenCourant")
+    assert "4 candidate locations" in msg
+
+
 def test_or_root_falls_back_to_the_home_prefix(monkeypatch, tmp_path):
     """``~/OpenRadioss_or`` is the measured dev-box install prefix; it is
     the only candidate that can resolve ``OR_ROOT`` with no env at all."""
@@ -441,9 +525,14 @@ def test_or_starter_env_beats_the_install_prefix(monkeypatch, tmp_path):
 # (4) fail loudly — never silently degrade to a wrong directory
 # ---------------------------------------------------------------------------
 
-def test_missing_resource_names_every_attempted_location(monkeypatch):
+def test_missing_resource_names_every_attempted_location(monkeypatch, tmp_path):
     """Straight from the task brief."""
     monkeypatch.delenv("OR_SRC", raising=False)
+    # the dev-box checkout beside this repo is neutralised, exactly as
+    # test_a_set_cfg_variable_with_no_schemas_is_rejected_and_reported does for
+    # the cfg tree: without it this test resolved the real one and stopped
+    # testing the loud failure at all.
+    monkeypatch.setattr(paths, "_REPO_ROOT", tmp_path / "no-repo-here")
     with pytest.raises(FileNotFoundError) as e:
         paths.reload()
         paths.or_src()
@@ -457,6 +546,8 @@ def test_or_src_failure_enumerates_all_candidates(monkeypatch, tmp_path):
     only the resolved path."""
     root = _prefix(tmp_path)              # resolvable, but has no sibling
     monkeypatch.setenv("OR_ROOT", str(root))
+    # see test_missing_resource_names_every_attempted_location
+    monkeypatch.setattr(paths, "_REPO_ROOT", tmp_path / "no-repo-here")
     with pytest.raises(FileNotFoundError) as e:
         paths.or_src()
     msg = str(e.value)
