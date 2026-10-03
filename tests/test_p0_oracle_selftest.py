@@ -117,13 +117,20 @@ _HINT = (
 # the DISABLED/REQUIRED gating matches tests/test_p0_oracle_build.py.
 # ---------------------------------------------------------------------------
 
-def _oracle_paths():
-    from pyradioss import paths
+def _oracle_or_skip(reason: str):
+    """One place for the DISABLED / REQUIRED / plain-skip decision.
 
-    try:
-        return paths.or_starter(), paths.or_engine(), paths.or_build()
-    except FileNotFoundError as exc:  # pragma: no cover - configuration only
-        pytest.skip(f"oracle not resolvable ({exc})")
+    ``PYRADIOSS_ORACLE_DISABLED=1`` always wins (an operator asked for silence),
+    then ``PYRADIOSS_ORACLE_REQUIRED=1`` turns the absence into a failure (the
+    Phase 0 exit gate sets it), and otherwise the test skips with an actionable
+    reason -- the same precedence ``tests/test_p0_oracle_build.py`` uses.
+    """
+    if ORACLE_DISABLED:
+        pytest.skip("PYRADIOSS_ORACLE_DISABLED=1")
+    if ORACLE_REQUIRED:
+        pytest.fail(f"{reason} and PYRADIOSS_ORACLE_REQUIRED=1 is set: {_HINT}")
+    pytest.skip(f"oracle not built ({reason}; {_HINT}); set "
+                f"PYRADIOSS_ORACLE_REQUIRED=1 to enforce")
 
 
 def _require_oracle():
@@ -131,29 +138,13 @@ def _require_oracle():
     from pyradioss import paths
 
     try:
-        starter = paths.or_starter()
-        engine = paths.or_engine()
+        starter, engine = paths.or_starter(), paths.or_engine()
     except FileNotFoundError as exc:
-        if ORACLE_DISABLED:
-            pytest.skip("PYRADIOSS_ORACLE_DISABLED=1")
-        if ORACLE_REQUIRED:
-            pytest.fail(
-                f"oracle binaries unresolvable ({exc}) and "
-                f"PYRADIOSS_ORACLE_REQUIRED=1 is set: {_HINT}"
-            )
-        pytest.skip(f"oracle not built ({_HINT}); set PYRADIOSS_ORACLE_REQUIRED=1 "
-                    f"to enforce")
+        _oracle_or_skip(f"the oracle binaries do not resolve ({exc})")
+        return
     if starter.is_file() and engine.is_file():
         return
-    if ORACLE_DISABLED:
-        pytest.skip("PYRADIOSS_ORACLE_DISABLED=1")
-    if ORACLE_REQUIRED:
-        pytest.fail(
-            f"oracle binaries missing ({starter}, {engine}) and "
-            f"PYRADIOSS_ORACLE_REQUIRED=1 is set: {_HINT}"
-        )
-    pytest.skip(f"oracle not built ({_HINT}); set PYRADIOSS_ORACLE_REQUIRED=1 "
-                f"to enforce")
+    _oracle_or_skip(f"the oracle binaries are missing ({starter}, {engine})")
 
 
 # ---------------------------------------------------------------------------
@@ -221,12 +212,20 @@ def test_stored_golden_record_is_complete(smoke):
     )
     assert inv["engine_argv"][-2:] == ["-nt", "1"], inv["engine_argv"]
 
-    # -- the h3d safety fact --
+    # -- the h3d safety fact, and the anchor's scope --
     env = smoke["environment"]
     assert env["rad_h3d_path"] is None
     assert env["rad_h3d_path_unset"] is True
     assert env["rad_h3d_path_unset_reason"]
     assert env["omp_num_threads"] == "1"
+    # M5: the normalized digest keeps CH80(34:59)/(60:80) -- VERSIO and CPUNAM --
+    # so it is bound to the build AND the architecture, not only the build.
+    assert "CPUNAM" in env["anchor_scope"], (
+        "environment.anchor_scope must say the anchor is architecture-bound: "
+        "hist1.F:212-217 writes VERSIO(2) and CPUNAM into the same CH80 "
+        "record, right after the stamp this record normalises away"
+    )
+    assert "architecture" in env["anchor_scope"]
 
     # -- the run verdict --
     run = smoke["run"]
@@ -241,8 +240,13 @@ def test_stored_golden_record_is_complete(smoke):
     t01 = smoke["t01"]
     assert (REPO / t01["path"]).is_file(), t01["path"]
     assert (REPO / t01["path"]).stat().st_size == t01["size_bytes"]
-    assert re.fullmatch(r"[0-9a-f]{32}", t01["md5"])
+    assert re.fullmatch(r"[0-9a-f]{32}", t01["md5_normalized"]), (
+        "the anchor key must be named md5_normalized: t01.md5_normalized is "
+        f"NOT hashlib.md5(t01 bytes) -- that is t01.md5_raw. Got keys "
+        f"{sorted(t01)}"
+    )
     assert re.fullmatch(r"[0-9a-f]{32}", t01["md5_raw"])
+    assert "md5_normalized" in t01["md5_definition"], t01["md5_definition"]
     assert t01["md5_raw_is_reproducible"] is False, (
         "the raw md5 embeds the run's wall clock; if this ever claims to be "
         "reproducible the md5_definition must be revisited"
@@ -251,8 +255,12 @@ def test_stored_golden_record_is_complete(smoke):
     assert len(t01["md5_raw_observed"]) >= N_REFERENCE_RUNS
     assert t01["n_steps"] > 1
     assert t01["channels_per_step"]["global"] == 23
+    assert t01["header_unparsed_records"] == [], (
+        "the header walk should account for every header record of this deck; "
+        f"unparsed: {t01['header_unparsed_records']}"
+    )
 
-    # -- per-channel maxima: all 23, named, and numeric --
+    # -- per-channel maxima: 23 named globals, 2 named part, 2 named TH-group --
     channels = smoke["channel_maxima"]["global"]
     assert len(channels) == 23, len(channels)
     assert [c["index"] for c in channels] == list(range(1, 24))
@@ -261,6 +269,18 @@ def test_stored_golden_record_is_complete(smoke):
         assert entry["description"], entry
         for key in ("max", "max_abs", "final"):
             assert isinstance(entry[key], (int, float)), (entry, key)
+    assert [c["index"] for c in smoke["channel_maxima"]["part"]] == [1, 2], (
+        "the deck's /TH/PART/2 block asks for IE KE (curve codes 1 and 2)"
+    )
+    # I3: the TH-group channels are named too -- varn1_title
+    # (th_titles.F90:168-189) keyed by the codes hist1.F:585-587 records, which
+    # for the deck's /TH/NODE/1 ... DX VX are 1 and 4.
+    group = smoke["channel_maxima"]["th_group"]
+    assert [c["index"] for c in group] == [1, 4], group
+    assert [c["name"] for c in group] == ["X-DISPLACEMENT", "X-VELOCITY"], group
+    assert t01["th_group_curve_codes"] == [1, 4], (
+        "the deck's /TH/NODE/1 ... DX VX card is curve codes 1 and 4"
+    )
 
     # -- anything NOT established is null WITH a reason, never invented --
     for key, value in smoke["not_established"].items():
@@ -287,16 +307,27 @@ def test_stored_golden_deck_bytes_match(smoke):
 
 
 def test_stored_golden_t01_reproduces_the_stored_maxima(smoke):
-    """Re-derive the maxima from the committed T01 -- no oracle required.
+    """Re-derive everything from the committed T01 -- no oracle required.
 
     This pins :mod:`tools.oracle.oracle_selftest`'s parser and the recorded
     maxima against each other, so a later change to either shows up here even
-    on a box where the oracle was never built.
+    on a box where the oracle was never built.  It also pins the run stamp by
+    CONTENT twice over, which is the only thing that can catch a window that is
+    the right length in the wrong place:
+
+    * ``t01.run_stamp.content`` must be built from the bytes the committed
+      binary carries (M4/I1) -- a record whose thesis is "every field is
+      measured, not asserted" cannot ship a typed-in example of its own header;
+    * the 9 bytes right after the window must be ``' RADIOSS '``
+      (``hist1.F:212``, ``CH80(25:33)``), so the window is tied to the ctime
+      FIELD and not merely to a ``== 24`` literal.
     """
     from tools.oracle.oracle_selftest import (
         channel_maxima,
         deterministic_md5,
         parse_t01,
+        run_stamp_text,
+        run_stamp_window,
     )
 
     blob = (REPO / smoke["t01"]["path"]).read_bytes()
@@ -304,15 +335,80 @@ def test_stored_golden_t01_reproduces_the_stored_maxima(smoke):
     assert len(blob) == smoke["t01"]["size_bytes"]
     assert parsed["n_steps"] == smoke["t01"]["n_steps"]
     assert parsed["header_records"] == smoke["t01"]["header_records"]
-    assert parsed["channels_per_step"]["global"] == 23
+    assert parsed["channels_per_step"] == smoke["t01"]["channels_per_step"]
     assert parsed["t_first"] == smoke["t01"]["t_first"]
     assert parsed["t_last"] == smoke["t01"]["t_last"]
-    assert parsed["run_stamp"] == (
+    assert parsed["hierarchy"] == smoke["t01"]["hierarchy"]
+    assert parsed["part_codes"] == smoke["t01"]["curve_codes_by_group"]["part"]
+    assert parsed["group_codes"] == (
+        smoke["t01"]["curve_codes_by_group"]["th_group"])
+
+    start, length = run_stamp_window(blob)
+    assert parsed["run_stamp"] == (start, length)
+    assert (start, length) == (
         smoke["t01"]["run_stamp"]["offset"],
         smoke["t01"]["run_stamp"]["length"],
     )
-    assert deterministic_md5(blob) == smoke["t01"]["md5"]
+    # M4: the window is bounded by content on its far side, not only its length.
+    assert blob[start + length:start + length + 9] == b" RADIOSS ", (
+        f"the 9 bytes after the window are "
+        f"{blob[start + length:start + length + 9]!r}, not ' RADIOSS ': the "
+        "stamp window does not end where hist1.F:212 says the clock ends"
+    )
+    # I1: the recorded content is the committed binary's, re-read.
+    stamp = run_stamp_text(blob)
+    assert stamp == parsed["run_stamp_text"]
+    assert stamp == smoke["t01"]["run_stamp"]["content"], (
+        "run_stamp.content is not what the committed T01 carries; it must be "
+        "built from the bytes read (tools/oracle/oracle_selftest.py "
+        "run_stamp_text), never typed in"
+    )
+    assert blob[start:start + length].decode("ascii") in stamp
+
+    assert deterministic_md5(blob) == smoke["t01"]["md5_normalized"]
     assert channel_maxima(parsed) == smoke["channel_maxima"]
+
+
+def test_golden_engine_listing_is_committed_and_agrees(smoke):
+    """The golden engine listing must be IN the tree, not merely written.
+
+    ``--write`` drops ``<run>_0001.out`` next to the T01, and ``.gitignore:13``
+    ignores ``*.out`` repo-wide, so it is force-added once (``git add -f``)
+    rather than by editing the shared ignore file.  That is only safe while a
+    test holds it to the record: this is the artefact carrying the
+    ``ENGINE TERMINATION`` banner, the cycle count and the energy ledger --
+    every one of them admissible per ``oracle_provenance.json`` -- and a
+    committed-but-drifting copy would be worse than none.
+    """
+    listing = GOLDEN_DIR / "TENSILE_0001.out"
+    assert listing.is_file(), (
+        f"{listing} is missing. It is force-added because .gitignore:13 "
+        f"ignores *.out; do not 'fix' this by dropping the file."
+    )
+    text = listing.read_text(errors="replace")
+    assert "OpenRadioss Engine" in text[:2000], "not an engine listing"
+    assert "CURRENT ENGINE" in text, "not an engine listing"
+    assert smoke["run"]["verdict_banner"] in text, (
+        f"the committed listing does not carry the recorded banner "
+        f"{smoke['run']['verdict_banner']!r}"
+    )
+    cycles = re.search(r"TOTAL NUMBER OF CYCLES\s*:\s*(\d+)", text)
+    assert cycles and int(cycles.group(1)) == smoke["run"]["n_cycles"], (
+        f"the committed listing's cycle count does not match the record's "
+        f"{smoke['run']['n_cycles']}"
+    )
+    assert "** ERROR" not in text, "the golden run reported an error"
+    # the listing and the T01 are copied from the SAME run by --write, so the
+    # wall-clock second in the listing is the one in the T01's stamp: this is
+    # the cross-check that keeps the two committed artefacts a matched pair.
+    started = re.search(r"EXECUTION STARTED \.*:\s*([\d/]+)\s+([\d:]+)", text)
+    assert started, "the listing carries no execution stamp"
+    assert started.group(2).rsplit(":", 1)[1] in smoke["t01"]["run_stamp"][
+        "content"], (
+        f"the listing's start second {started.group(2)!r} is not in the "
+        f"committed T01's run stamp {smoke['t01']['run_stamp']['content']!r}: "
+        "the two artefacts are from different runs"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -338,9 +434,13 @@ def test_oracle_reproduces_reference_t01(reference_runs, smoke):
     assert ref["starter_msgerrors"] == 0
     assert ref["engine_msgerrors"] == 0
     assert ref["t01_size_bytes"] == stored["t01"]["size_bytes"]
-    assert ref["t01_md5"] == stored["t01"]["md5"], (
+    assert ref["t01_md5_normalized"] == stored["t01"]["md5_normalized"], (
         "the deterministic T01 digest drifted -- the reference run is no "
-        "longer the one recorded in oracle_smoke.json"
+        "longer the one recorded in oracle_smoke.json. Remember this key is "
+        "the STAMP-NORMALISED digest: if the oracle was legitimately rebuilt "
+        "or moved to another architecture, re-derive it with `--write` and "
+        "say why (see environment.anchor_scope); a mismatch is not by itself "
+        "a physics regression."
     )
     assert ref["run_stamp"] == (
         stored["t01"]["run_stamp"]["offset"],
@@ -363,15 +463,16 @@ def test_oracle_t01_is_bit_reproducible(reference_runs, smoke):
     a non-reproducible oracle makes every parity claim in this program
     inadmissible, so it must be a red test, not a yellow one.
     """
-    digests = [r["t01_md5"] for r in reference_runs]
+    digests = [r["t01_md5_normalized"] for r in reference_runs]
     assert len(set(digests)) == 1, (
         "the reference T01 is NOT bit-reproducible across "
         f"{len(digests)} runs: {digests}. Determinism is anchored on "
-        "t01.md5 (run stamp zeroed); if a digest differs, either the solver "
+        "t01.md5_normalized (run stamp zeroed); if a digest differs, either "
+        "the solver "
         "is not deterministic or the normalization no longer covers every "
         "varying byte."
     )
-    assert digests[0] == smoke["t01"]["md5"]
+    assert digests[0] == smoke["t01"]["md5_normalized"]
     for run in reference_runs:
         assert run["verdict"] == "NORMAL"
         assert run["n_cycles"] == smoke["run"]["n_cycles"]
@@ -410,7 +511,15 @@ def test_three_raw_digests_are_recorded(smoke):
     Note what is *not* asserted: that the raw digests are all equal.  They
     cannot be -- ``hist1.F:211`` stamps the wall clock into the T01 and no
     keyword suppresses it.  What must hold is that the normalized digests are
-    all equal and that the raw variation is recorded rather than hidden.
+    all equal and that the raw variation is RECORDED rather than asserted.
+
+    I4, the non-degeneracy half: at least two distinct RAW digests must be in
+    the record.  Without it, a ``--write`` whose runs all finished inside one
+    wall-clock second would emit ``distinct_md5_raw: [<one digest>]`` while
+    still stating ``md5_raw_is_reproducible: false`` -- the record's central
+    non-reproducibility claim would be untested prose.  ``build_record`` refuses
+    to write such a record and retries until two runs straddle a second; this
+    assertion is what keeps that refusal honest against a hand-edited file.
     """
     determinism = smoke["determinism"]
     observed = smoke["t01"]["md5_raw_observed"]
@@ -421,10 +530,23 @@ def test_three_raw_digests_are_recorded(smoke):
         f"the recorded determinism digests differ: {determinism['md5']} -- the "
         "oracle was NOT bit-reproducible when this record was written"
     )
-    assert determinism["distinct_md5"] == [smoke["t01"]["md5"]]
+    assert determinism["distinct_md5"] == [smoke["t01"]["md5_normalized"]]
     assert determinism["md5_raw"] == observed
     assert smoke["t01"]["md5_raw"] == observed[0]
     assert sorted(set(determinism["md5_raw"])) == determinism["distinct_md5_raw"]
+    assert determinism["distinct_md5_raw_count"] == len(
+        determinism["distinct_md5_raw"])
+    assert len(determinism["distinct_md5_raw"]) >= 2, (
+        "only ONE distinct raw digest was recorded, so every run of the "
+        "--write finished inside the same wall-clock second and the record's "
+        "`md5_raw_is_reproducible: false` was never measured. Re-run "
+        "`python -m tools.oracle.oracle_selftest --write` until two runs "
+        f"straddle a second; got {determinism['distinct_md5_raw']}"
+    )
     assert smoke["t01"]["md5_raw_reason"], (
         "a non-reproducible raw md5 must say why, in the record itself"
     )
+    # NOTE: the LIVE runs above are deliberately not required to straddle a
+    # second -- three 0.4 s runs can easily share one, and a test that demanded
+    # otherwise would be flaky. The non-degeneracy duty belongs to --write
+    # (which retries and then refuses) and to the assertion above.

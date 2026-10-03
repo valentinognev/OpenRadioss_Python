@@ -348,6 +348,7 @@
     "the starter .out include-file block is not parity-grade (see inadmissible_parity_evidence_reasons)",
     "the h3d writer is deliberately unreachable at run time: never run an oracle job from a directory that contains libh3dwriter.so, and never set RAD_H3D_PATH, or the ABI-incompatible writer will be loaded and h3d files written silently wrong (the second and third dlopen trials of h3d_dl.c look in the cwd and in $ALTAIR_HOME/$ARCH)",
     "cpp_is_part_with_elements_ is an adapter, not upstream code: it answers with the v59 reader's own element count for the currently-read part, which is the contract hm_read_part.F relies on for message 178 and the element-stack choice",
+    "the T01 channel is NOT a plain byte comparison: hist1.F:210-234 stamps ctime() (timer_c.c:30-40) into the T01 header unconditionally, so two runs of this oracle differ in the stamp and nowhere else. The admissible digest is the stamp-NORMALISED one -- see tools/validation_data/oracle_smoke.json -> t01.md5_definition and t01.md5_normalized (a raw md5 is t01.md5_raw and moves with the wall clock). That digest also keeps VERSIO(2) and CPUNAM from the same CH80 record, so it is bound to the build AND the architecture: see oracle_smoke.json -> environment.anchor_scope",
     "nothing in this oracle was built from a third-party prebuilt binary; the two Docker Hub images that contain prebuilt starter/engine binaries were never installed"
   ],
   "evidence_verification": {

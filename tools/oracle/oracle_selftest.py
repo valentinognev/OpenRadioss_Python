@@ -59,12 +59,20 @@ Upstream Fortran origins
   ``1..NGLOBTH`` integer record written right after the hierarchy record.  This
   module finds the data section through that record, so the number of global
   channels is read from the file, never assumed.
-* ``engine/source/output/th/hist1.F:318-377`` -- per-part description
-  (``IPART(4,N)``, the 40-char title, ``IPART(7,N)``, the two bounds and
-  ``NVAR``) followed by the ``NVAR`` curve codes the deck requested -- this is
-  where :func:`parse_t01` reads the part channel codes from.
+* ``engine/source/output/th/hist1.F:357-376`` -- the per-part description
+  (``IPART(4,N)``, the title, ``IPART(7,N)``, the two bounds and ``NVAR``)
+  followed by the ``NVAR`` curve codes the deck requested -- this is where
+  :func:`_header_codes` reads the part channel codes from.
 * ``engine/source/output/th/hist1.F:442-514`` -- the same for subsets (written
-  AFTER the parts, which is what makes "first such record" the part's).
+  AFTER the parts, which is what makes the header walk positional).
+* ``engine/source/output/th/hist1.F:516-600`` -- the same for TH groups: five
+  int32 and the title, one int32+title per curve, then the ``NVAR`` curve codes
+  a ``/TH/NODE``-style card requested.  This is where the nodal channel codes
+  come from.
+* ``starter/source/output/th/th_titles.F90:168-189`` -- ``varn1_title``, the
+  nodal curve table those codes index into.
+* ``starter/source/output/th/th_titles.F90:2759-2792`` -- ``varpa_title``, the
+  per-part curve table.
 * ``engine/source/output/th/hist2.F:302-303`` -- the ``TT`` record, the first
   record of every step.
 * ``engine/source/output/th/hist2.F:307-333`` -- the ``NGLOBTH`` global
@@ -73,7 +81,7 @@ Upstream Fortran origins
   index -> short name -> description table for those 23 channels.  This is
   where :data:`GLOBAL_CHANNELS` is transcribed from.
 * ``engine/source/output/th/hist2.F:338-477`` -- the per-part values, one
-  record for all parts.
+  record for all parts; ``:608-1403`` the TH-group values.
 * ``engine/source/output/th/wrtdes.F:121-133`` -- ``ITTYP==3`` writes every
   value as a **single-precision** ``REAL`` (``R4 = A(I)``) even in a
   double-precision build, so all stored maxima are float32 widened to float64.
@@ -96,9 +104,25 @@ into the T01.  Measured 2026-10-03 on this oracle, three runs of
 
 So the solver is bit-reproducible and the *raw T01 bytes* are not.  A raw md5
 therefore cannot be the parity anchor: it would be a false failure roughly once
-a second.  The anchor is :func:`deterministic_md5`, and the two determinism
-tests assert both halves -- equal normalized digests, and every varying raw
-byte inside the 24-byte stamp window.
+a second.  The anchor is :func:`deterministic_md5`, and the gate asserts THREE
+halves so no half can rot: equal normalized digests, every varying raw byte
+inside the 24-byte stamp window, and **at least two distinct raw digests
+observed** -- without the third, a ``--write`` whose runs all landed in one
+second would assert ``md5_raw_is_reproducible: false`` without having measured
+it.  :func:`write_record` retries until two runs straddle a second and refuses
+to write if none do.
+
+The anchor is also bound to the ARCHITECTURE, not only to the build: the stamp
+is the first 24 bytes of an 80-byte record whose remainder carries
+``VERSIO(2)`` and ``CPUNAM`` (``hist1.F:212-217``, here ``"linuxa64 gf"``), and
+those bytes stay inside the normalized digest.  ``environment.anchor_scope`` in
+the record says so.
+
+Key naming (M6): :func:`run_reference` returns ``t01_md5_normalized`` and
+``t01_md5_raw``, and the record stores them as ``t01.md5_normalized`` /
+``t01.md5_raw``.  The long name is deliberate --
+``hashlib.md5(open(t01, "rb").read()).hexdigest()`` is ``t01_md5_raw`` and
+comparing THAT to the anchor tests the wall clock, not the physics.
 
 The h3d refusal
 ---------------
@@ -201,9 +225,41 @@ PART_CHANNEL_TITLES: Dict[int, str] = {
     32: "PLASTIC WORK",
 }
 
-#: Per-step records, in ``hist2.F`` write order.  Only the blocks this module
-#: names are marked ``maxima_recorded``; the rest are described with their
-#: length so a reader can see what was left out and why.
+#: Nodal (``/TH/NODE``) curve titles, ``varn1_title`` from
+#: ``starter/source/output/th/th_titles.F90:168-189`` (1-based code -> title),
+#: which is the table the TH-group codes index into.  The golden deck's
+#: ``/TH/NODE/1 … DX VX`` (``examples/tensile_bar/TENSILE_0000.rad:183-186``)
+#: is codes ``[1, 4]`` -> X-DISPLACEMENT, X-VELOCITY, and the decoded maxima
+#: agree with the deck's pull (see ``t01.data_blocks_per_step``).
+NODAL_CHANNEL_TITLES: Dict[int, str] = {
+    1: "X-DISPLACEMENT",
+    2: "Y-DISPLACEMENT",
+    3: "Z-DISPLACEMENT",
+    4: "X-VELOCITY",
+    5: "Y-VELOCITY",
+    6: "Z-VELOCITY",
+    7: "X-ACCELERATION",
+    8: "Y-ACCELERATION",
+    9: "Z-ACCELERATION",
+    10: "X-ROT VELOCITY",
+    11: "Y-ROT VELOCITY",
+    12: "Z-ROT VELOCITY",
+    13: "X-ROT ACCELERATION",
+    14: "Y-ROT ACCELERATION",
+    15: "Z-ROT ACCELERATION",
+    16: "X-COORDINATE",
+    17: "Y-COORDINATE",
+    18: "Z-COORDINATE",
+    19: "TEMPERATURE",
+}
+
+#: T01 format code -> the title width the description records use
+#: (``hist1.F:132-140``).  Note that the first record's title is hardcoded at 80
+#: (``hist1.F:201-208``) whatever this says; see :func:`_title_width`.
+_FORMAT_CODE_TITLE_WIDTH: Dict[int, int] = {4021: 100, 3050: 100, 3041: 80,
+                                            3040: 40}
+
+#: Per-step records, in ``hist2.F`` write order.
 DATA_BLOCK_SOURCES = {
     "TIME": "engine/source/output/th/hist2.F:302-303",
     "GLOBAL": "engine/source/output/th/hist2.F:307-333",
@@ -212,10 +268,13 @@ DATA_BLOCK_SOURCES = {
     "TH_GROUP": "engine/source/output/th/hist2.F:608-1403",
 }
 
-_UNNAMED_BLOCK_REASON = (
-    "no maxima are recorded for this block: upstream ships no curve-title "
-    "table for it (th_titles.F90 has varpa_title and varn1_title but no "
-    "subset table) and this module refuses to invent a channel name"
+#: Where the run stamp sits inside its ``CH80`` record (``hist1.F:210-234``).
+#: The window :func:`deterministic_md5` normalises is exactly the ctime field;
+#: what FOLLOWS it stays in the digest, which is what makes the anchor
+#: build- AND architecture-bound.
+RUN_STAMP_TRAILER = (
+    "CH80(25:33) = ' RADIOSS ', CH80(34:59) = VERSIO(2)(9:34), "
+    "CH80(60:80) = CPUNAM"
 )
 
 
@@ -314,7 +373,7 @@ def run_stamp_window(blob: bytes) -> Tuple[int, int]:
     the version and ``CPUNAM``, and writes it as one record.  The record is
     located by that marker (it is the only printable-ASCII record in the file),
     and the stamp is its first :data:`RUN_STAMP_LENGTH` bytes -- the width
-    ``my_ctime`` copies (``timer_c.c:36-37``).
+    ``my_ctime`` copies (``timer_c.c:39``).
     """
     for offset, payload in t01_records(blob):
         if _RUN_STAMP_MARKER in payload and payload.isascii() and all(
@@ -326,6 +385,18 @@ def run_stamp_window(blob: bytes) -> Tuple[int, int]:
         f"{_RUN_STAMP_MARKER!r}); hist1.F:210-234 writes one unconditionally, "
         "so its absence means this is not a T01 this module can date"
     )
+
+
+def run_stamp_text(blob: bytes) -> str:
+    """The stamp field AS READ, decoded -- never a literal.
+
+    ``"ctime() -- " + repr(<the bytes the file actually carries>)``.  A record
+    whose thesis is "every field is measured, not asserted" cannot ship a
+    hardcoded example of its own header; :func:`test_p0_oracle_selftest` asserts
+    this string against the committed golden T01 for exactly that reason.
+    """
+    offset, length = run_stamp_window(blob)
+    return "ctime() -- " + repr(blob[offset:offset + length].decode("ascii"))
 
 
 def deterministic_md5(blob: bytes) -> str:
@@ -347,71 +418,171 @@ def _as_ints(payload: bytes) -> List[int]:
     return [int(v) for v in np.frombuffer(payload, dtype=">i4")]
 
 
-def _nglobth(records: Sequence[Tuple[int, bytes]]) -> int:
-    """The ``1..NGLOBTH`` curve-code record (``hist1.F:311-316``).
+def _nglobth(records: Sequence[Tuple[int, bytes]]) -> Tuple[int, int]:
+    """``(NGLOBTH, index)`` of the ``1..NGLOBTH`` curve-code record.
 
-    Found by content, not by position: the payload must be a run of big-endian
-    int32 equal to ``1..n`` with ``n >= 8``.  ``NGLOBTH`` therefore comes from
-    the file instead of being assumed to be 23.
+    ``hist1.F:311-316`` writes ``IWA(I) = I`` for ``I = 1..NGLOBTH`` right after
+    the hierarchy record, so the record is found by CONTENT: its payload must be
+    a run of big-endian int32 equal to ``1..n`` with ``n >= 8``.  ``NGLOBTH``
+    therefore comes from the file instead of being assumed to be 23, and the
+    index anchors the header walk (the hierarchy record is the one just before
+    it, ``hist1.F:293-308``).
     """
-    for _, payload in records:
+    for index, (_, payload) in enumerate(records):
         if len(payload) < 32 or len(payload) % 4:
             continue
         values = _as_ints(payload)
         if values == list(range(1, len(values) + 1)):
-            return len(values)
+            return len(values), index
     raise T01FormatError(
         "no 1..N integer record found; hist1.F:311-316 writes one right after "
         "the hierarchy record when the T01 is the global history file"
     )
 
 
-def _part_curve_codes(records: Sequence[Tuple[int, bytes]],
-                      after: int) -> List[int]:
-    """The part's requested curve codes (``hist1.F:367-376``).
+def _title_width(records: Sequence[Tuple[int, bytes]]) -> int:
+    """``LTITL``, the title width every description record uses.
 
-    The per-part description record is ``IPART(4,N)``, the ``LTITL``-character
-    title, ``IPART(7,N)``, the two part bounds and ``NVAR`` -- one int32, the
-    title, four int32 (``hist1.F:357-366``, ``:365`` for ``NVAR``).  Parts are
-    written before subsets (``hist1.F:318-377`` vs ``:442-514``), so the FIRST
-    such record at or after the ``1..N`` code record is the part's, and the
-    record right after it holds its ``NVAR`` curve codes.
-
-    Returns ``[]`` when the shape is not found -- the caller records that as
-    ``null`` with a reason instead of naming channels it cannot justify.
+    ``hist1.F:132-140`` picks the format code from ``TH_VERS`` and the title
+    width with it; the format code is the first int32 of the first record, so
+    the width is read, never guessed.  Note the one upstream inconsistency this
+    module has to know about: the FIRST record's title is **hardcoded at 80**
+    characters (``hist1.F:201-208``, ``EOR_C(84)``) regardless of ``LTITL``, so a
+    3040 file carries an 84-byte title record and 40-byte descriptions.
     """
-    for index in range(after, len(records)):
-        payload = records[index][1]
-        for ltitl in (40, 80, 100):        # hist1.F:132-140
-            if len(payload) != 4 + ltitl + 16:
-                continue
-            title = payload[4:4 + ltitl]
-            if not title.isascii() or not all(32 <= c < 127 for c in title):
-                continue
-            nvar = _as_ints(payload[4 + ltitl:])[3]   # NVAR, hist1.F:365
-            if index + 1 >= len(records):
-                return []
-            codes_payload = records[index + 1][1]
-            if nvar <= 0 or len(codes_payload) != 4 * nvar:
-                return []
-            return _as_ints(codes_payload)
-    return []
+    code = _as_ints(records[0][1][:4])[0]
+    try:
+        return _FORMAT_CODE_TITLE_WIDTH[code]
+    except KeyError:
+        raise T01FormatError(
+            f"unknown T01 format code {code} in record 0; hist1.F:132-140 "
+            f"defines {_sorted(_FORMAT_CODE_TITLE_WIDTH)}"
+        ) from None
+
+
+def _header_codes(records: Sequence[Tuple[int, bytes]], nglo_index: int,
+                  ltitl: int) -> Dict[str, List[List[int]]]:
+    """Walk ``hist1.F``'s header and return the curve codes of every group.
+
+    The order is ``hist1``'s own, so nothing is pattern-matched:
+
+    * the 6-integer hierarchy record ``(NPART+NTHPART, NUMMAT, NUMGEO, NSUBS,
+      NTHGRP2, NGLOBTH)`` (``hist1.F:293-308``) -- the record just before the
+      ``1..NGLOBTH`` one;
+    * ``NPART+NTHPART`` part blocks (``:318-377``): ``IPART(4,N)``, the title,
+      ``IPART(7,N)``, the two bounds and ``NVAR`` (``:357-366``), then the
+      ``NVAR`` curve codes (``:367-376``);
+    * ``NUMMAT`` material blocks (``:379-411``) and ``NUMGEO`` geometry blocks
+      (``:413-441``): an int32 and the title, nothing else;
+    * ``NSUBS`` subset blocks (``:442-514``): five int32 then the title
+      (``:493-499``), the child list (``:502``), the part list (``:506``), then
+      the ``NVAR`` curve codes (``:509-513``);
+    * ``NTHGRP2`` TH-group blocks (``:516-600``): five int32 then the title
+      (``:545-553``), one int32+title per curve (``:556-584``), then the
+      ``NVAR`` curve codes (``:585-587``).
+
+    Anything else the header holds (the two additional records of
+    ``hist1.F:237-291``, which only a ``TH_VERS>=50`` file carries, and the
+    fluid section of ``:602-663``) sits OUTSIDE this walk and is reported as
+    ``skipped`` rather than guessed at.
+    """
+    hierarchy = _as_ints(records[nglo_index - 1][1])
+    if len(hierarchy) != 6:
+        raise T01FormatError(
+            f"the record before the 1..NGLOBTH one holds {len(hierarchy)} "
+            f"int32, not the 6 of hist1.F:293-308"
+        )
+    n_part_tot, n_mat, n_geo, n_sub, n_grp, _ = hierarchy
+    cursor = {"i": nglo_index + 1}
+
+    def _take(index: int) -> bytes:
+        if index >= len(records):
+            raise T01FormatError(
+                f"header ended before record {index}: the hierarchy record "
+                f"claims more parts/materials/geometries/subsets/TH groups "
+                f"than the file carries"
+            )
+        return records[index][1]
+
+    def description(n_head: int, n_tail: int, who: str) -> List[int]:
+        """One ``... ints, LTITL-character title, ... ints`` record."""
+        payload = _take(cursor["i"])
+        want = 4 * (n_head + n_tail) + ltitl
+        if len(payload) != want:
+            raise T01FormatError(
+                f"header record {cursor['i']} ({who}) is {len(payload)} bytes, "
+                f"expected {want} for hist1.F's description layout"
+            )
+        title = payload[4 * n_head:4 * n_head + ltitl]
+        if not title.isascii():
+            raise T01FormatError(
+                f"header record {cursor['i']} ({who}) title is not ASCII"
+            )
+        ints = _as_ints(payload[:4 * n_head]) + _as_ints(payload[4 * n_head
+                                                                + ltitl:])
+        cursor["i"] += 1
+        return ints
+
+    def run(count: int, who: str) -> List[int]:
+        """A plain ``count``-int32 record (a code list or a child/part list)."""
+        if count <= 0:
+            return []
+        payload = _take(cursor["i"])
+        if len(payload) != 4 * count:
+            raise T01FormatError(
+                f"header record {cursor['i']} does not hold the {count} int32 "
+                f"of {who} (hist1.F)"
+            )
+        cursor["i"] += 1
+        return _as_ints(payload)
+
+    out: Dict[str, List[List[int]]] = {"part": [], "subset": [], "group": []}
+    for n in range(n_part_tot):
+        who = f"part {n + 1}"
+        nvar = description(1, 4, who)[-1]              # hist1.F:357-366
+        out["part"].append(run(nvar, f"{who} curve codes"))   # :367-376
+    for n in range(n_mat):
+        description(1, 0, f"material {n + 1}")         # hist1.F:401-411
+    for n in range(n_geo):
+        description(1, 0, f"geometry {n + 1}")         # hist1.F:433-441
+    for n in range(n_sub):
+        who = f"subset {n + 1}"
+        head = description(5, 0, who)                  # hist1.F:493-499
+        run(head[2], f"{who} children")                # :502
+        run(head[3], f"{who} parts")                   # :506
+        out["subset"].append(run(head[4], f"{who} curve codes"))   # :509-513
+    for n in range(n_grp):
+        who = f"TH group {n + 1}"
+        head = description(5, 0, who)                  # hist1.F:545-553
+        for j in range(head[3]):                       # ITHGRP(4,N) curves
+            description(1, 0, f"{who} curve {j + 1}")  # :561-581
+        out["group"].append(run(head[4], f"{who} curve codes"))   # :585-587
+    out["hierarchy"] = hierarchy
+    out["consumed"] = cursor["i"]
+    return out
 
 
 def parse_t01(blob: bytes) -> Dict:
     """Decode an ``ITTYP==3`` T01 into its header facts and its four step blocks.
 
     Per step ``hist2.F`` writes, in this order: ``TT`` (one value, :302-303),
-    the ``NGLOBTH`` global channels (:307-333), the per-part values (:338-477)
-    and the remaining blocks (subsets from :479, TH groups from :515).  The
-    stride is validated, so a shape this module did not expect is an error and
-    not a mis-parse.
+    the ``NGLOBTH`` global channels (:307-333), the per-part values (:338-477),
+    the subset values (:478-606, absent when every subset requests nothing) and
+    the TH-group values (:608-1403).  The stride is validated across every step,
+    so a shape this module did not expect is an error and not a mis-parsed.
+
+    The returned ``part_codes`` / ``subset_codes`` / ``group_codes`` are per
+    GROUP (a list per part / subset / TH group), read out of the header by
+    :func:`_header_codes`; ``channels_per_step`` says how many values each block
+    carries per step, so a multi-part model's codes and its block width can be
+    compared by the caller.
     """
     records = t01_records(blob)
     if len(records) < 8:
         raise T01FormatError(f"only {len(records)} records; not a T01")
-    nglo = _nglobth(records)
+    nglo, nglo_index = _nglobth(records)
     glob_bytes = 4 * nglo
+    ltitl = _title_width(records)
 
     start = None
     for index in range(len(records) - 3):
@@ -424,6 +595,16 @@ def parse_t01(blob: bytes) -> Dict:
             f"no data section: expected a 4-byte TT record followed by a "
             f"{glob_bytes}-byte global block (hist2.F:302-303, :307-333)"
         )
+    header = _header_codes(records, nglo_index, ltitl)
+    if header["consumed"] != start:
+        # Not fatal -- hist1.F:237-291 (TH_VERS>=50 only) and :602-663 (fluid
+        # sections) sit here -- but it is the difference between "I read the
+        # whole header" and "I read the part I needed", so it is reported.
+        header["unparsed_records"] = [
+            len(payload) for _, payload in records[header["consumed"]:start]
+        ]
+    else:
+        header["unparsed_records"] = []
     body = records[start:]
     if len(body) % 4:
         raise T01FormatError(
@@ -447,21 +628,25 @@ def parse_t01(blob: bytes) -> Dict:
 
     def column(j: int) -> np.ndarray:
         rows = [np.frombuffer(body[4 * k + j][1], dtype=">f4")
-                for k in range(len(body) // 4)]
+                for k in range(n_blocks)]
         return np.array(rows, dtype=np.float64)
 
-    n_steps = len(body) // 4
     return {
         "n_nglobth": nglo,
+        "format_code": _as_ints(records[0][1][:4])[0],
+        "title_width": ltitl,
         "header_records": start,
         "n_records": len(records),
         "run_stamp": run_stamp_window(blob),
-        "n_steps": n_steps,
+        "run_stamp_text": run_stamp_text(blob),
+        "hierarchy": header["hierarchy"],
+        "header_unparsed_records": header["unparsed_records"],
+        "n_steps": n_blocks,
         "channels_per_step": {
             "time": 1,
             "global": nglo,
-            "part": len(body[2][1]) // 4,
-            "th_group": len(body[3][1]) // 4,
+            "part": shape[2] // 4,
+            "th_group": shape[3] // 4,
         },
         "t_first": float(column(0)[0, 0]),
         "t_last": float(column(0)[-1, 0]),
@@ -469,7 +654,9 @@ def parse_t01(blob: bytes) -> Dict:
         "global": column(1),
         "part": column(2),
         "th_group": column(3),
-        "part_codes": _part_curve_codes(records, 0),
+        "part_codes": header["part"],
+        "subset_codes": header["subset"],
+        "group_codes": header["group"],
     }
 
 
@@ -485,12 +672,52 @@ def _stat(entry: Dict, series: np.ndarray) -> Dict:
     return entry
 
 
+def _named_maxima(block: np.ndarray, codes: Sequence[int], titles: Dict[int, str],
+                  table: str, who: str) -> List[Dict]:
+    """Maxima of one per-step block, named from its curve codes.
+
+    ``codes`` comes from the T01 header (:func:`_header_codes`) and ``titles``
+    from the transcribed upstream table; a code the table does not carry gets
+    ``name: null`` plus the reason, never an invented name.
+    """
+    if len(codes) != block.shape[1]:
+        raise T01FormatError(
+            f"{len(codes)} {who} curve code(s) for {block.shape[1]} {who} "
+            f"channel(s) per step"
+        )
+    out: List[Dict] = []
+    for column, code in enumerate(codes):
+        title = titles.get(int(code))
+        entry: Dict = {"index": int(code), "name": title}
+        if title is None:
+            entry["name_reason"] = (
+                f"curve code {code} has no entry in the transcribed {table} "
+                f"table; no name is invented"
+            )
+        out.append(_stat(entry, block[:, column]))
+    return out
+
+
 def channel_maxima(parsed: Dict) -> Dict:
-    """Per-channel maxima of the golden run: the 23 global and the part channels.
+    """Per-channel maxima of the golden run: global, per-part and TH-group.
 
     Exactly the structure stored in ``oracle_smoke.json`` under
     ``channel_maxima``; the structural tests compare the two with ``==``, so a
     key added here must be added to the record too.
+
+    Three naming sources, all upstream tables, all keyed by the curve codes the
+    T01 header records:
+
+    * the 23 global channels -- ``write_thnms1.F90:228-250``;
+    * the per-part channels -- ``varpa_title``, ``th_titles.F90:2759-2792``;
+    * the TH-group (``/TH/NODE`` …) channels -- ``varn1_title``,
+      ``th_titles.F90:168-189``.
+
+    Subset channels are the one gap: ``hist2.F`` writes them only when a subset
+    requests a curve (``:481``, ``II/=0`` at ``:606``), so there is no block for
+    a deck that requests none, and this deck's single subset requests none.  A
+    subset-bearing deck will raise here rather than be silently dropped -- add
+    the table then.
     """
     nglo = parsed["n_nglobth"]
     if nglo != len(GLOBAL_CHANNELS):
@@ -505,34 +732,21 @@ def channel_maxima(parsed: Dict) -> Dict:
             {"index": index, "name": name, "description": description},
             parsed["global"][:, column]))
 
-    codes = parsed["part_codes"]
-    part_out: List[Dict] = []
-    if not codes:
-        part_out = [_stat({"index": column + 1, "name": None,
-                           "name_reason":
-                               "the part's curve codes could not be read out "
-                               "of the T01 header (hist1.F:367-376), so no "
-                               "channel is named"},
-                          parsed["part"][:, column])
-                    for column in range(parsed["part"].shape[1])]
-    else:
-        if len(codes) != parsed["part"].shape[1]:
-            raise T01FormatError(
-                f"{len(codes)} part curve codes for "
-                f"{parsed['part'].shape[1]} part channels"
-            )
-        for column, code in enumerate(codes):
-            title = PART_CHANNEL_TITLES.get(int(code))
-            entry = {"index": int(code), "name": title}
-            if title is None:
-                entry["name_reason"] = (
-                    f"curve code {code} has no entry in the transcribed "
-                    "varpa_title table (th_titles.F90:2759-2792); no name is "
-                    "invented"
-                )
-            part_out.append(_stat(entry, parsed["part"][:, column]))
+    part_codes = parsed["part_codes"]
+    if any(codes for codes in parsed["subset_codes"]):
+        raise T01FormatError(
+            "this T01 carries subset curve codes; per-subset maxima are not "
+            "recorded (no per-subset block is decoded) -- transcribe the subset "
+            "table and extend channel_maxima rather than losing them silently"
+        )
+    part_out = _named_maxima(
+        parsed["part"], [c for codes in part_codes for c in codes],
+        PART_CHANNEL_TITLES, "varpa_title", "part")
+    group_out = _named_maxima(
+        parsed["th_group"], [c for codes in parsed["group_codes"] for c in codes],
+        NODAL_CHANNEL_TITLES, "varn1_title", "TH group")
 
-    return {"global": globals_out, "part": part_out}
+    return {"global": globals_out, "part": part_out, "th_group": group_out}
 
 
 def diff_offsets(left: bytes, right: bytes) -> List[int]:
@@ -675,18 +889,32 @@ def run_reference(run_name: str = RUN_NAME,
         "engine_tail": timings["engine_tail"],
         "t01_path": str(t01),
         "t01_size_bytes": len(blob),
-        "t01_md5": deterministic_md5(blob),
+        # M6: the long name is the point.  ``t01_md5_normalized`` is NOT
+        # ``hashlib.md5(open(t01, "rb").read()).hexdigest()``; doing that
+        # comparison silently tests the wall clock instead of the physics.
+        "t01_md5_normalized": deterministic_md5(blob),
         "t01_md5_raw": hashlib.md5(blob).hexdigest(),
         "t01_bytes": blob,
         "run_stamp": parsed["run_stamp"],
+        "run_stamp_text": parsed["run_stamp_text"],
         "t01_facts": {
+            "format_code": parsed["format_code"],
+            "title_width": parsed["title_width"],
             "header_records": parsed["header_records"],
             "n_records": parsed["n_records"],
+            "header_unparsed_records": parsed["header_unparsed_records"],
+            "hierarchy": parsed["hierarchy"],
             "n_steps": parsed["n_steps"],
             "t_first": parsed["t_first"],
             "t_last": parsed["t_last"],
             "channels_per_step": parsed["channels_per_step"],
+            # per GROUP (a list per part / subset / TH group) -- the form the
+            # header walk produces; the record flattens these for its
+            # *_curve_codes keys, which a multi-part deck would have to read
+            # through curve_codes_by_group instead.
             "part_curve_codes": parsed["part_codes"],
+            "subset_curve_codes": parsed["subset_codes"],
+            "th_group_curve_codes": parsed["group_codes"],
         },
         "channel_maxima": channel_maxima(parsed),
         "a_files": sorted(p.name for p in work.glob(f"{run_name}A[0-9]*")),
@@ -728,15 +956,32 @@ def build_record(reference: Dict, repeats: Sequence[Dict],
     """Assemble the stored record from a live reference run.
 
     ``repeats`` are additional runs of the same binary in their own scratch
-    directories; their digests are the determinism evidence.
+    directories; their digests are the determinism evidence.  Two properties are
+    required of them and neither is assumed:
+
+    * every normalised digest equal -- otherwise the oracle is not
+      bit-reproducible and there is nothing admissible to record;
+    * at least TWO distinct raw digests -- otherwise the runs all landed inside
+      one wall-clock second, which would make ``md5_raw_is_reproducible: false``
+      an unproven claim in a record whose whole point is that its fields are
+      measured.  :func:`write_record` is responsible for arranging that.
     """
-    digests = [reference["t01_md5"]] + [r["t01_md5"] for r in repeats]
+    digests = ([reference["t01_md5_normalized"]]
+               + [r["t01_md5_normalized"] for r in repeats])
     raw = [reference["t01_md5_raw"]] + [r["t01_md5_raw"] for r in repeats]
     if len(set(digests)) != 1:
         raise RuntimeError(
             f"the oracle is not bit-reproducible: {digests}. Refusing to write "
             "a golden record -- no parity claim in this program is admissible "
             "against a non-deterministic oracle."
+        )
+    if len(set(raw)) < 2:
+        raise RuntimeError(
+            f"all {len(raw)} runs share one wall-clock second, so the record's "
+            "claim that the RAW digest is not reproducible would be unproven: "
+            f"{raw}. Re-run `python -m tools.oracle.oracle_selftest --write` "
+            "until the runs straddle a second boundary (write_record retries, "
+            "but a run this fast can need a few attempts)."
         )
     offs = reference["run_stamp"]
     starter_path, engine_path, _ = resolve_oracle()
@@ -810,6 +1055,18 @@ def build_record(reference: Dict, repeats: Sequence[Dict],
                         "this record's environment is built by "
                         "oracle_selftest.oracle_env() so the harness never "
                         "depends on the caller's shell",
+            "anchor_scope": (
+                "the normalised T01 digest is bound to the build AND the "
+                "architecture, not only to the build: hist1.F:212-217 writes "
+                f"{RUN_STAMP_TRAILER} into the same CH80 record, right after "
+                "the ctime field this record normalises away. VERSIO(2) is the "
+                "build's version banner and CPUNAM the platform string "
+                "(here 'linuxa64 gf'), so an oracle rebuilt from another "
+                "revision -- or the same revision built for another machine -- "
+                "will not reproduce the anchor even though its physics is "
+                "unchanged. Treat a digest mismatch as 're-derive with "
+                "--write and say why', never as a physics regression."
+            ),
         },
         "run": {
             "verdict": reference["verdict"],
@@ -847,7 +1104,37 @@ def build_record(reference: Dict, repeats: Sequence[Dict],
             "t_first": reference["t01_facts"]["t_first"],
             "t_last": reference["t01_facts"]["t_last"],
             "channels_per_step": reference["t01_facts"]["channels_per_step"],
-            "part_curve_codes": reference["t01_facts"]["part_curve_codes"],
+            "format_code": reference["t01_facts"]["format_code"],
+            "title_width": reference["t01_facts"]["title_width"],
+            "hierarchy": reference["t01_facts"]["hierarchy"],
+            "hierarchy_definition": (
+                "(NPART+NTHPART, NUMMAT, NUMGEO, NSUBS, NTHGRP2, NGLOBTH) -- "
+                "hist1.F:293-308"
+            ),
+            "header_unparsed_records":
+                reference["t01_facts"]["header_unparsed_records"],
+            "part_curve_codes": [c for codes
+                                 in reference["t01_facts"]["part_curve_codes"]
+                                 for c in codes],
+            "th_group_curve_codes": [c for codes
+                                     in reference["t01_facts"]
+                                     ["th_group_curve_codes"]
+                                     for c in codes],
+            "curve_codes_by_group": {
+                "part": reference["t01_facts"]["part_curve_codes"],
+                "subset": reference["t01_facts"]["subset_curve_codes"],
+                "th_group": reference["t01_facts"]["th_group_curve_codes"],
+            },
+            "curve_codes_note": (
+                "each *_curve_codes list is the codes of every group of that "
+                "kind CONCATENATED (this deck has one of each, so the flat list "
+                "and the single group's list coincide); curve_codes_by_group is "
+                "the authoritative per-group form and is what the header walk "
+                "actually produces. It walks hist1.F's own block order "
+                "(:357-376 parts, :493-513 subsets, :545-587 TH groups) from "
+                "the hierarchy record. header_unparsed_records is empty for "
+                "this deck, so the whole header was accounted for."
+            ),
             "data_blocks_per_step": [
                 {"name": "TIME", "source": DATA_BLOCK_SOURCES["TIME"],
                  "floats": 1, "maxima_recorded": True},
@@ -860,56 +1147,84 @@ def build_record(reference: Dict, repeats: Sequence[Dict],
                 {"name": "TH_GROUP", "source": DATA_BLOCK_SOURCES["TH_GROUP"],
                  "floats": reference["t01_facts"]["channels_per_step"]
                  ["th_group"],
+                 "maxima_recorded": True},
+                {"name": "SUBSET", "source": DATA_BLOCK_SOURCES["SUBSET"],
+                 "floats": 0,
                  "maxima_recorded": False,
-                 "maxima_reason": _UNNAMED_BLOCK_REASON},
+                 "maxima_reason": (
+                     "hist2.F writes a per-subset block only when the subset "
+                     "requests a curve (:481, II/=0 at :606); this deck's "
+                     "single subset requests none, so there is no block and the "
+                     "header records an empty code list for it. A subset-bearing "
+                     "deck makes channel_maxima() raise rather than be dropped "
+                     "silently.")},
             ],
             "run_stamp": {
                 "offset": offs[0],
                 "length": offs[1],
-                "content": "ctime() -- 'Sat Oct  3 06:53:35 2026'",
+                "content": reference["run_stamp_text"],
                 "citation": "engine/source/output/th/hist1.F:210-234 with "
                             "engine/source/system/timer_c.c:30-40",
-                "note": "located by content (the record carrying ' RADIOSS '), "
-                        "never hardcoded",
+                "note": (
+                    "OFFSET is located by content (the printable record "
+                    "carrying ' RADIOSS '), never hardcoded; LENGTH is the "
+                    "constant RUN_STAMP_LENGTH = 24, which is how many "
+                    "characters my_ctime copies (timer_c.c:39). The record "
+                    "itself is 80 bytes; only its first 24 are the clock."
+                ),
+                "trailer": RUN_STAMP_TRAILER,
+                "trailer_note": (
+                    "what FOLLOWS the stamp stays inside the normalised "
+                    "digest -- see environment.anchor_scope"
+                ),
             },
-            "md5": reference["t01_md5"],
+            "md5_normalized": reference["t01_md5_normalized"],
             "md5_definition": (
-                "md5 of the T01 bytes with the 24-byte ctime run stamp at "
-                "t01.run_stamp.offset replaced by 24 NUL bytes. This is the "
-                "parity anchor."
+                "t01.md5_normalized = md5 of the T01 bytes with the 24-byte "
+                "ctime run stamp at t01.run_stamp.offset replaced by 24 NUL "
+                "bytes. This is the parity anchor. It is NOT "
+                "hashlib.md5(the T01 bytes) -- that is t01.md5_raw and it "
+                "moves with the wall clock."
             ),
             "md5_raw": reference["t01_md5_raw"],
             "md5_raw_is_reproducible": False,
             "md5_raw_reason": (
                 "hist1.F:211 stamps ctime() into the T01 header "
-                "(timer_c.c:30-40, the 24-character copy at :39) and no keyword or "
-                "environment variable "
+                "(timer_c.c:30-40, the 24-character copy at :39) and no keyword "
+                "or environment variable "
                 "suppresses it, so the raw bytes move with the wall clock: "
                 "measured, two runs sharing a wall-clock second produced the "
                 "same raw md5 and a run one second away differed in exactly one "
-                "byte, the seconds digit of the stamp. The physics payload is "
-                "reproducible -- see determinism below."
+                "byte, the seconds digit of the stamp. A minute carry changes "
+                "three (offsets 112/114/115), all inside the window. The "
+                "physics payload is reproducible -- see determinism below, and "
+                "distinct_md5_raw below for the raw variation that proves it."
             ),
             "md5_raw_observed": raw,
         },
         "determinism": {
             "method": (
-                "the reference was run three times in three separate scratch "
-                "directories with one thread; the normalized digest must be "
-                "identical every time and every raw differing byte must lie "
-                "inside the 24-byte run stamp"
+                f"the reference was run {len(digests)} times in {len(digests)} "
+                "separate scratch directories with one thread; the normalized "
+                "digest must be identical every time, every raw differing byte "
+                "must lie inside the 24-byte run stamp, and at least two "
+                "distinct RAW digests must be observed so the "
+                "non-reproducibility claim is measured rather than asserted"
             ),
             "runs": len(digests),
             "md5": digests,
             "md5_raw": raw,
             "distinct_md5": sorted(set(digests)),
             "distinct_md5_raw": sorted(set(raw)),
+            "distinct_md5_raw_count": len(set(raw)),
             "conclusion": (
                 "the oracle is bit-reproducible given a fixed run stamp; the "
                 "raw T01 bytes are not, and the normalized digest is therefore "
-                "the anchor. tests/test_p0_oracle_selftest.py asserts both "
-                "halves and FAILS (never skips) when the oracle is present and "
-                "non-deterministic."
+                "the anchor. tests/test_p0_oracle_selftest.py asserts all three "
+                "halves -- equal normalized digests, every raw differing byte "
+                "inside the stamp window, and at least two distinct RAW digests "
+                "so the non-reproducibility claim is measured -- and FAILS "
+                "(never skips) when the oracle is present and non-deterministic."
             ),
         },
         "channel_maxima": reference["channel_maxima"],
@@ -922,10 +1237,17 @@ def build_record(reference: Dict, repeats: Sequence[Dict],
             "($OR_SRC/starter/source/output/th/th_titles.F90:2759-2792) keyed "
             "by the curve codes the deck's /TH/PART block requested, which this "
             "module reads out of the T01 header (hist1.F:367-376).",
+            "The TH-group channels are named from varn1_title "
+            "($OR_SRC/starter/source/output/th/th_titles.F90:168-189), keyed "
+            "by the codes of hist1.F:585-587. The golden deck's "
+            "/TH/NODE/1 ... DX VX (examples/tensile_bar/TENSILE_0000.rad:183-186)"
+            " is codes [1, 4] -> X-DISPLACEMENT, X-VELOCITY; the decoded "
+            "maxima (0.1880658119916916 and 1.0) are the node's pull, which is "
+            "what the deck's boundary condition imposes.",
             "MAXIMA ARE THE SEED, NOT A TOLERANCE: a later phase compares its "
             "own T01 against these numbers with a stated tolerance, or -- "
-            "better -- against the committed tests/data/oracle_smoke/"
-            "<run>T01 digest.",
+            "better -- against t01.md5_normalized, or the committed "
+            "tests/data/oracle_smoke/<run>T01 itself.",
             "Only channels oracle_provenance.json marks admissible are "
             "recorded. H3D is deliberately absent (refused at run time), and "
             "the starter's include-file list is not a channel this record "
@@ -975,31 +1297,59 @@ def build_record(reference: Dict, repeats: Sequence[Dict],
     }
 
 
-def write_record(*, repeats: int = 3,
-                 workdir: Optional[Path] = None) -> Dict:
-    """Run the reference ``repeats + 1`` times and write the record + artefacts.
+#: How many times :func:`write_record` will try to straddle a wall-clock second
+#: before giving up.  Each attempt is ``1 + repeats`` runs of a deck that takes
+#: 0.4 s, so an attempt is ~1.6 s and this bound is ~30 s of writing in the
+#: pathological case where every run lands inside the same second.
+WRITE_ATTEMPTS = 12
 
-    The extra runs exist only to fill ``determinism``; the recorded artefacts
-    are the first run's.  Raises if the runs disagree, so a non-deterministic
-    oracle can never be written into the committed record.
+
+def write_record(*, repeats: int = 3, attempts: int = WRITE_ATTEMPTS,
+                 workdir: Optional[Path] = None) -> Dict:
+    """Run the reference ``1 + repeats`` times and write the record + artefacts.
+
+    The extra runs exist only to fill ``determinism``; the recorded artefacts are
+    the first run's.  Two things abort the write rather than produce a record:
+
+    * the normalised digests disagree -- the oracle is not bit-reproducible, so
+      there is nothing admissible to record;
+    * every run landed inside ONE wall-clock second -- the record's central
+      non-reproducibility claim would then be an assertion instead of a
+      measurement.  Attempts are retried (bounded by ``attempts``) because a
+      0.4 s deck can plausibly finish four runs inside one second; only a
+      genuinely frozen clock reaches the bound, and then the write is refused.
     """
     base = Path(workdir) if workdir else Path(
         "/tmp/opencode/oracle_selftest_record")
     base.mkdir(parents=True, exist_ok=True)
-    reference = run_reference(RUN_NAME, workdir=base / "run0")
-    repeats_runs = [run_reference(RUN_NAME, workdir=base / f"run{i + 1}")
-                    for i in range(repeats)]
-    record = build_record(reference, repeats_runs,
-                          json.loads(PROVENANCE.read_text()))
+    provenance = json.loads(PROVENANCE.read_text())
 
-    GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(reference["t01_path"],
-                 GOLDEN_DIR / f"{RUN_NAME}T01")
-    shutil.copy2(Path(reference["workdir"]) / f"{RUN_NAME}_0001.out",
-                 GOLDEN_DIR / f"{RUN_NAME}_0001.out")
-    SMOKE_JSON.parent.mkdir(parents=True, exist_ok=True)
-    SMOKE_JSON.write_text(json.dumps(record, indent=2) + "\n")
-    return record
+    last_error: Optional[Exception] = None
+    for attempt in range(1, max(1, attempts) + 1):
+        suffix = "" if attempt == 1 else f"_try{attempt}"
+        reference = run_reference(RUN_NAME, workdir=base / f"run0{suffix}")
+        extra = [run_reference(RUN_NAME, workdir=base / f"run{i + 1}{suffix}")
+                 for i in range(repeats)]
+        try:
+            record = build_record(reference, extra, provenance)
+        except RuntimeError as exc:
+            if "share one wall-clock second" not in str(exc):
+                raise
+            last_error = exc
+            print(f"attempt {attempt}/{attempts}: {exc}", file=sys.stderr)
+            continue
+        GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(reference["t01_path"], GOLDEN_DIR / f"{RUN_NAME}T01")
+        shutil.copy2(Path(reference["workdir"]) / f"{RUN_NAME}_0001.out",
+                     GOLDEN_DIR / f"{RUN_NAME}_0001.out")
+        SMOKE_JSON.parent.mkdir(parents=True, exist_ok=True)
+        SMOKE_JSON.write_text(json.dumps(record, indent=2) + "\n")
+        return record
+    raise RuntimeError(
+        f"refusing to write {SMOKE_JSON}: after {attempts} attempts no run "
+        f"pair straddled a wall-clock second, so the record could not measure "
+        f"the raw digest's non-reproducibility. Last error: {last_error}"
+    )
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -1008,16 +1358,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help=f"regenerate {SMOKE_JSON} and "
                              f"{GOLDEN_DIR}/ from live oracle runs")
     parser.add_argument("--repeats", type=int, default=3,
-                        help="determinism repeats for --write (default 3)")
+                        help="determinism repeats per attempt for --write "
+                             "(default 3; the record then carries 4 runs)")
+    parser.add_argument("--attempts", type=int, default=WRITE_ATTEMPTS,
+                        help="how many times --write retries until two runs "
+                             "straddle a wall-clock second (default 12)")
     args = parser.parse_args(argv)
 
     if not args.write:
         parser.print_help()
         return 0
-    record = write_record(repeats=args.repeats)
+    record = write_record(repeats=args.repeats, attempts=args.attempts)
     print(f"wrote {SMOKE_JSON}")
     print(f"wrote {GOLDEN_DIR}/{RUN_NAME}T01 "
-          f"({record['t01']['size_bytes']} bytes, md5 {record['t01']['md5']})")
+          f"({record['t01']['size_bytes']} bytes, normalized md5 "
+          f"{record['t01']['md5_normalized']})")
     print(f"verdict {record['run']['verdict_banner']!r}, "
           f"{record['run']['n_cycles']} cycles, "
           f"{record['run']['wall_seconds']['total']:.2f} s")

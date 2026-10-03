@@ -1,5 +1,65 @@
 # Updates
 
+## 1.3.1 - P0.5 fix round 1: four honesty corrections in the golden record
+
+Reviewer round 1 on `tools/oracle/oracle_selftest.py` +
+`tests/test_p0_oracle_selftest.py` returned SPEC ✅ / QUALITY changes-requested
+and confirmed the central claim (the oracle is bit-reproducible given a fixed
+run stamp; the 24-byte window is exactly `hist1.F:210-214` / `timer_c.c:36-39`).
+Four honesty-layer defects fixed, none in the solver path:
+
+- **`run_stamp.content` was a typed-in literal and was FALSE of the committed
+  artefact** — it claimed `'Sat Oct  3 06:53:35 2026'` while
+  `tests/data/oracle_smoke/TENSILET01` carries `'Sat Oct  3 07:03:52 2026'`.
+  New `run_stamp_text(blob)` builds it from the bytes read, and
+  `test_stored_golden_t01_reproduces_the_stored_maxima` asserts the stored
+  string against the committed binary. A record whose thesis is "every field is
+  measured, not asserted" had exactly one unmeasured field; it is now measured.
+- **The golden engine listing is committed.** `.gitignore:13` ignores `*.out`
+  repo-wide, so `tests/data/oracle_smoke/TENSILE_0001.out` is **force-added**
+  (`git add -f`) rather than by editing the shared ignore file — one `!` line in
+  a file several agents edit in parallel is a merge hazard, and once tracked the
+  rule no longer applies to it. New
+  `test_golden_engine_listing_is_committed_and_agrees` holds it to the record:
+  banner, cycle count, no `** ERROR`, and its `EXECUTION STARTED` second is the
+  one inside the committed T01's stamp, so the two artefacts are provably a
+  matched pair.
+- **The TH-group deferral's reason was self-refuting and the channels were
+  nameable.** It claimed upstream ships no title table for them "and then named
+  `varn1_title` and declined it". `th_titles.F90:168-189` **is** that table. The
+  header walk is now positional over `hist1`'s own block order instead of a
+  pattern match (`_header_codes`, from the hierarchy record through parts,
+  materials, geometries, subsets and TH groups; it consumes this deck's header
+  with **zero** unparsed records, reported as
+  `t01.header_unparsed_records`), the codes `hist1.F:585-587` records are
+  `[1, 4]`, and `channel_maxima.th_group` now carries
+  **X-DISPLACEMENT 0.1880658119916916 / X-VELOCITY 1.0** — the deck's
+  `/TH/NODE/1 … DX VX` pull. A subset-bearing deck now raises instead of being
+  dropped silently.
+- **The non-reproducibility claim had no non-degeneracy assertion.**
+  `distinct_md5_raw` was computed from `md5_raw`, so a `--write` whose runs all
+  shared one wall-clock second would emit one digest and still assert
+  `md5_raw_is_reproducible: false`. `build_record` now refuses such a record and
+  `write_record` retries (bounded, `--attempts`, default 12) until two runs
+  straddle a second; the test asserts `len(distinct_md5_raw) >= 2`. Proven by
+  freezing the clock in a scratch copy: both refuse and no file is written.
+- Minors: `t01_md5` renamed `t01_md5_normalized` (it is **not**
+  `hashlib.md5(t01 bytes)`, and the old name invited exactly that mistake);
+  `environment.anchor_scope` states the digest keeps `VERSIO(2)`/`CPUNAM`
+  (`hist1.F:212-217`) and is therefore build- **and architecture**-bound;
+  `run_stamp.note` no longer implies the length is located; the window is pinned
+  by content on its far side (`' RADIOSS '` at `+24`); the determinism prose
+  agrees with `runs`; dead `_oracle_paths()` deleted and the duplicated
+  skip/fail block de-duplicated into `_oracle_or_skip`.
+- **Cross-file check:** `tools/compare_t01.py` and `tests/test_p0_compare_t01.py`
+  (owned by P0.10) do **not** read `t01.md5*` — they read `channel_maxima`,
+  `part_curve_codes`, `n_steps`, `t_first/t_last`, `n_records`,
+  `header_records` and `run_stamp`. `part_curve_codes` therefore keeps its flat
+  shape (`[1, 2]`, the codes concatenated) and the new per-group form is a new
+  key `curve_codes_by_group`; their 20 tests stay green and neither file was
+  edited.
+- **Tests** `tests/test_p0_oracle_selftest.py` 8 (was 7), ~1.3 s, default tier.
+
 ## 1.3.0 - P0.10: the binary T01 reader, and one comparable number
 
 - **New** `tools/compare_t01.py` — `read_t01(path) -> T01` decodes the Fortran
@@ -93,10 +153,12 @@
   `/ALE/STRUCTURED_MESH` and `/CHECKSUM_REPORT` over H3D are inadmissible).
 - **New** `tests/data/oracle_smoke/{TENSILET01,TENSILE_0001.out}` — the golden
   run's admissible artefacts, committed so the structural tests can verify the
-  record without a solver.
-- **New** `tests/test_p0_oracle_selftest.py` — 7 tests: 4 always-run structural
-  ones (record completeness, deck bytes, maxima re-derived from the committed
-  T01, determinism evidence) and 3 oracle ones (reproduction, bit
+  record without a solver. (Both are tracked; the `.out` is force-added because
+  `.gitignore:13` ignores `*.out` — see the 1.3.1 entry.)
+- **New** `tests/test_p0_oracle_selftest.py` — 7 tests (8 after the 1.3.1 fix
+  round): 5 always-run structural ones (record completeness, deck bytes, maxima
+  re-derived from the committed T01, the committed listing, determinism
+  evidence) and 3 oracle ones (reproduction, bit
   reproducibility, differing-bytes-inside-the-run-stamp). Oracle absent → skip
   with an actionable reason; `PYRADIOSS_ORACLE_DISABLED=1` /
   `PYRADIOSS_ORACLE_REQUIRED=1` behave exactly as in
