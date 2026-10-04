@@ -5,6 +5,26 @@ implicit branch, a spectral-fatigue tower, optional numba backend, tkinter GUI.
 The value of this repo is readable, **Fortran-faithful** physics — porting, not
 inventing.
 
+## STOP — licensing gate: no new upstream-derived code
+
+**Unresolved. Do not add new upstream-derived code** — no ported routine, kernel,
+material law, contact path or output path taken from `$OR_SRC` — until a
+maintainer records a decision. Upstream is **AGPL-3.0-or-later**; this
+repository declares MIT (`LICENSE`) *and* GPL-3.0 (`README.md`), so a literal
+port is an AGPL-covered derivative work: `plan/00_ORCHESTRATION.md`
+**§1.3, lines 58-73** (GATING, UNRESOLVED).
+
+- **No decision is recorded, and an agent may not record one**
+  (`docs/LICENSING.md` §Decision, lines 136-156 — a recommendation only). This
+  notice records none.
+- **What unblocks it:** the maintainer records one of the four options in that
+  §Decision and applies it, so `pyproject.toml`, `LICENSE` and `README.md` agree;
+  `tests/test_p0_licensing.py` is then updated by hand.
+- **The enforcement is documentary, not mechanical:** the only enforcement is
+  `tests/test_p0_licensing.py::test_declared_licence_is_consistent`, an
+  `xfail(strict=True)` that **PASSES**. Nothing stops you except this notice.
+- Working text: `docs/STATE.md` §Licensing gate, lines 11-56.
+
 ## Environment (do not deviate)
 
 - Windows 11, PowerShell. No WSL, no Git Bash, no Unix commands (ls/rm/cat/grep).

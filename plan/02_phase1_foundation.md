@@ -17,7 +17,16 @@ linter and a regression ledger so "no new failures" is measurable.
 **Tech stack:** Python 3.12 dev box (`requirements-lock.txt` §[B]), pytest,
 `tomllib`, `pathlib`.
 **Spec:** `plan/00_ORCHESTRATION.md` §3, §5, §6, §11.
-**Entry criterion: Phase 0 exit gate passed.**
+**Entry criterion: Phase 0 exit gate passed — which is NOT licence clearance.**
+`00_ORCHESTRATION.md` §1.3 (lines 58-73) is GATING/UNRESOLVED: upstream is
+AGPL-3.0-or-later, this repo declares MIT/GPL-3.0, and **no decision is
+recorded** (`docs/LICENSING.md` §Decision, lines 136-156, which an agent may not
+supply), so **no new upstream-derived code may be added** until a maintainer
+records the choice and `pyproject.toml`, `LICENSE` and `README.md` agree. The
+enforcement is documentary (`tests/test_p0_licensing.py`'s `xfail(strict=True)`
+PASSES) — a green Phase 0 gate does not open this phase. Phase 1 ports no
+upstream code (§Scope), so its own tasks are unblocked; nothing here may make
+the licence decision either.
 **Band: M** — small, but nothing downstream is safe without it.
 
 ---

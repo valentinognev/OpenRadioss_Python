@@ -24,6 +24,15 @@ pytest 9.x + pytest-xdist. Fortran oracle: gfortran + cmake + silecc + extlib v8
 `$HOME/Projects/OpenRadioss/OpenCourant`, **AGPL-3.0-or-later**. Called
 `$OR_SRC` below.
 
+**Licensing gate — GATING, UNRESOLVED (`00_ORCHESTRATION.md` §1.3, lines
+58-73).** Upstream is AGPL-3.0-or-later while this repository declares MIT /
+GPL-3.0, so **agents may not add new upstream-derived code** until a maintainer
+records the choice in `docs/LICENSING.md` §Decision (lines 136-156) and
+`pyproject.toml`, `LICENSE` and `README.md` agree. **No decision is recorded**,
+and an agent may not record one. Nothing mechanical enforces this — the gate is
+`tests/test_p0_licensing.py`'s `xfail(strict=True)`, which PASSES by design — so
+it is on the reader: Phase 1 onward is blocked, not cleared by a green Phase 0.
+
 ---
 
 ## 0. Read this first
