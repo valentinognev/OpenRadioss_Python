@@ -98,10 +98,12 @@ BUILD_ROOT="${OR_BUILD}/build"
 # Measured on this box 2026-10-03: `command -v cmake` resolves to
 # /usr/bin/cmake and `cmake --version` says 3.28.3, so the default already
 # satisfies the gate below and /usr/bin/cmake is belt-and-braces, NOT a claim
-# that PATH cmake is broken (the pre-migration conda-forge cmake 4.x that
-# shadowed it went with /home/valentin/anaconda, which no longer exists;
-# /home/valentin/anaconda3 has no cmake).  Keep the explicit path anyway --
-# the version gate is what guarantees it.  Require 3.15 <= version < 4.
+# that PATH cmake is broken (the pre-migration conda-forge cmake 4.x that used
+# to shadow it went away with the pre-migration conda prefix, which no longer
+# exists on this box; the still-present ~/anaconda3 carries no cmake either --
+# measured 2026-10-03, `ls ~/anaconda3/bin | grep cmake` is empty).  Keep the
+# explicit path anyway -- the version gate is what guarantees it.  Require
+# 3.15 <= version < 4.
 CMAKE="${CMAKE:-/usr/bin/cmake}"
 if [ ! -x "$CMAKE" ]; then
   CMAKE="$(command -v cmake || true)"

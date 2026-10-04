@@ -16,7 +16,11 @@ else:
 
 Upstream Fortran origins
 ------------------------
-``$OR_SRC`` = /home/valentin/Projects/OpenRadioss/OpenCourant, read-only.
+``$OR_SRC`` = the upstream OpenCourant tree, read-only.  Never written down as
+an absolute path: it is ``$OR_SRC`` when the environment says so and otherwise
+the checkout beside this repository (``<repo>/../OpenCourant``), resolved by
+:func:`pyradioss.paths.or_src` -- so every ``$OR_SRC/...`` citation below is
+into whatever tree this checkout was built against.
 
 * ``INSTALL.md:105-115``            -- "Run OpenRadioss Starter and Engine from
   the directory that contains the binaries", ``:110``

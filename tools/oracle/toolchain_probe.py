@@ -65,9 +65,58 @@ import urllib.request
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 JSON_PATH = REPO_ROOT / "tools" / "validation_data" / "toolchain_probe.json"
-OR_SRC = pathlib.Path(
-    os.environ.get("OR_SRC", "/home/valentin/Projects/OpenRadioss/OpenCourant")
-)
+
+
+def _or_src_default():
+    """Where ``$OR_SRC`` is when the environment does not say -- resolved,
+    never hardcoded.
+
+    The default used to be one developer's absolute checkout path.  That made
+    ``EXTLIB_VERSION.json`` resolvable on exactly one machine: everywhere else
+    the manifest read failed and ``extlib_url_reachable`` recorded ``false``
+    -- a false record produced by a missing default rather than by a missing
+    release.  Order, each step derivable from something portable:
+
+    1. ``$OR_SRC`` when set, honoured verbatim.  A *stale* one is not this
+       probe's business to reinterpret: a set variable is the operator's
+       decision (``plan/00_ORCHESTRATION.md`` §4.1 rule 1) and
+       :func:`pyradioss.paths` already fails it loudly.
+    2. :func:`pyradioss.paths.or_src` -- the project's single resolver, whose
+       own last candidate is the upstream checkout sitting **beside this
+       repository**.  It is derived from ``__file__``, so it follows the
+       worktree to whatever directory the checkout lives in.
+    3. :data:`OR_SRC_UNRESOLVED` -- a single component that cannot exist, so
+       the manifest read raises :class:`OSError` and ``_extlib_url`` reports
+       the honest "no url" for a box that genuinely has no source tree.
+
+    Never raises: this runs at import time, and a probe that cannot start
+    cannot record why.
+    """
+    configured = os.environ.get("OR_SRC")
+    if configured:
+        return pathlib.Path(configured)
+    try:
+        if str(REPO_ROOT) not in sys.path:
+            sys.path.insert(0, str(REPO_ROOT))
+        from pyradioss import paths
+
+        return paths.or_src()
+    except (ImportError, OSError, ValueError, Warning) as exc:
+        # FileNotFoundError from the resolver is an OSError; a stale export
+        # turns its RuntimeWarning into an exception under -W error, hence the
+        # Warning.  Either way the answer is the same: nothing to read.
+        sys.stderr.write(
+            f"toolchain probe: $OR_SRC is unset and did not resolve ({exc}); "
+            "extlib_url_reachable will be measured as false\n")
+        return pathlib.Path(OR_SRC_UNRESOLVED)
+
+
+#: The stand-in for "$OR_SRC points nowhere resolvable".  A single relative
+#: component, so it can never exist and never names a machine.
+OR_SRC_UNRESOLVED = "<OR_SRC unset and unresolved>"
+
+#: The upstream source tree, from :func:`_or_src_default`.
+OR_SRC = _or_src_default()
 EXTLIB_MANIFEST = OR_SRC / "EXTLIB_VERSION.json"
 NET_TIMEOUT = 5.0
 COMPILE_TIMEOUT = 120

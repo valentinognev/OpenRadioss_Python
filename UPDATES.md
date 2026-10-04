@@ -1,15 +1,83 @@
 # Updates
 
 *Reading note: per-file test counts in the entries below are **as-of that
-entry**. Several files have grown since (re-counted 2026-10-03 with
+entry**, and every entry heading now carries the date of the commit that
+recorded it. Several files have grown since (re-counted 2026-10-03 with
 `.venv/bin/python -m pytest -q --collect-only <file>`: `test_p0_paths.py`
 60 → 71, `test_p0_compare_t01.py` 20 → 25, `test_p0_harness_portable.py`
 27 → 34, `test_p0_parity_t01_path.py` 15 → 22; unchanged:
-`test_p0_oracle_selftest.py` 8, `test_p0_manifest.py` 56). The authoritative
-*current* counts — the collected total and the fast tier, per environment —
-live only in `docs/STATE.md` §Baseline.*
+`test_p0_oracle_selftest.py` 8, `test_p0_manifest.py` 56). **There is no
+authoritative *current* count written down anywhere**, by design: the collected
+total and the fast tier are produced by the commands in `docs/STATE.md`
+§Baseline, and a number written down here is a dated measurement of the tree it
+was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
+— see §1.8.0.*
 
-## 1.7.0 - Fix wave 2: a gate that is green here and red in CI, an export that silently dropped two law audits, and a URI exemption that laundered claims
+## 1.8.0 - Fix wave 3: the last three machine paths, a record-count rule, and a portability proof that read the wrong files
+
+Round 4 fixed nineteen record lines and shipped the gate green here and still
+red in CI, because three hits sat outside what the portability proof read. This
+pass fixes the three hits, states a rule for the exact test counts that aged
+three rounds running, and closes the structural hole behind the hits.
+
+- **Three hits, all true here and false on `ubuntu-latest`, all in
+  `tools/oracle/`.** Measured with the gate's own scan under a simulated
+  foreign `$HOME`: **3 → 0** offenders over the whole scanned scope.
+  - `tools/oracle/toolchain_probe.py:68` — the `$OR_SRC` **default was this
+    developer's absolute checkout path**, used as a live value. On a box with
+    the variable unset the manifest read failed and the probe recorded
+    `extlib_url_reachable: false` — a false record caused by a missing default,
+    not by a missing release. It now resolves through the project's own
+    resolver (`pyradioss.paths.or_src()`, whose last candidate is the checkout
+    beside *this* repository), honours `$OR_SRC` verbatim when it is set, and
+    falls back to a single component that cannot exist when nothing resolves.
+  - `tools/oracle/oracle_selftest.py:19` — the `$OR_SRC = /home/valentin/…`
+    docstring line is now the resolver's spelling.
+  - `tools/oracle/build_oracle.sh:103` — the conda aside keeps its meaning and
+    loses its machine path (`~/anaconda3` is still `$HOME`-relative); the history
+    label now sits on the claim itself. **The gate's 2-line label window was not
+    widened** — that would have weakened it for every other case.
+- **The portability proof was reading the wrong files.** Round 4 added
+  `test_no_record_may_name_a_path_out_of_this_machines_home_directory`, which
+  simulates a foreign `$HOME` over the **records only**. All three hits above
+  live in `tools/`, so the simulation could not see them by construction — that
+  is *why* they survived three rounds. The same scan now runs over
+  `_scanned_sources()` (records + tooling + packaging), in
+  `test_the_foreign_home_scan_covers_the_whole_scanned_scope`, with a planted
+  non-vacuity test
+  (`test_a_machine_path_planted_in_a_tooling_file_is_caught_by_the_simulation`).
+  Both were verified non-vacuous by re-introducing the `toolchain_probe.py`
+  default and watching them fail.
+- **A record that states an exact count is a record that will be wrong.** The
+  rule, stated in `docs/STATE.md` §Baseline and enforced by the new
+  `tests/test_p0_record_suite_counts.py`: a suite count is acceptable only if
+  the statement says **which measurement moment it describes** — a date, a
+  commit sha, or an explicit as-of label, on the line, within two lines either
+  side, or in the nearest heading. **Decorative** counts (a baseline block that
+  merely restates the suite size) are removed and replaced by the command that
+  produces the current figure; **evidence** counts (a before/after showing what
+  a change did) are kept and bound. Concretely: §Baseline's result column and
+  its "Collected: 14617 … = 14637" bullet are gone, replaced by the three
+  environment commands and the `--collect-only` invocation, with the row-3
+  measurement kept as a dated figure and rows 1–2 kept with their `13deef2`
+  binding and an explicit "not re-run since". The 18 `UPDATES.md` entry
+  headings now carry the date of the commit that recorded them (measured with
+  `git log -S`), which is what makes a dated log entry's own measurements
+  legitimate instead of violations.
+- **Shape-based path comparison: measured, then declined.** Widening
+  `MACHINE_PATH` to `/opt`, `/srv`, `/usr/local`, `/tmp`, `/data`, `/work`,
+  `/root`, `/var` was tried before anything was written: it yields **13 hits and
+  0 true positives** on this tree — 7 are `/tmp/no-such-mirror-xyz` and
+  `/tmp/opencode` (documented scratch paths, three of them inside plan code
+  samples), 2 are `/opt/OpenRadioss/…` (upstream's own documented prefix), and
+  the rest would need a per-root allow-list. A rule whose every hit needs an
+  exemption is a rule that cries wolf. The structural half *is* fixed: a
+  `/opt`-shaped path that is wrong **here** was always caught by the live
+  existence rule; what stayed invisible was a path true here and false
+  elsewhere, and closing that needs a record of which roots are per-machine,
+  which this repo does not have.
+
+## 1.7.0 - Fix wave 2: a gate that is green here and red in CI, an export that silently dropped two law audits, and a URI exemption that laundered claims (2026-10-04)
 
 Round 3 widened the stale-machine-facts gate to the records and shipped it
 green. Three of the four defects below were introduced *by that round*; this
@@ -81,7 +149,7 @@ decision changes.
 - **Also fixed:** an E302 (two blank lines missing before
   `test_the_harness_imports_and_resolves_oracle_paths`) in the gate module.
 
-## 1.6.1 - Records corrected: the baseline figures, the oracle counts, a gate that skipped what it claimed to verify, and a ruling that was never made
+## 1.6.1 - Records corrected: the baseline figures, the oracle counts, a gate that skipped what it claimed to verify, and a ruling that was never made (2026-10-04)
 
 A whole-branch review found four records asserting things that were false or
 unverifiable, with nothing keeping them true. All four are corrected here.
@@ -134,7 +202,7 @@ decision (`plan/00_ORCHESTRATION.md` §1.3).
   carries the ghost-`off` limitation). Its `14196 passed / 29 skipped` line is
   labelled as the Windows CI record of 2026-09-24, not a current measurement.
 
-## 1.6.0 - Migration to Linux: every machine fact re-measured (P0.11–P0.16)
+## 1.6.0 - Migration to Linux: every machine fact re-measured (P0.11–P0.16) (2026-10-03)
 
 The repo moved off Windows onto a Linux box and the environment was rebuilt
 (venv, oracle mirror + extlib, starter/engine recompiled into `$OR_ROOT`).
@@ -217,7 +285,7 @@ label "P0.11" for the binary-T01 parity route, which is a **different** task.
   figures live only in `docs/STATE.md` §Baseline.)* The old numbers are kept,
   marked as the previous machine's.
 
-## 1.5.1 - P0.11 fix round 1: what the verdict actually rests on, and the wrong ROLLING diagnosis withdrawn
+## 1.5.1 - P0.11 fix round 1: what the verdict actually rests on, and the wrong ROLLING diagnosis withdrawn (2026-10-03)
 
 Reviewer round 1 on the binary-T01 parity route returned SPEC ok / QUALITY
 changes-requested and reproduced the headline number exactly. Six findings, all
@@ -278,7 +346,7 @@ closed; two of them were my own overstatement.
   `tools/compare_t01.py` already has). Phase 0's exit gate does not require it;
   every phase after this one does.
 
-## 1.4.0 - P0.11: parity produces evidence without `th_to_csv`
+## 1.4.0 - P0.11: parity produces evidence without `th_to_csv` (2026-10-03)
 
 Phase 0 exists so later phases can produce differential parity evidence against
 the real Fortran solver. They could not: the oracle ran, wrote its binary `T01`,
@@ -332,7 +400,7 @@ the same class of blockage as the extlib releases).
   `tools/oracle/oracle_selftest.py`. (This entry first blamed a five-record
   block and the hierarchy's `NSUBS`; both were wrong — see 1.5.1.)
 
-## 1.5.0 - P0.7: the optional backends are installable, and the box says which are
+## 1.5.0 - P0.7: the optional backends are installable, and the box says which are (2026-10-03)
 
 `numba` and `mpi4py` were recorded as missing in `plan/00_ORCHESTRATION.md`
 §4.3, which left the M7/M40 accelerated backend and every `-np N` SPMD path
@@ -394,7 +462,7 @@ deliberately NOT, and the lock says so in a form a test enforces.
   never skips. The honest probe is `accel._load_numba_module`, which imports
   numba itself; a test now pins both halves.
 
-## 1.3.2 - P0.9 fix round 2: the h3d claim, corrected; PATH on Windows; RPATH read from the ELF
+## 1.3.2 - P0.9 fix round 2: the h3d claim, corrected; PATH on Windows; RPATH read from the ELF (2026-10-03)
 
 Reviewer round 1 on `tools/validate_vs_fortran.py` returned SPEC ok / QUALITY
 changes-requested with two Important items, both inside the h3d-hardening
@@ -447,7 +515,7 @@ correctly identified as **not** this task's files.
   `KNOWN_POSIX_MACHINE_DEFAULTS` ratchet now fails on any *new* one, with
   those two named, so the claim is "no new machine path", not "none".
 
-## 1.3.1 - P0.5 fix round 1: four honesty corrections in the golden record
+## 1.3.1 - P0.5 fix round 1: four honesty corrections in the golden record (2026-10-03)
 
 Reviewer round 1 on `tools/oracle/oracle_selftest.py` +
 `tests/test_p0_oracle_selftest.py` returned SPEC ✅ / QUALITY changes-requested
@@ -507,7 +575,7 @@ Four honesty-layer defects fixed, none in the solver path:
   edited.
 - **Tests** `tests/test_p0_oracle_selftest.py` 8 (was 7), ~1.3 s, default tier.
 
-## 1.3.0 - P0.10: the binary T01 reader, and one comparable number
+## 1.3.0 - P0.10: the binary T01 reader, and one comparable number (2026-10-03)
 
 - **New** `tools/compare_t01.py` — `read_t01(path) -> T01` decodes the Fortran
   engine's binary time-history file (`ITTYP==3` Radioss IEEE: big-endian 4-byte
@@ -566,7 +634,7 @@ Four honesty-layer defects fixed, none in the solver path:
   (derive the stride from the header in the shared walk) is flagged as belonging
   there, before Phase 12 relies on the note.
 
-## 1.2.1 - P0.9: the validation harness runs on any box, and cannot be fooled into writing wrong H3D
+## 1.2.1 - P0.9: the validation harness runs on any box, and cannot be fooled into writing wrong H3D (2026-10-03)
 
 - **Fixed** `tools/validate_vs_fortran.py` no longer names one machine:
   `OR_ROOT` / `ONEAPI` / the three executable paths are gone, replaced by
@@ -606,7 +674,7 @@ Four honesty-layer defects fixed, none in the solver path:
   exemption. Oracle-dependent tests skip when it is absent and fail under
   `PYRADIOSS_ORACLE_REQUIRED=1`.
 
-## 1.2.0 - P0.5: golden reference run + the oracle's determinism, proved
+## 1.2.0 - P0.5: golden reference run + the oracle's determinism, proved (2026-10-03)
 
 - **New** `tools/oracle/oracle_selftest.py` — runs the oracle built by
   `tools/oracle/build_oracle.sh` on `examples/tensile_bar` (starter `-np 1`,
@@ -653,7 +721,7 @@ Four honesty-layer defects fixed, none in the solver path:
   it costs 0.30 s + 0.08 s per run, and `oracle_provenance.json` already records
   it as the measured evidence for the T01 / A-file / RESTART / energy channels.
 
-## 1.1.3 - P0.8 fix round 3: the remedy must not damage the artifact
+## 1.1.3 - P0.8 fix round 3: the remedy must not damage the artifact (2026-10-03)
 
 - **Fix (I1a)** the manifest's corpus-dependent assertions now read
   `tools.validate_vs_fortran.manifest_corpus_root()` — the corpus **the
@@ -699,7 +767,7 @@ Four honesty-layer defects fixed, none in the solver path:
   file through a `committed_manifest` fixture, so a regression of the guard
   cannot leave the artifact damaged.
 
-## 1.1.2 - P0.8 fix round 2: the manifest says only what it can support
+## 1.1.2 - P0.8 fix round 2: the manifest says only what it can support (2026-10-03)
 
 - **Docs (M5)** `tools/build_rd_decks_manifest.py`'s header claim "the manifest
   closes that gap" was **false** and contradicted its own `PROVENANCE_CAVEAT`:
@@ -741,7 +809,7 @@ Four honesty-layer defects fixed, none in the solver path:
   `bytes_verified_rule`/`envelope_rule`/`notes`, and a record built without
   `corpus_fingerprint` are each rejected.
 
-## 1.1.1 - P0.8 fix round 1: records bound to their corpus, envelope qualified
+## 1.1.1 - P0.8 fix round 1: records bound to their corpus, envelope qualified (2026-10-03)
 
 - **Fix (I1)** a manifest record is now bound to the corpus it was hashed from:
   every record carries `corpus_fingerprint`, the header is reachable through the
@@ -797,7 +865,7 @@ Four honesty-layer defects fixed, none in the solver path:
   dropping the fingerprint guard (killed, 2 tests), restoring the wholesale
   `corpus_root` comparison in `--check` (killed).
 
-## 1.1.0 - Hashed corpus manifest (P0.8)
+## 1.1.0 - Hashed corpus manifest (P0.8) (2026-10-03)
 
 - **New** `tools/validation_data/rd_decks_manifest.json` — one record per
   starter deck (`*_0000.rad`) under `paths.rd_decks_dir()`: `deck`,
@@ -826,7 +894,7 @@ Four honesty-layer defects fixed, none in the solver path:
   loader working with nothing exported, and a synthetic uncatalogued deck
   coming out `case_id: null` / `in_envelope: false`.
 
-## 1.0.2 - P0.6 fix round 1: CI cfg spelling, candidate order, pinned precedence
+## 1.0.2 - P0.6 fix round 1: CI cfg spelling, candidate order, pinned precedence (2026-10-03)
 
 - **Fix** `PYRADIOSS_HM_CFG` now accepts **both** spellings — the documented
   tree root (`…/hm_cfg_files`, §4.1 and upstream's `RAD_CFG_PATH`) and the
@@ -860,7 +928,7 @@ Four honesty-layer defects fixed, none in the solver path:
   `reload()`, cfg-root-appends-`config/CFG`, frozen catalogue root,
   any-directory-is-a-cfg-tree).
 
-## 1.0.1 - Single resource resolver (P0.6), LAW4 cfg bug closed
+## 1.0.1 - Single resource resolver (P0.6), LAW4 cfg bug closed (2026-10-03)
 
 - **New** `pyradioss/paths.py` — the one place that resolves every external
   path (`or_src`, `or_root`, `or_build`, `or_starter`, `or_engine`,
@@ -887,7 +955,7 @@ Four honesty-layer defects fixed, none in the solver path:
 - 22 cfg-dependent test modules that silently skipped on Linux now execute
   (previously `mat_reader.catalogue().schema("FABRI") is None`): 535 passed.
 
-## 1.0.0 - Full-port program plan
+## 1.0.0 - Full-port program plan (2026-10-02)
 
 The first structured plan for taking `pyradioss` from its current state to a
 literal line-for-line port of OpenRadioss. 20 files in `plan/`, 200 tasks,

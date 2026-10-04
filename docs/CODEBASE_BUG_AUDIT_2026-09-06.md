@@ -23,7 +23,7 @@ Severity used in this report:
 - **P2:** optional workflow failure, misleading output/status, indefinite wait,
   or a serious test/documentation gap.
 
-## Verification performed
+## Verification performed (2026-09-06, this audit's snapshot)
 
 - `.venv\Scripts\python.exe -m pytest -q -m "not slow"`:
   **5,498 passed, 4 skipped, 19 deselected** in 615.75 s.
@@ -484,7 +484,8 @@ the assignment would still leave rotational work broken.
 
 ### AUD-029 — P2 — Project status and test structure overstate runtime coverage
 
-[`docs/STATE.md:30`](STATE.md#L30) reports 1,121 collected / 1,105 fast tests;
+[`docs/STATE.md:30`](STATE.md#L30) reported 1,121 collected / 1,105 fast tests
+(as of 2026-09-06, this audit's snapshot);
 the audited snapshot collects 5,521 / 5,502. Its heading still says
 “M1 → M251” at [`STATE.md:43`](STATE.md#L43), while the table reaches M488, and
 line 46 simultaneously says the “real history” has 41 milestones.

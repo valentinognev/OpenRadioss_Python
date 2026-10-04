@@ -642,9 +642,9 @@ machine-scoped is `requirements-lock.txt` §[B]'s own header rule.
   llvmlite 0.50.0 already true). §[A] (the maintainer's Windows box) is
   byte-identical.
 
-**Evidence:** the lock was the defect, not the test —
-`tests/test_p0_optional_deps.py` went `3 failed, 17 passed` → `20 passed,
-1 skipped` with no assertion edited. The header now describes the interpreter
+**Evidence (measured 2026-10-03, recorded in commit `dc34da9`):** the lock was
+the defect, not the test — `tests/test_p0_optional_deps.py` went `3 failed,
+17 passed` → `20 passed, 1 skipped` with no assertion edited. The header now describes the interpreter
 (`.venv` created by `python3 -m venv`, `base_prefix=/usr`, no `conda-meta/`)
 instead of naming version numbers, and the mpi4py note's stated *reason* was
 corrected: this box HAS OpenMPI (`libmpi.so.40`), so `pip install mpi4py`
@@ -737,7 +737,8 @@ over the four oracle modules (`test_p0_oracle_build`, `test_p0_oracle_selftest`,
 tests as of 2026-10-04 (**68** on 2026-10-03 — the count moves whenever a test
 is added, so re-measure it): bare `71 passed, 0 skipped`; with
 `OR_SRC`/`OR_BUILD`/`OR_ROOT` exported, `oracle_env.sh` sourced and
-`PYRADIOSS_ORACLE_REQUIRED=1`, `71 passed, 0 skipped`. Both exit 0.
+`PYRADIOSS_ORACLE_REQUIRED=1`, `71 passed, 0 skipped` (both figures 2026-10-04).
+Both exit 0.
 
 Nothing skips any more: `pyradioss/paths.py` resolves the install prefix
 unaided on this box, so the skip surface this task added never fires here.
@@ -776,7 +777,8 @@ with `.venv/bin/python -m pytest -q --collect-only tests/test_p0_no_stale_machin
   document structure (a reST literal block or a fenced block is a quoted
   specimen, prose is a claim).
 
-**Evidence:** 5 failed / 3 passed with the test in place and the edits reverted
+**Evidence (measured 2026-10-03, recorded in commit `dc34da9`):** 5 failed /
+3 passed with the test in place and the edits reverted
 to HEAD, 9 passed after; the pre-fix files re-checked in a scratch tree still
 fail all four rules. The pre-migration `numpy 2.5.2` in `pyproject.toml` was
 replaced by a pointer at the lock's `# pin:` lines rather than a third copy of
@@ -893,10 +895,18 @@ be confused with — live in `docs/STATE.md` §Baseline, which is their single
 home. Under this gate the oracle tests **execute**:
 `test_p0_oracle_{build,selftest,provenance}.py`, `test_p0_harness_portable.py`,
 `test_p0_toolchain.py` and `test_p0_compare_t01.py` together give
-`113 passed, 1 skipped`, and that one skip is `th_to_csv`, not a missing
+`113 passed, 1 skipped` (recorded 2026-10-04 in commit `60e182f`), and that one
+skip is `th_to_csv`, not a missing
 oracle.
 
 Lines 1 and 2 were stale as written before P0.17: the gate said bare `python`
 (this box has only `.venv/bin/python`) and never exported
 `OR_SRC`/`OR_BUILD`/`OR_ROOT`, which `oracle_env.sh` requires
 (`:${OR_BUILD:?…}`, `${OR_ROOT:?…}`).
+
+**Re-measured 2026-10-04 (fix wave 3, branch `plan/p0`), same four steps:** line
+2 `32 passed, 1 skipped in 14.97s`, **exit 0**; line 3 `14600 passed, 15
+skipped, 20 deselected, 26 xfailed, 26 warnings in 727.12s (0:12:07)`, **exit
+0**; line 4 empty, **exit 0**. The block above is kept as the 2026-10-03
+measurement at `13deef2`; the two differ only by the tests added since
+(`docs/STATE.md` §Baseline says why no current total is written down).

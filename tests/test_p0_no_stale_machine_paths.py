@@ -133,6 +133,20 @@ file now states rather than a rule it merely has:
   hold.  The window is one CLAUSE, so a floor word elsewhere in the sentence
   cannot exempt a real measurement.
 
+ROUND 5, after the review of round 4, which fixed nineteen record lines and
+still left three hits — all of them in ``tools/oracle/``, all of them true here
+and false on ``ubuntu-latest``: a **hardcoded ``$OR_SRC`` default in code** in
+``toolchain_probe.py`` (the real defect: on a box without the variable the probe
+resolved to nothing and recorded ``extlib_url_reachable: false``), a docstring,
+and a build-script aside.  They survived three rounds for one structural reason,
+and :func:`test_the_foreign_home_scan_covers_the_whole_scanned_scope` is the
+fix: **the portability simulation read the RECORDS only**, so ``tools/`` was
+never examined as if it were somebody else's machine.  The same scan now runs
+over :func:`_scanned_sources` — the whole gate scope — and a planted
+non-vacuity test
+(:func:`test_a_machine_path_planted_in_a_tooling_file_is_caught_by_the_simulation`)
+proves it fires on the exact shape it exists for.
+
 What is deliberately STILL out of reach, stated here so nobody mistakes silence
 for green: **backslash Windows paths** (``C:\\OpenRadioss\\exec``,
 ``.venv\\Scripts\\python.exe``, ``C:\\Users\\pmqua\\…``).  :data:`MACHINE_PATH`
@@ -709,6 +723,77 @@ def test_no_record_may_name_a_path_out_of_this_machines_home_directory():
         assert _stale_paths_in([f"the mirror is at {foreign}"]) == [(0, foreign)], (
             "a bare absolute path is a location claim and is still caught when "
             "it does not exist — setting $HOME does not make it true")
+
+
+# ---------------------------------------------------------------------------
+# 1c. ... and the same simulation over the WHOLE scanned scope, not the records
+# ---------------------------------------------------------------------------
+def test_the_foreign_home_scan_covers_the_whole_scanned_scope():
+    """The portability simulation must read what the live gate reads.
+
+    :func:`test_no_record_may_name_a_path_out_of_this_machines_home_directory`
+    simulates a foreign ``$HOME`` over :func:`_record_sources` — the RECORDS.
+    That was the right scope when the nineteen hits were all in records, but the
+    rule's job is bigger than that: the round-4 hits this box could not see were
+    in ``tools/oracle/`` (a hardcoded ``$OR_SRC`` **default in code**, a docstring
+    and a build-script aside), and they survived three rounds precisely because
+    the simulated scan never looked at ``tools/``.  A portability proof that is
+    narrower than the thing it proves is a snapshot with extra steps.
+
+    So the same scan runs over :func:`_scanned_sources` — records, tooling and
+    the two packaging records — under the same simulated home, and must report
+    nothing.  Two properties are asserted so the fix cannot be "narrow the scan
+    again":
+
+    * the simulated file set IS the live gate's file set (same helper, so the
+      two cannot drift apart by construction);
+    * a bare absolute path under this box's ``$HOME`` in ANY scanned file — the
+      shape the three round-4 hits had — is reported, driven through the real
+      scan over a scratch copy outside the repository.
+    """
+    with _a_box_whose_home_is_not_this_one():
+        simulated = _existence_offenders(_scanned_sources())
+    assert simulated == [], (
+        "these lines are true on this box and false on every other one, so the "
+        "gate is red in CI for exactly this reason: " + "; ".join(simulated)
+        + ". Name it through the project's own indirection ($OR_SRC / $OR_ROOT / "
+          "$OR_BUILD / $HOME/<name>), or derive it (pyradioss.paths).")
+
+    scripts = sorted(
+        p for p in TOOLS.rglob("*")
+        if p.is_file() and p.suffix in (".py", ".sh", ".txt"))
+    assert _scanned_sources() == [PYPROJECT, LOCK, *_record_sources(), *scripts], (
+        "the portability scan and the live gate must read the same files, in "
+        "the same order; if this fires, one of them has been narrowed")
+
+
+def test_a_machine_path_planted_in_a_tooling_file_is_caught_by_the_simulation(
+        tmp_path):
+    """The round-4 shape, planted OUTSIDE the repository, is reported.
+
+    Non-vacuity for the test above, and the shape it exists for: the three hits
+    the simulation missed were a **hardcoded default in code** in
+    ``tools/oracle/toolchain_probe.py``, which is on this box, so the live
+    existence rule had nothing to say about it.  The real file is copied to
+    ``tmp_path`` — never planted in the working tree — one line carrying this
+    box's absolute path is appended, and the SAME scan runs under the SAME
+    simulated home.  Without the fix the copy reports ``[]``.
+    """
+    real = TOOLS / "oracle" / "toolchain_probe.py"
+    gone = f"{THIS_BOX_HOME}/Projects/OpenRadioss/OpenCourant"
+    copy = tmp_path / real.name
+    copy.write_text(real.read_text(encoding="utf-8")
+                    + f'\nOR_SRC = "{gone}"\n', encoding="utf-8")
+
+    with _a_box_whose_home_is_not_this_one():
+        planted = _existence_offenders([copy])
+        untouched = _existence_offenders([real])
+    assert untouched == [], (
+        "the real file must be clean for this test to mean anything: "
+        f"{untouched}")
+    assert planted == [f"{copy.name}:{len(_lines(copy))}: {gone}"], (
+        "a machine path planted in a tooling file must be reported under the "
+        f"simulated home; got {planted}")
 
 
 # ---------------------------------------------------------------------------

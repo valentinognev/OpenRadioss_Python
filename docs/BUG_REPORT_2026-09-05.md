@@ -1,6 +1,6 @@
 # Bug report — 5 September 2026
 
-## Scope and verification
+## Scope and verification (2026-09-05, revision `f0263ad`)
 
 - Reviewed revision: `f0263ad` (`feat/vtk-full-tensors`, M483).
 - Review focus: M476–M479 and the runtime paths reached from those features. M480–M483 were not audited.

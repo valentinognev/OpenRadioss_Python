@@ -168,17 +168,21 @@ DELIBERATE_NON_SWEEP = {
 }
 
 #: The drive-letter sweep above is *shape* shaped, so a machine-specific
-#: POSIX path slips through it.  These are the literals that exist today, both
-#: predating this task and both in files it does not own.  The table is a
-#: **ratchet**, not an amnesty: any *other* literal in those files — or in any
+#: POSIX path slips through it.  This is the literal that exists today, it
+#: predates this task and it is in a file the task does not own.  The table is a
+#: **ratchet**, not an amnesty: any *other* literal in that file — or in any
 #: other file — fails the test below.  The exemption is per literal, not per
 #: file, so a new path added to an excused file cannot hide behind it.
+#:
+#: It SHRANK on 2026-10-04 (fix wave 3): ``oracle/toolchain_probe.py`` used to
+#: be excused because its ``$OR_SRC`` **default was this developer's absolute
+#: checkout path**, which made the probe resolve to nothing on any other box.
+#: The default now resolves through ``pyradioss.paths.or_src()``, so the literal
+#: is gone and the entry goes with it — which is exactly what
+#: :func:`test_no_new_machine_specific_posix_path_in_tools` demands ("delete a
+#: literal and its entry together").  Leaving the entry would have been a
+#: ratchet pointing at nothing.
 KNOWN_POSIX_MACHINE_DEFAULTS = {
-    "oracle/toolchain_probe.py": {
-        "reason": "$OR_SRC falls back to a fixed checkout path; owned by the "
-                  "toolchain task, under tools/oracle/ which P0.9 may not edit",
-        "paths": ("/home/valentin",),
-    },
     "profile_cycle.py": {
         "reason": "a profiling scratch directory composed from TEMP plus a "
                   "mangled Windows profile name and a session UUID; a per-run "
@@ -413,11 +417,12 @@ def test_no_new_machine_specific_posix_path_in_tools():
 
     The drive-letter sweep is shape shaped, so a POSIX absolute path walks
     straight past it — which is how ``tools/oracle/toolchain_probe.py:41`` and
-    ``tools/profile_cycle.py:102`` survived round 1.  Both are in files this
-    task does not own, so their exact literals are *named* in
-    :data:`KNOWN_POSIX_MACHINE_DEFAULTS` rather than edited.  The point of this
-    test is that the next one fails, in the same file or a new one.  Delete a
-    literal and its entry together.
+    ``tools/profile_cycle.py:102`` survived round 1.  Both were in files this
+    task did not own, so their exact literals were *named* in
+    :data:`KNOWN_POSIX_MACHINE_DEFAULTS` rather than edited; the first was
+    resolved on 2026-10-04 (fix wave 3) and its entry deleted with the literal.
+    The point of this test is that the next one fails, in the same file or a new
+    one.  Delete a literal and its entry together.
     """
     problems = []
     for src in sorted(TOOLS.rglob("*.py")):

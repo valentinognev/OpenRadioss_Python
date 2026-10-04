@@ -2,8 +2,9 @@
 
 *The onboarding document. Read this + AGENTS.md before any work; everything
 else (PORTING_GUIDE.md 535 KB, VALIDATION.md 233 KB) is grep-only reference.*
-*Last updated: 2026-10-03 (post-migration re-baseline, re-measured per
-environment; before that: 2026-08-02, handover preparation, after M41).*
+*Last updated: 2026-10-04 (fix wave 3: §Baseline restated as commands + dated
+measurements, no bare suite counts; before that: 2026-10-03 post-migration
+re-baseline, 2026-08-02 handover preparation after M41).*
 
 ## What this is
 
@@ -35,48 +36,57 @@ Interpreter/terminal discipline, READ-ONLY paths, domain rules: **AGENTS.md**
 (⚠ that file still describes the pre-migration Windows box — task P1.0 owns
 it; until then this section and §Baseline are the authority).
 
-## Baseline (known-good, this machine — re-measured 2026-10-03, commit `13deef2`)
+## Baseline (known-good, this machine)
 
-**The fast tier is not one number — it differs by environment.** The three
-figures below were measured in one session on one tree state (`git rev-parse
-HEAD` = `13deef2`; the only uncommitted files were the records this section
-lives in). They move when tests are added — an earlier session in the same
-day, at `e144bac` plus another task's uncommitted work, collected 14617 and
-gave the same three verdicts — so re-measure before quoting them against a
-different commit:
+**Read the commands, not the numbers.** The suite size is not a fixed fact: it
+changed under three consecutive review rounds (the oracle-module count alone
+aged 68 → 70 → 71) and each round a reviewer had to flag whichever record had
+quoted it stale. So this section states **commands and dated measurements**, and
+never a bare "the suite has N tests":
 
-| # | environment | result |
-|---|-------------|--------|
-| 1 | bare shell, **default** backend — `.venv/bin/python -m pytest -q -m "not slow"` | `14575 passed, 16 skipped, 20 deselected, 26 xfailed in 877.28s`, exit 0 |
-| 2 | **the project's gate** (`plan/00_ORCHESTRATION.md` §4.2) — `PYRADIOSS_BACKEND=numpy .venv/bin/python -m pytest -q -m "not slow"` | `14574 passed, 17 skipped, 20 deselected, 26 xfailed in 782.22s`, exit 0 |
-| 3 | **the Phase 0 exit gate** — row 2's env **plus** `OR_SRC`/`OR_BUILD`/`OR_ROOT` exported, `source tools/oracle/oracle_env.sh`, `PYRADIOSS_ORACLE_REQUIRED=1` | `14576 passed, 15 skipped, 20 deselected, 26 xfailed in 888.48s`, **exit 0** |
+* the current figure is whatever the command in the row you mean prints —
+  re-measure, do not quote this file;
+* every figure that *is* written down here is bound to the date it was measured
+  and describes that tree only; a count is not a promise about the tree you are
+  reading it in;
+* `tests/test_p0_record_suite_counts.py` enforces that (a count with no date,
+  no commit and no as-of label on its own line, in the two lines either side, or
+  in the section heading is reported), and holds **this** section to the
+  stricter form — every figure here binds on its OWN line, because a bare
+  number in the onboarding document is exactly where one used to hide.
 
-No red anywhere: every row is 0 failed / 0 errored. Row 2 is the figure the
-project's own pre-commit gate produces — quote that one when someone asks
-"is the gate green". Row 3 is the figure the Phase 0 exit gate produces and the
-only row that *verifies* the oracle instead of skipping around it (see
-`plan/01_phase0_oracle_and_licensing.md` §Exit gate). The rows differ only in
-skip surface: `pyradioss/paths.py` now resolves `$OR_ROOT` unaided, so the
-oracle tests neither skip nor need the exports on this box, and rows 1 and 2
-differ by exactly one test — the one that runs on the default backend and
-skips under `PYRADIOSS_BACKEND=numpy` (net difference of one; the two runs'
-skip lists were not diffed test-by-test, so treat the identity of that test as
-unverified).
+The fast tier is not one environment, and the three are not interchangeable:
+`pyradioss/paths.py` resolves `$OR_ROOT` unaided, so the oracle tests neither
+skip nor need the exports on this box, and rows 1 and 2 differ by exactly one
+test — the one that runs on the default backend and skips under
+`PYRADIOSS_BACKEND=numpy`. (The two runs' skip lists were not diffed
+test-by-test, so treat the identity of that test as unverified.)
 
-**Re-measured 2026-10-04 on this tree (fix wave 2, `plan/p0`):** row 3 only —
-`14594 passed, 15 skipped, 20 deselected, 26 xfailed, 26 warnings in 743.77s`,
-**exit 0**; collected **14635 non-slow + 20 `slow` = 14655**
-(`--collect-only -m "not slow"` → `14635/14655 tests collected (20 deselected)`).
-The +18 tests over the table above are this wave's and the previous round's; rows
-1 and 2 were **not** re-run and keep the `13deef2` figures above. The three
-figures in the table are therefore *not* interchangeable with this line — quote
-the one whose tree state you mean.
+| # | environment | command |
+|---|-------------|---------|
+| 1 | bare shell, **default** backend | `.venv/bin/python -m pytest -q -m "not slow"` |
+| 2 | **the project's gate** (`plan/00_ORCHESTRATION.md` §4.2) | `PYRADIOSS_BACKEND=numpy .venv/bin/python -m pytest -q -m "not slow"` |
+| 3 | **the Phase 0 exit gate** — row 2's env **plus** `OR_SRC`/`OR_BUILD`/`OR_ROOT` exported, `source tools/oracle/oracle_env.sh`, `PYRADIOSS_ORACLE_REQUIRED=1` | see `plan/01_phase0_oracle_and_licensing.md` §Exit gate, written out in full |
+
+Collection size, when you need it: `.venv/bin/python -m pytest -q --collect-only
+-m "not slow"`. The collected total is deliberately **not** written down here —
+it is the fastest-decaying number in this file.
+
+**Row 3 measured 2026-10-04** (fix wave 3, `plan/p0`): the exit gate exactly as
+`plan/01_phase0_oracle_and_licensing.md` §Exit gate writes it — line 2 `32
+passed, 1 skipped` (the skip is `th_to_csv`, documented in
+`test_p0_compare_t01.py`), line 3 `14600 passed, 15 skipped, 20 deselected, 26
+xfailed, 26 warnings in 727.12s (0:12:07)`, **exit 0**, line 4 (`git -C "$OR_SRC"
+status --porcelain`) empty, exit 0. **Rows 1 and 2 were last measured 2026-10-03
+at commit `13deef2`** (`14575 passed, 16 skipped` and `14574 passed, 17 skipped`,
+both exit 0) and have **not** been re-run since — the counts in those two rows
+are three test additions out of date. Quote row 3, or re-run the row you mean.
 
 *Unverified, stated for the next agent:* the phase review measured row 3's
-environment as `1 failed, 14567 passed, 15 skipped` (backend unspecified in
-that report). **I could not reproduce the failure** — row 3 above is green on
-the tree state named in it, and I never saw which test failed. Do not treat
-"the oracle-configured run is green" as a permanent fact; re-run it.
+environment on 2026-10-04 as `1 failed, 14567 passed, 15 skipped` (backend
+unspecified in that report). **I could not reproduce the failure** — the run
+above is green on the tree state named in it, and I never saw which test failed.
+Do not treat "the oracle-configured run is green" as a permanent fact; re-run it.
 
 - Interpreter: **CPython 3.12.3**, numpy 2.5.3, scipy 1.18.1, pytest 9.1.1,
   numba 0.68.0, llvmlite 0.50.0 (measured with `platform.python_version()` and
@@ -84,27 +94,23 @@ the tree state named in it, and I never saw which test failed. Do not treat
   `# pin:` lines (`grep -n "pin:" requirements-lock.txt` → python 3.12.3 /
   numpy 2.5.3 / scipy 1.18.1 / pytest 9.1.1 / numba 0.68.0 / llvmlite 0.50.0),
   which `tests/test_p0_optional_deps.py` enforces on every run.
-- Collected: **14617 non-slow + 20 `slow` = 14637**
-  (`.venv/bin/python -m pytest -q --collect-only -m "not slow"` →
-  `14617/14637 tests collected (20 deselected)`; same tree state as the table).
-- Fast tier, bare command: see the environment table at the top of this
-  section. (The `14489 passed, 27 skipped, … in 908.76s` figure this bullet
-  used to carry was quoted from commit `2e7e598` and was **not** a measurement
-  of this box — it does not reproduce and is withdrawn.)
+- Fast tier, bare command: see the table above. (The `14489 passed, 27 skipped,
+  … in 908.76s` figure this bullet used to carry was quoted from commit `2e7e598`
+  and was **not** a measurement of this box — it does not reproduce and is
+  withdrawn.)
 - Oracle-dependent tests: the four oracle modules
   (`test_p0_oracle_build`, `test_p0_oracle_selftest`, `test_p0_oracle_provenance`,
-  `test_p0_harness_portable`) collect **71** and measure `71 passed, 0 skipped`
-  **both** bare and with the three variables exported (re-measured 2026-10-04,
-  exit 0 both ways; the count was 68 on 2026-10-03 and moves whenever a test is
-  added, so re-measure rather than trusting it). **Nothing skips any more**:
-  `pyradioss/paths.py` resolves the install prefix unaided on this box, so the
-  skip surface P0.14 built never
-  fires here — which is why the exit gate exports
-  `PYRADIOSS_ORACLE_REQUIRED=1` instead of watching for skips. The variables
-  remain the supported way to point at a different oracle (dev-box values:
-  `OR_SRC=$HOME/Projects/OpenRadioss/OpenCourant`,
-  `OR_BUILD=$HOME/OpenRadioss_build`,
-  `OR_ROOT=$HOME/OpenRadioss_or`).
+  `test_p0_harness_portable`) measured `71 passed, 0 skipped` **both** bare and
+  with the three variables exported (2026-10-04, exit 0 both ways). **Nothing
+  skips any more**: `pyradioss/paths.py` resolves the install prefix unaided on
+  this box, so the skip surface P0.14 built never fires here — which is why the
+  exit gate exports `PYRADIOSS_ORACLE_REQUIRED=1` instead of watching for skips.
+  The count is not restated above because it moves: the command is
+  `.venv/bin/python -m pytest -q tests/test_p0_oracle_build.py
+  tests/test_p0_oracle_selftest.py tests/test_p0_oracle_provenance.py
+  tests/test_p0_harness_portable.py`. The variables remain the supported way to
+  point at a different oracle (dev-box values: `OR_SRC=$HOME/Projects/OpenRadioss/OpenCourant`,
+  `OR_BUILD=$HOME/OpenRadioss_build`, `OR_ROOT=$HOME/OpenRadioss_or`).
 - The oracle is rebuilt and verified here: binaries at `$OR_ROOT/bin/`
   (sha256 `8b504acc…` starter, `6d58d0b1…` engine — byte-identical to the
   build outputs `$OR_BUILD/exec/{starter,engine}`; both digests re-hashed
@@ -115,15 +121,17 @@ the tree state named in it, and I never saw which test failed. Do not treat
   give the committed golden `t01.md5_normalized`
   `e3688899358f35e825cd640f9bd94964` every time — pinned as a literal and
   re-checked against the installed binaries by
-  `tests/test_p0_oracle_provenance.py` (passing in rows 1–3 above).
+  `tests/test_p0_oracle_provenance.py` (passing in the gate run above).
 - Any red on the fast tier is a regression you introduced, not baseline noise.
 - **Previous machine (Windows, Python 3.14.2 / numpy 2.4.6, pre-migration) —
   history, not this box.** Its fast tier measured `11182 passed / 4 skipped /
   0 failed` (2026-09-12) and then `13030 passed / 4 skipped / 13 failed`
   (2026-09-21), the 13 attributed to "pre-existing M614 failures
   (test_m6/m12/m14/numpy_compat)"; the full suite measured `9893 passed /
-  5 skipped / 0 failed` (2026-09-11). **That 13-failure claim does not
-  reproduce here** — `tests/test_m6_engine.py tests/test_m6_eos_thermal.py
+  5 skipped / 0 failed` (2026-09-11) — three figures from a machine and a tree
+  this repository no longer has, kept because they are what the M614 claim was
+  made against. **That 13-failure claim does not reproduce here** —
+  `tests/test_m6_engine.py tests/test_m6_eos_thermal.py
   tests/test_m6_fixes_wave2.py tests/test_m12_implconstr.py
   tests/test_m14_implgen.py tests/test_numpy_compat.py` measures
   **74 passed, 1 skipped** (re-measured 2026-10-03 under
@@ -197,12 +205,15 @@ Extensive batch porting of constitutive material laws, failure criteria, and con
 - **Rivet Element**: (`rivet.py`) discrete structural fastener with shear/tension coupling.
 - **Implicit Constraint Fix**: `_apply_autos` implicit constraint resolution (9 test failures resolved).
 
-## What is implemented (M1 → M706)
+## What is implemented (M1 → M706; table last revised 2026-10-04)
 
 README's "Milestones 1–11" section is the *narrative* for the foundation; the
 real history is the table below (last pre-program milestone **M615**; the
 program-era series is **M700+**, one per green phase task — see
-`plan/README.md` §6). One line each:
+`plan/README.md` §6). One line each. A row's `Full suite:` figure is **that
+milestone's own measurement** — the suite size at the time the row was written,
+not today's; §Baseline is where the current size lives, and it carries the
+command instead of a number.
 
 | # | Theme (headline) |
 |---|---|

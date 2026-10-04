@@ -1,0 +1,326 @@
+"""Task P0.18 — a record may not state an exact suite count without saying when.
+
+THE ROT THIS EXISTS FOR
+-----------------------
+Three review rounds in a row flagged the same class of defect in the records:
+the exact test counts written into ``docs/STATE.md``, ``UPDATES.md`` and
+``plan/01_phase0_oracle_and_licensing.md`` aged ``68 → 70 → 71 → …`` and each
+round a reviewer had to flag them again.  Nothing was enforcing the rule,
+because there was no rule — only a convention everybody already broke.
+
+**A record that states an exact count is a record that will be wrong.**  So the
+rule this file enforces is about *binding*, not about the number:
+
+    A suite count in a record is acceptable only if the statement says WHICH
+    measurement moment it describes.
+
+and the two treatments that follow from it are the ones the records now use:
+
+* **evidence** (a before/after showing what a change did) — keep the number,
+  bind it to the date/commit it was measured at, and let it age in place;
+* **decoration** (a "baseline" block that merely restates the suite size) —
+  drop the bare number, keep the **command** that produces the current one, and
+  keep the dated measurement beside it as history.
+
+WHAT COUNTS AS A COUNT, AND WHAT COUNTS AS A BINDING
+----------------------------------------------------
+:data:`SUITE_COUNT` is deliberately narrow — a number standing directly beside
+a pytest RESULT word (``14594 passed``, ``71 passed, 0 skipped``, ``collected
+14617``).  An earlier draft of this file also matched the bare word ``tests``,
+which flagged 127 lines, of which 117 were milestone rows whose "34 new tests"
+is a *delta* that does not rot the way a suite size does, and the rest were
+"35 files, 10,356" and "937 files".  A rot scanner that cries wolf is disabled
+by its first false positive, so the pattern is the narrow one.
+
+A **binding** is any of (:data:`ISO_DATE`, a 7–40 hex **commit sha**,
+:data:`AS_OF`), and it may sit:
+
+* on the count's own line or within :data:`WINDOW` lines either side — a
+  measurement is usually introduced by its date or closed by its commit, and a
+  rule that only looked in one direction would force every sentence to be
+  rewritten to suit the rule; or
+* in the **nearest preceding markdown heading**, which is what makes a dated
+  *log entry* legitimate rather than a violation.  This is the "a measurement
+  inside a dated entry describes that moment" half of the rule, and it is why
+  every ``## <version> - …`` heading in ``UPDATES.md`` and every dated audit
+  heading in ``docs/`` carries a date.
+
+Two shapes are not claims at all and are skipped, each for a stated reason:
+
+* **a fenced block tagged with a language** (`````python``) — a code sample.
+  ``plan/02_phase1_foundation.md`` shows ``Ledger(passed=10, …)`` as the API a
+  future task must write; that is a specimen of code, not a statement about
+  any suite.  Requiring the language tag is what keeps this from becoming a
+  laundering route: an untagged fence is a specimen only if its opener
+  attributes it, and that is the (already pinned) rule of
+  ``tests/test_p0_no_stale_machine_paths.py``; this file does not weaken it,
+  it simply does not duplicate it.
+* **the count of a milestone row's own contribution** (``34 new tests``) — a
+  delta, not a suite size.
+
+§BASELINE IS HELD TO A STRICTER RULE
+------------------------------------
+Heading inheritance would be a hole in exactly the place the rot happened:
+``docs/STATE.md`` §Baseline is the onboarding document, its heading has carried
+a date since P0.17, and a bare "the suite has N tests" dropped in there would
+inherit that date and pass.  So inside §Baseline a count must bind **locally**
+(:func:`test_the_baseline_block_carries_no_inherited_binding`), which is why the
+block now states commands and dated measurements instead of bare numbers, and
+why :func:`test_the_baseline_names_the_command_not_only_a_number` pins the
+command half of the treatment.
+
+WHAT IS DELIBERATELY OUT OF REACH
+---------------------------------
+A count with **no** RESULT word (``the reader library is 1,210 lines``), and a
+count in ``.superpowers/`` reports — those are working notes, not records.  The
+record scope is imported from the sibling gate rather than re-listed, so a
+record added to ``docs/`` or ``plan/`` tomorrow is scanned by both rules without
+anyone remembering to update either file.
+"""
+
+from __future__ import annotations
+
+import re
+
+from tests.test_p0_no_stale_machine_paths import (
+    STATE,
+    _quoted_example_lines,
+    _record_sources,
+)
+
+#: ``<number> <pytest RESULT>``, or the two spellings where the word comes
+#: first (``collected 14617``).  Thousands separators are allowed because two of
+#: the dated audits write ``5,498 passed``.
+RESULT = (r"(?:passed|failed|skipped|deselected|xfailed|xpassed|errors?"
+          r"|collected)")
+SUITE_COUNT = re.compile(
+    rf"\b\d[\d,]*\s+(?:{RESULT})\b"
+    rf"|\b(?:passed|collected|deselected|skipped)\s+\d[\d,]*\b")
+
+#: An ISO date — the cheapest binding and the one every record already writes.
+ISO_DATE = re.compile(r"\b20\d\d-\d\d-\d\d\b")
+
+#: A 7–40 character lowercase hex token: a git sha.  Uppercase is excluded on
+#: purpose (an md5 digest is a different kind of fact, and ``20d4059`` in a
+#: banner would otherwise pass as a commit).
+COMMIT = re.compile(r"\b[0-9a-f]{7,40}\b")
+
+#: Words that say the figure describes *a moment* rather than *now*.  Weaker
+#: than a date and accepted only beside one of them is not required — the point
+#: is that a record may LABEL history in prose, which is what the brief asks of
+#: a dated entry, without inventing a date for it.
+AS_OF = re.compile(
+    r"\b(?:as of|at the time|histor\w*|superseded|withdrawn|at that date)\b",
+    re.I)
+
+#: How far either side of a count a binding may sit.
+WINDOW = 2
+
+#: The languages whose fenced block is a CODE SAMPLE rather than prose.
+CODE_INFO = re.compile(r"^```\s*[A-Za-z0-9_+#-]+\s*$")
+
+
+def _fenced(lines: list[str]) -> set[int]:
+    """0-based indices of lines inside a LANGUAGE-TAGGED fenced block.
+
+    An untagged fence is deliberately **not** skipped: quoting a claim is not
+    the same as making it true, and
+    ``tests/test_p0_no_stale_machine_paths.py`` already holds the untagged case
+    to its own (stricter, attributed-opener) rule.  This helper only exempts
+    the one shape that cannot be a claim at all — source code.
+    """
+    skipped: set[int] = set()
+    inside = False
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            skipped.add(index)
+            inside = not inside if inside or CODE_INFO.match(stripped) else False
+            continue
+        if inside:
+            skipped.add(index)
+    return skipped
+
+
+def _heading_before(lines: list[str], index: int) -> str:
+    """The nearest preceding markdown heading, or ``""``."""
+    for above in reversed(lines[:index]):
+        if above.startswith("#"):
+            return above
+    return ""
+
+
+def _is_baseline(lines: list[str], index: int) -> bool:
+    """Is line ``index`` inside ``docs/STATE.md`` §Baseline?"""
+    for above in reversed(lines[:index]):
+        if above.startswith("#"):
+            return above.startswith("## Baseline")
+
+
+def unbound(lines: list[str]) -> list[int]:
+    """Indices of lines carrying a suite count with NO binding anywhere.
+
+    The heading is consulted for the binding, and a milestone row's own
+    contribution count (``34 new tests`` — no RESULT word, so it never matches)
+    needs no exemption.
+    """
+    fenced = _fenced(lines)
+    quoted = _quoted_example_lines(lines)
+    out = []
+    for index, line in enumerate(lines):
+        if not SUITE_COUNT.search(line):
+            continue
+        if index in fenced or index in quoted:
+            continue
+        window = "\n".join(lines[max(0, index - WINDOW):index + WINDOW + 1])
+        if ISO_DATE.search(window) or COMMIT.search(window) or AS_OF.search(window):
+            continue
+        if ISO_DATE.search(_heading_before(lines, index)) \
+                or COMMIT.search(_heading_before(lines, index)):
+            continue
+        out.append(index)
+    return out
+
+
+def _locally_unbound(lines: list[str]) -> list[int]:
+    """§Baseline only: the same rule with the heading NOT consulted."""
+    fenced = _fenced(lines)
+    quoted = _quoted_example_lines(lines)
+    out = []
+    for index, line in enumerate(lines):
+        if not _is_baseline(lines, index) or not SUITE_COUNT.search(line):
+            continue
+        if index in fenced or index in quoted:
+            continue
+        window = "\n".join(lines[max(0, index - WINDOW):index + WINDOW + 1])
+        if ISO_DATE.search(window) or COMMIT.search(window) or AS_OF.search(window):
+            continue
+        out.append(index)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 1. the rule, over every record
+# ---------------------------------------------------------------------------
+def test_no_record_states_an_undated_suite_count():
+    """Every suite count in every record names the moment it was true.
+
+    The scan runs over :func:`_record_sources` — the same scope the
+    machine-facts gate uses, imported rather than re-listed, so the two rules
+    can never drift apart on WHICH files they read.
+    """
+    offenders = []
+    for path in _record_sources():
+        for index in unbound(_lines(path)):
+            offenders.append(
+                f"{_label(path)}:{index + 1}: {_lines(path)[index].strip()[:90]}")
+    assert offenders == [], (
+        "these record lines state an exact suite count without saying when it "
+        "was true (an ISO date, a commit sha, or an explicit as-of label must "
+        "be on the line, within two lines either side, or in the nearest "
+        "preceding heading): " + "; ".join(offenders)
+        + ". Either bind it (this is a dated measurement — say the date or the "
+          "commit), or drop the number and keep the command that produces the "
+          "current one. See docs/STATE.md §Baseline for the worked example.")
+
+
+# ---------------------------------------------------------------------------
+# 2. ... and §Baseline, which is where the rot happened, holds it locally
+# ---------------------------------------------------------------------------
+def test_the_baseline_block_carries_no_inherited_binding():
+    """§Baseline may not lean on its heading's date.
+
+    The heading has carried a date since P0.17, so without this test a bare
+    "the suite is N tests" dropped into §Baseline would pass by inheritance —
+    which is the rot, reintroduced through the fix's own mechanism.
+    """
+    lines = _lines(STATE)
+    offenders = [f"docs/STATE.md:{i + 1}: {lines[i].strip()[:90]}"
+                 for i in _locally_unbound(lines)]
+    assert offenders == [], (
+        "docs/STATE.md §Baseline states a suite count that binds only through "
+        "its heading: " + "; ".join(offenders)
+        + ". §Baseline must bind every figure on its own line — put the date "
+          "and the commit next to the number, or state the command instead.")
+
+
+def test_the_baseline_names_the_command_not_only_a_number():
+    """The replacement for a decorative number is the command that makes it.
+
+    The rule is only useful if the record still answers the question a reader
+    asked, so §Baseline must keep both pytest invocations AND the collection
+    command: a reader who needs the current figure runs them.
+    """
+    text = "\n".join(_lines(STATE))
+    start = text.index("## Baseline")
+    end = text.index("\n## ", start)
+    baseline = text[start:end]
+    for command in ('-m pytest -q -m "not slow"',
+                    "--collect-only",
+                    "PYRADIOSS_BACKEND=numpy",
+                    "PYRADIOSS_ORACLE_REQUIRED=1"):
+        assert command in baseline, (
+            f"docs/STATE.md §Baseline no longer carries {command!r}: the "
+            "replacement for a bare count is the command that produces the "
+            "current one, so it has to be there")
+
+
+# ---------------------------------------------------------------------------
+# 3. the check can still fail
+# ---------------------------------------------------------------------------
+def test_the_binding_rule_can_still_fail():
+    """A checker that accepts everything is worse than none; drive it.
+
+    Six shapes, and the answers must differ: a dated count, a commit-bound
+    count, a heading-bound count (the dated-log-entry case), a bare count (the
+    rot), a language-tagged code sample (not a claim), and a count in
+    ``§Baseline`` that only its heading binds (the rot's own hiding place).
+    """
+    dated = ["- Measured 2026-10-04: `14594 passed, 15 skipped`."]
+    assert unbound(dated) == [], "a dated figure is bound"
+
+    committed = ["- The fast tier measured `14594 passed`.",
+                 "  All at commit `13deef2`."]
+    assert unbound(committed) == [], "a commit-bound figure is bound"
+
+    logged = ["## 1.7.0 - Fix wave 2 (2026-10-04)",
+              "",
+              "- the oracle modules collect **71** and measure `71 passed, 0",
+              "  skipped` both ways"]
+    assert unbound(logged) == [], (
+        "a dated log entry binds its own measurements: that is the whole point "
+        "of dating the entry")
+
+    bare = ["- The fast tier measures `14594 passed, 15 skipped` on this box."]
+    assert len(unbound(bare)) == 1, (
+        "an undated bare count is the rot this file exists for and must be "
+        "reported")
+
+    labelled = ["- At the time: `14594 passed, 15 skipped`."]
+    assert unbound(labelled) == [], (
+        "a record may label history in prose instead of dating it")
+
+    code = ["The ledger API a future task must write::", "",
+            "```python", "base = Ledger(passed=10, failed=(), skipped=0)", "```"]
+    assert SUITE_COUNT.search(code[3]), "the sample really does match the rule"
+    assert unbound(code) == [], (
+        "a language-tagged code block is a specimen, not a claim about a suite")
+
+    fence_no_lang = ["Measured facts::", "", "```", "14594 passed", "```"]
+    assert len(unbound(fence_no_lang)) == 1, (
+        "an UNTAGGED fence gets no free pass here: quoting is not dating, and "
+        "the sibling gate holds that shape to its stricter attributed-opener "
+        "rule. If this ever becomes 0, _fenced grew too permissive")
+
+
+def _lines(path) -> list[str]:
+    return path.read_text(encoding="utf-8", errors="replace").splitlines()
+
+
+def _label(path) -> str:
+    from tests.test_p0_no_stale_machine_paths import REPO
+
+    try:
+        return path.relative_to(REPO).as_posix()
+    except ValueError:
+        return path.name
