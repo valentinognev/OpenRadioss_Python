@@ -148,7 +148,9 @@ Written as `$PYTHON …`; resolve `$PYTHON` first (§Environment).
   materials, failure, contact, output, implicit, accel, gui), `tests/`
   (+ `tests/data/rd_decks` vendored corpus decks), `tools/`
   (validate_vs_fortran.py, oracle/, validation_data/), `examples/` (runnable
-  decks).
+  decks). `tools/benchmark_rad_db.py` benchmarks against the **external**
+  harvested `rad_examples_db` corpus, which is not in this checkout: it is
+  located solely by `$RAD_EXAMPLES_DB` and has no default.
 
 ## Model policy
 
