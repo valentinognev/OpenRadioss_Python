@@ -9,6 +9,78 @@ entry**. Several files have grown since (re-counted 2026-10-03 with
 *current* counts — the collected total and the fast tier, per environment —
 live only in `docs/STATE.md` §Baseline.*
 
+## 1.7.0 - Fix wave 2: a gate that is green here and red in CI, an export that silently dropped two law audits, and a URI exemption that laundered claims
+
+Round 3 widened the stale-machine-facts gate to the records and shipped it
+green. Three of the four defects below were introduced *by that round*; this
+pass fixes the cause in the records and in the tooling, and pins each one with
+a test that failed before it. No physics, no oracle behaviour and no licence
+decision changes.
+
+- **The gate was red on every machine but this one.** 19 record lines named
+  this box's absolute `/home/valentin/...` paths, so a reader with a different
+  `$HOME` — including `ubuntu-latest` in `.github/workflows/ci.yml` — was told
+  about directories that are not there. Fixed in the records, not in the rule:
+  every one now uses the project's own indirection (`$OR_SRC` / `$OR_ROOT` /
+  `$OR_BUILD` / `$PYRADIOSS_HM_CFG`, `plan/00_ORCHESTRATION.md` §4.1, or
+  `$HOME/<name>`). Locations and replacements are listed in
+  `.superpowers/sdd/task-fix-wave2-report.md`. Measured with the gate's own
+  scan under a simulated foreign `$HOME`: **19 → 0** record offenders,
+  **22 → 3** over the whole scanned scope. The 3 that remain are
+  machine-specific absolute paths in three `tools/oracle/` files this pass does
+  not own — reported, not edited.
+  Pinned by
+  `tests/test_p0_no_stale_machine_paths.py::test_no_record_may_name_a_path_out_of_this_machines_home_directory`,
+  which re-points `$HOME` and masks the disk answer under this box's home for
+  the duration of the same scan.
+- **`oracle_env.sh` exported `RAD_CFG_PATH` unconditionally, and the resolver
+  had just made a stale export terminal.** Sourcing the script against a mirror
+  without `hm_cfg_files` therefore poisoned the one variable that would have
+  let `paths.hm_cfg_dir()` fall through to a real tree. The export is now
+  guarded by `[ -d "$OR_BUILD/hm_cfg_files" ]`. Measured, cfg-less mirror
+  sourced: `test_m539_law34_input_audit.py` + `test_m540_law37_input_audit.py`
+  went **`57 passed, 14 skipped`** → **`71 passed`** — the 7 LAW34 and 7 LAW37
+  CFG-schema audits run again. Three new tests pin both directions (withheld
+  when absent, still exported when present) plus the mechanism, so the two
+  files cannot drift apart again.
+- **The URI link-target exemption laundered claims.** `_in_uri_target` took
+  the first `](` to the left of a match and treated the rest of the line as the
+  target, so a line carrying any URI-ish token (`see [x](C:/a/b) and … <the
+  pre-migration conda prefix>`) reported `[]` — contradicting its own
+  docstring. It is now a SPAN: the target must be closed by `)`/`>` before the
+  match ends, and `end` is a required argument so the question can be asked at
+  all. Genuine permalinks (the 18 in `docs/BUG_REPORT_2026-09-05.md`) are still
+  exempt; nine boundary shapes are pinned from both sides.
+- **A requirement floor was read as a measurement.** A floor in prose —
+  `requires numpy <X> at minimum`, `numpy <X>+`, `cmake <X> or newer` — was
+  compared with the lock and with `<tool> --version`. A floor is satisfied by
+  every value the lock could hold, so both rules now skip it — scoped to the
+  version's own CLAUSE, so a floor word elsewhere in the sentence cannot exempt
+  a real measurement (five such shapes are pinned as still-reported).
+- **`docs/OPEN_BUGS.md` item 2 misstated its own coverage.** It claimed "no hit
+  in `pyradioss/`; the surviving `consistent_shell_tangent` hits are LAW60's
+  own". Measured 2026-10-04: `pyradioss/materials/law14_compso.py` really has
+  **0** hits for all three names (the closure is true), `multilayer_shell_update`
+  has **0** hits in `pyradioss/` and **0** in `tests/`, but
+  `shell_membrane_tangent`/`consistent_shell_tangent` are the generic tangent
+  API and are carried by **104** modules under `pyradioss/` (277 lines) and
+  **92** files under `tests/`. The register now says exactly that.
+- **The exit gate's `$OR_SRC` requirement was a hole.** The checker accepted
+  "the script is sourced" as proof that `OR_SRC`/`OR_ROOT`/`OR_BUILD` were all
+  set, but `oracle_env.sh` never mentions `$OR_SRC` — and the gate's own last
+  command is `git -C "$OR_SRC" status --porcelain`, which with an empty
+  `$OR_SRC` inspects the current directory. The exemption is narrowed to the
+  two variables the script establishes (`OR_ROOT`, `OR_BUILD`); `$OR_SRC` must
+  be exported, and both directions are pinned.
+- **Re-measured figures, labelled rather than overwritten.** The four oracle
+  modules collect **71** (was 68 on 2026-10-03) and measure `71 passed, 0
+  skipped` bare and configured. The historical `OR_BUILD=/tmp/no-such-mirror-xyz
+  → 3 failed, 13 passed` (2026-10-03) now reads `3 failed, 16 passed`
+  (2026-10-04) — the same three tests fail either way, and the *passed* half of
+  a test count ages, so both are now dated in place rather than replaced.
+- **Also fixed:** an E302 (two blank lines missing before
+  `test_the_harness_imports_and_resolves_oracle_paths`) in the gate module.
+
 ## 1.6.1 - Records corrected: the baseline figures, the oracle counts, a gate that skipped what it claimed to verify, and a ruling that was never made
 
 A whole-branch review found four records asserting things that were false or
@@ -40,7 +112,10 @@ decision (`plan/00_ORCHESTRATION.md` §1.3).
   both asserted that the gate sets it. The gate block in
   `plan/01_phase0_oracle_and_licensing.md` now exports it, and its effect is
   measured: with `OR_BUILD=/tmp/no-such-mirror-xyz`, `test_p0_oracle_build.py`
-  gives `3 failed, 13 passed`.
+  gave `3 failed, 13 passed` when this entry was written (2026-10-03); the same
+  three tests fail today as `3 failed, 16 passed` (re-measured 2026-10-04 — three
+  tests have since been added to that module, so the *passed* half of a count
+  like this ages; the *failed* half is the claim and it is unchanged).
 - **`docs/LICENSING.md` contradicted itself about the licence.** "No decision
   recorded" and a "**Ruling:** … recorded by the Phase 0 controller … pending
   maintainer confirmation" sat eleven lines apart. A recommendation pending
@@ -70,10 +145,10 @@ P0.11–P0.16 were assigned by this wave: entries 1.5.1 and 1.4.0 below use the
 label "P0.11" for the binary-T01 parity route, which is a **different** task.
 
 - **Migration / environment rebuild.** Interpreter CPython 3.12.3 (lock §[B]);
-  oracle source `$OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant`
-  (READ-ONLY), writable mirror `OR_BUILD=/home/valentin/OpenRadioss_build`
-  (harvested extlib **v59**), install prefix
-  `OR_ROOT=/home/valentin/OpenRadioss_or`. `bin/starter_linux64_gf` and
+  oracle source `$OR_SRC` (READ-ONLY; dev box
+  `$HOME/Projects/OpenRadioss/OpenCourant`), writable mirror `$OR_BUILD`
+  (dev box `$HOME/OpenRadioss_build`, harvested extlib **v59**), install prefix
+  `$OR_ROOT` (dev box `$HOME/OpenRadioss_or`). `bin/starter_linux64_gf` and
   `bin/engine_linux64_gf` were rebuilt there and are byte-identical (sha256) to
   the build outputs `$OR_BUILD/exec/{starter,engine}`.
 - **P0.11** — the lock's machine-verified §[B] re-pinned to this interpreter:
@@ -122,7 +197,8 @@ label "P0.11" for the binary-T01 parity route, which is a **different** task.
   `pyproject.toml`, now a pointer at the lock's `# pin:` lines; and the
   pre-migration `cmake 4.4.3` in `build_oracle.sh`, where `/usr/bin/cmake`
   is 3.28.3.
-  `tests/test_p0_no_stale_machine_paths.py` (9 tests at P0.15, **10** today)
+  `tests/test_p0_no_stale_machine_paths.py` (9 tests at P0.15, **10** at
+  2026-10-03, **22** at 2026-10-04)
   keeps them from rotting and distinguishes a claim about this box from a
   quoted specimen of a tool's output.
 - **P0.16** — `toolchain_probe.json` is a **gated record**, not a test side
@@ -849,10 +925,10 @@ blocks Phase 1 onward**; it enumerates four lawful resolutions and does not
 choose one — that is a maintainer/legal decision.
 
 **Environment change:** the working machine is now Linux with the upstream
-source at `/home/valentin/Projects/OpenRadioss/OpenCourant`, **unbuilt**
-(no extlib, no `exec/`, no `cmake_linux64_gf.txt` compiler flags). `AGENTS.md`
-and `tools/validate_vs_fortran.py` are Windows-specific. Phase 0 builds the
-oracle; Phase 1 Task P1.0 rewrites `AGENTS.md` platform-neutral.
+source at `$OR_SRC` (dev box `$HOME/Projects/OpenRadioss/OpenCourant`),
+**unbuilt** (no extlib, no `exec/`, no `cmake_linux64_gf.txt` compiler flags).
+`AGENTS.md` and `tools/validate_vs_fortran.py` are Windows-specific. Phase 0
+builds the oracle; Phase 1 Task P1.0 rewrites `AGENTS.md` platform-neutral.
 
 **Parallel-execution design:** wave graph with one git worktree per wave, a
 declared single-owner map for the 16 contended files, one reviewer per task,

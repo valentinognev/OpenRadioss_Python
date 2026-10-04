@@ -62,7 +62,26 @@ export OR_ROOT
 # OPENRADIOSS_PATH is the upstream name for the prefix; some helper scripts and
 # the hm_cfg_files lookup still key off it.
 export OPENRADIOSS_PATH="$OR_BUILD"
-export RAD_CFG_PATH="$OR_BUILD/hm_cfg_files"
+
+# RAD_CFG_PATH is upstream's spelling of the CFG card-schema tree
+# ($OR_SRC/INSTALL.md:39); pyradioss/paths.py accepts it as an alias of
+# $PYRADIOSS_HM_CFG (plan/00_ORCHESTRATION.md 4.1, rule 1).
+#
+# It is exported ONLY when the directory is really there, and that guard is
+# load-bearing, not tidiness.  Since the "a stale export is terminal" change, a
+# variable that is set but does not resolve makes the resolver raise instead of
+# warning -- so exporting a path that is not there POISONS the one variable that
+# would otherwise have let hm_cfg_dir() fall through to a real tree (a sibling
+# OpenCourant/hm_cfg_files, $OR_SRC/hm_cfg_files, the Windows prefix).  Measured
+# cost of the unconditional form, on this box with a mirror that has no
+# hm_cfg_files: tests/test_m539_law34_input_audit.py and
+# tests/test_m540_law37_input_audit.py give 57 passed, 14 skipped -- the 7 LAW34
+# and 7 LAW37 CFG-schema audits all skip -- against 71 passed with no
+# environment at all.  Leave it unset when the mirror has no tree; the resolver
+# then searches, which is what 4.1 rule 1 means by "if set".
+if [ -d "$OR_BUILD/hm_cfg_files" ]; then
+  export RAD_CFG_PATH="$OR_BUILD/hm_cfg_files"
+fi
 
 # The native-.k reader and its APR dependency.  libapr-1.so.0 has a real
 # NEEDED entry on the system libcrypt.so.1, which the runtime loader finds in

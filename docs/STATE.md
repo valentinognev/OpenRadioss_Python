@@ -11,8 +11,8 @@ environment; before that: 2026-08-02, handover preparation, after M41).*
 solver (crash/impact dynamics): same Starter/Engine split, same `.rad` deck
 format, same output semantics. The goal is Fortran-faithful, readable physics
 — every ported formula cites its upstream file under `$OR_SRC`
-(`starter/source/…`, `engine/source/…`, `common_source/…`; on this box
-`OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant`). Speed is explicitly
+(`starter/source/…`, `engine/source/…`, `common_source/…`; on the dev box that
+is `$HOME/Projects/OpenRadioss/OpenCourant`). Speed is explicitly
 not the goal (an optional numba backend recovers some).
 
 ## Quick start
@@ -63,6 +63,15 @@ skips under `PYRADIOSS_BACKEND=numpy` (net difference of one; the two runs'
 skip lists were not diffed test-by-test, so treat the identity of that test as
 unverified).
 
+**Re-measured 2026-10-04 on this tree (fix wave 2, `plan/p0`):** row 3 only —
+`14594 passed, 15 skipped, 20 deselected, 26 xfailed, 26 warnings in 743.77s`,
+**exit 0**; collected **14635 non-slow + 20 `slow` = 14655**
+(`--collect-only -m "not slow"` → `14635/14655 tests collected (20 deselected)`).
+The +18 tests over the table above are this wave's and the previous round's; rows
+1 and 2 were **not** re-run and keep the `13deef2` figures above. The three
+figures in the table are therefore *not* interchangeable with this line — quote
+the one whose tree state you mean.
+
 *Unverified, stated for the next agent:* the phase review measured row 3's
 environment as `1 failed, 14567 passed, 15 skipped` (backend unspecified in
 that report). **I could not reproduce the failure** — row 3 above is green on
@@ -84,16 +93,18 @@ the tree state named in it, and I never saw which test failed. Do not treat
   of this box — it does not reproduce and is withdrawn.)
 - Oracle-dependent tests: the four oracle modules
   (`test_p0_oracle_build`, `test_p0_oracle_selftest`, `test_p0_oracle_provenance`,
-  `test_p0_harness_portable`) collect **68** and measure `68 passed, 0 skipped`
-  **both** bare and with the three variables exported (re-measured 2026-10-03,
-  exit 0 both ways). **Nothing skips any more**: `pyradioss/paths.py` resolves
-  the install prefix unaided on this box, so the skip surface P0.14 built never
+  `test_p0_harness_portable`) collect **71** and measure `71 passed, 0 skipped`
+  **both** bare and with the three variables exported (re-measured 2026-10-04,
+  exit 0 both ways; the count was 68 on 2026-10-03 and moves whenever a test is
+  added, so re-measure rather than trusting it). **Nothing skips any more**:
+  `pyradioss/paths.py` resolves the install prefix unaided on this box, so the
+  skip surface P0.14 built never
   fires here — which is why the exit gate exports
   `PYRADIOSS_ORACLE_REQUIRED=1` instead of watching for skips. The variables
-  remain the supported way to point at a different oracle:
-  `OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant`,
-  `OR_BUILD=/home/valentin/OpenRadioss_build`,
-  `OR_ROOT=/home/valentin/OpenRadioss_or`.
+  remain the supported way to point at a different oracle (dev-box values:
+  `OR_SRC=$HOME/Projects/OpenRadioss/OpenCourant`,
+  `OR_BUILD=$HOME/OpenRadioss_build`,
+  `OR_ROOT=$HOME/OpenRadioss_or`).
 - The oracle is rebuilt and verified here: binaries at `$OR_ROOT/bin/`
   (sha256 `8b504acc…` starter, `6d58d0b1…` engine — byte-identical to the
   build outputs `$OR_BUILD/exec/{starter,engine}`; both digests re-hashed
@@ -877,9 +888,9 @@ later milestones (M_ALE, M_MONVOL, M47) despite this paragraph's M41 date.
 | `tools/run_reference_or.ps1` | launch the real Fortran solver with the correct env — **Windows only**; on Linux use `tools/oracle/oracle_env.sh` |
 | `tools/lspp_check.py` | LS-PrePost headless d3plot verification |
 | `examples/` | runnable native-format decks (tensile_bar is the hello-world) |
-| `$OR_SRC` = `/home/valentin/Projects/OpenRadioss/OpenCourant` | upstream source (**cite this**: `starter/source/…`, `engine/source/…`, `common_source/…`, `hm_cfg_files/`) — READ-ONLY |
-| `$OR_BUILD` = `/home/valentin/OpenRadioss_build` | writable mirror `git archive`d from `$OR_SRC` + harvested `extlib/` v59; the build writes here (`build/`, `exec/`) |
-| `$OR_ROOT` = `/home/valentin/OpenRadioss_or` | install prefix: `bin/starter_linux64_gf`, `bin/engine_linux64_gf` |
+| `$OR_SRC` (dev box: `$HOME/Projects/OpenRadioss/OpenCourant`) | upstream source (**cite this**: `starter/source/…`, `engine/source/…`, `common_source/…`, `hm_cfg_files/`) — READ-ONLY |
+| `$OR_BUILD` (dev box: `$HOME/OpenRadioss_build`) | writable mirror `git archive`d from `$OR_SRC` + harvested `extlib/` v59; the build writes here (`build/`, `exec/`) |
+| `$OR_ROOT` (dev box: `$HOME/OpenRadioss_or`) | install prefix: `bin/starter_linux64_gf`, `bin/engine_linux64_gf` |
 | `C:\OpenRadioss`, `E:\openradioss_run\` | the **previous** machine's reference install and deck zips — **not present on this box** |
 
 ## How we work (Antigravity)

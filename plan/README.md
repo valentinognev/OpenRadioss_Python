@@ -20,9 +20,9 @@ official corpus and the parity ledger.
 SciPy (implicit/linear algebra), optional numba / mpi4py / matplotlib,
 pytest 9.x + pytest-xdist. Fortran oracle: gfortran + cmake + silecc + extlib v82.
 
-**Upstream reference (read-only):**
-`/home/valentin/Projects/OpenRadioss/OpenCourant` — **AGPL-3.0-or-later**.
-Called `$OR_SRC` below.
+**Upstream reference (read-only):** `$OR_SRC` — on the dev box
+`$HOME/Projects/OpenRadioss/OpenCourant`, **AGPL-3.0-or-later**. Called
+`$OR_SRC` below.
 
 ---
 

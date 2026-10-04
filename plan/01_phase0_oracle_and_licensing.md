@@ -666,7 +666,7 @@ records restate), `$OR_SRC/starter/CMakeLists.txt:14-19` (`set(PYTHON_EXEC
   binaries on this box — starter `8b504acc…`, engine `6d58d0b1…` (replacing
   `b2f6a19f…` / `99e63c5c…`, which named binaries the migration removed), the
   absent conda prefix recorded as absent, `upstream.mirror_path` corrected to
-  `$OR_BUILD` (`= /home/valentin/OpenRadioss_build`, evidence:
+  `$OR_BUILD` (dev box: `$HOME/OpenRadioss_build`, evidence:
   `build/starter/CMakeCache.txt:CMAKE_HOME_DIRECTORY`).
 
 **Evidence:** the golden T01 anchor did **not** move —
@@ -733,20 +733,24 @@ cannot work. `4 failed, 48 passed, 3 errors` bare → `48 passed, 7 skipped`
 re-measurable now. **The `56 passed, 9 skipped` bare vs `65 passed` configured
 pair this entry carried until 2026-10-03 no longer reproduces.** Re-measured
 over the four oracle modules (`test_p0_oracle_build`, `test_p0_oracle_selftest`,
-`test_p0_oracle_provenance`, `test_p0_harness_portable`), which collect **68**
-tests today: bare `68 passed, 0 skipped`; with `OR_SRC`/`OR_BUILD`/`OR_ROOT`
-exported, `oracle_env.sh` sourced and `PYRADIOSS_ORACLE_REQUIRED=1`,
-`68 passed, 0 skipped`. Both exit 0.
+`test_p0_oracle_provenance`, `test_p0_harness_portable`), which collect **71**
+tests as of 2026-10-04 (**68** on 2026-10-03 — the count moves whenever a test
+is added, so re-measure it): bare `71 passed, 0 skipped`; with
+`OR_SRC`/`OR_BUILD`/`OR_ROOT` exported, `oracle_env.sh` sourced and
+`PYRADIOSS_ORACLE_REQUIRED=1`, `71 passed, 0 skipped`. Both exit 0.
 
 Nothing skips any more: `pyradioss/paths.py` resolves the install prefix
 unaided on this box, so the skip surface this task added never fires here.
 That cuts both ways — the gate can no longer infer "the oracle is absent" from
 a skip count, so it must export `PYRADIOSS_ORACLE_REQUIRED=1` (Exit gate), and
 a bogus export now fails loudly instead: `OR_BUILD=/tmp/no-such-mirror-xyz`
-gives `3 failed, 13 passed` in `test_p0_oracle_build.py`
+gave `3 failed, 13 passed` in `test_p0_oracle_build.py` when measured
+2026-10-03, and gives `3 failed, 16 passed` today (2026-10-04, same command,
+with and without the REQUIRED flag) because three tests have since been added
+to that module; the same three fail either way
 (`test_oracle_binary_runs[starter]`, `…runtime_library_path_exists…`,
-`…starter_reads_a_multi_part_deck`) whether or not the REQUIRED flag is set
-(measured 2026-10-03).
+`…starter_reads_a_multi_part_deck`). The *three* is the load-bearing number: it
+is the same set of tests in both measurements.
 
 ### Task P0.15: Purge false machine facts from tooling and packaging
 
@@ -757,8 +761,9 @@ both).
 **Files:** Modify `tools/validate_vs_fortran.py` (docstrings only),
 `tools/oracle/build_oracle.sh` (comments only), `pyproject.toml` (comment);
 Create `tests/test_p0_no_stale_machine_paths.py` (9 tests at P0.15; **10**
-today — `00b5112` added the literal-block case, re-counted 2026-10-03 with
-`.venv/bin/python -m pytest -q --collect-only tests/test_p0_no_stale_machine_paths.py`).
+after `00b5112` added the literal-block case, 2026-10-03; **22** as of
+2026-10-04 after the record-portability, URI-span and floor cases — re-count
+with `.venv/bin/python -m pytest -q --collect-only tests/test_p0_no_stale_machine_paths.py`).
 
 **Interfaces:**
 - Consumes: `elf_search_paths`, `<tool> --version`, the lock's `# pin:` lines,
@@ -829,8 +834,10 @@ Beyond `00_ORCHESTRATION.md` §9.1:
   the guard resolves through `pyradioss/paths.py`.
 - **P0.14** — the gate is proved *not* to be a blanket skip: a stale export
   fails (`OR_BUILD=/tmp/no-such-mirror-xyz` → `3 failed, 13 passed` in
-  `test_p0_oracle_build.py`, measured 2026-10-03), `PYRADIOSS_ORACLE_REQUIRED=1`
-  turns absence into a failure, and a working oracle runs. **The "absent
+  `test_p0_oracle_build.py`, measured 2026-10-03; the same three tests fail
+  today as `3 failed, 16 passed`, re-measured 2026-10-04, three tests having
+  been added to that module since), `PYRADIOSS_ORACLE_REQUIRED=1` turns absence
+  into a failure, and a working oracle runs. **The "absent
   resource skips with a reason" half no longer holds on this box** — the
   resolver finds the install prefix unaided, so nothing skips; that is why the
   exit gate exports the REQUIRED flag rather than watching for skips.
@@ -851,9 +858,9 @@ Beyond `00_ORCHESTRATION.md` §9.1:
 ## Exit gate
 
 ```bash
-export OR_SRC=/home/valentin/Projects/OpenRadioss/OpenCourant   # READ-ONLY
-export OR_BUILD=/home/valentin/OpenRadioss_build               # writable mirror
-export OR_ROOT=/home/valentin/OpenRadioss_or                   # install prefix
+export OR_SRC="$HOME/Projects/OpenRadioss/OpenCourant"        # READ-ONLY
+export OR_BUILD="$HOME/OpenRadioss_build"                     # writable mirror
+export OR_ROOT="$HOME/OpenRadioss_or"                         # install prefix
 source tools/oracle/oracle_env.sh
 export PYRADIOSS_ORACLE_REQUIRED=1   # VERIFY the oracle; absence must fail, not skip
 PYTHON=.venv/bin/python                       # never bare `python`

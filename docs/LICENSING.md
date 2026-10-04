@@ -9,7 +9,7 @@ the decision status.
 [Decision](#decision).
 
 All upstream citations name a path relative to
-`/home/valentin/Projects/OpenRadioss` (so the read-only upstream checkout is
+`$HOME/Projects/OpenRadioss` (so the read-only upstream checkout is
 `OpenCourant/...`, never written to). Line ranges are the ones actually read
 while writing this file; `git log` on this document's first commit is the
 arbiter if a range is ever disputed.

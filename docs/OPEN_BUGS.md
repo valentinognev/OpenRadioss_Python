@@ -160,9 +160,21 @@ this box:
    (14196 passed / 29 skipped).
 2. **Dead LAW14 shell code — FIXED (`e1dbee6`).** `pyradioss/materials/law14_compso.py`
    no longer has `multilayer_shell_update` or the `shell_membrane_tangent` /
-   `consistent_shell_tangent` helpers; verified 2026-10-03 by grep (no hit in
-   `pyradioss/`; the surviving `consistent_shell_tangent` hits are LAW60's own,
-   in `tests/test_m551_law60_tangents.py`). Removed together with item 1.
+   `consistent_shell_tangent` helpers. **Evidence re-measured 2026-10-04, and
+   the previous wording of it was wrong:** it read "no hit in `pyradioss/`; the
+   surviving `consistent_shell_tangent` hits are LAW60's own", and that is false.
+   Measured now:
+   - `pyradioss/materials/law14_compso.py` — **0** hits for all three names.
+     That is the closure, and it is the only thing this item claims.
+   - `multilayer_shell_update` — **0** hits in `pyradioss/` and **0** in
+     `tests/`; the only occurrences left in the repo are the two mentions in
+     this document. The helper is gone everywhere.
+   - `shell_membrane_tangent` / `consistent_shell_tangent` — **not** LAW14's to
+     remove. They are the generic tangent API that every material module and the
+     `materials/__init__.py` dispatcher implement: **104** modules under
+     `pyradioss/` (277 matching lines) and **92** files under `tests/` carry
+     them, `tests/test_m551_law60_tangents.py` among them but very far from
+     alone. Removed together with item 1.
 3. **Duplicate law registration — FIXED (`1f680b5`).** LAW24, LAW37 and LAW90
    are no longer registered both as dedicated laws and in `_NEW_PORTED_LAWS`
    in `pyradioss/materials/__init__.py`; verified 2026-10-03 by reading that

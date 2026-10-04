@@ -117,8 +117,8 @@ assumption.**
 
 | Variable | Meaning | Dev-box value (2026-10-02) |
 |---|---|---|
-| `OR_SRC` | Read-only upstream source tree | `/home/valentin/Projects/OpenRadioss/OpenCourant` |
-| `OR_ROOT` | Out-of-tree build/install prefix for the oracle | `/home/valentin/OpenRadioss_or` |
+| `OR_SRC` | Read-only upstream source tree | `$HOME/Projects/OpenRadioss/OpenCourant` |
+| `OR_ROOT` | Out-of-tree build/install prefix for the oracle | `$HOME/OpenRadioss_or` |
 | `OR_STARTER` | Fortran starter binary | `$OR_ROOT/bin/starter_linux64_gf` |
 | `OR_ENGINE` | Fortran engine binary | `$OR_ROOT/bin/engine_linux64_gf` |
 | `PYRADIOSS_HM_CFG` | CFG card-schema tree | `$OR_SRC/hm_cfg_files` |

@@ -869,9 +869,25 @@ _ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z_0-9]*=")
 #: What must be in force before the gate's first pytest command: the three
 #: variables ``tools/oracle/oracle_env.sh`` itself demands
 #: (``:${OR_BUILD:?...}``, ``${OR_ROOT:?...}``) plus the read-only checkout
-#: ``$OR_SRC`` the provenance citations are read from.  Sourcing
-#: ``oracle_env.sh`` is accepted on its own as "the script established it".
+#: ``$OR_SRC`` the provenance citations are read from.
 ORACLE_ENV_VARS = ("OR_SRC", "OR_ROOT", "OR_BUILD")
+
+#: The subset of :data:`ORACLE_ENV_VARS` that sourcing ``oracle_env.sh``
+#: *establishes*, and therefore the only subset for which "the script is sourced"
+#: is accepted as an answer.  The script opens with ``: "${OR_BUILD:?...}"`` and
+#: ``: "${OR_ROOT:?...}"`` and re-exports both, so sourcing it really is proof
+#: those two are set — and it never mentions ``$OR_SRC`` at all, so sourcing it
+#: proves nothing about the read-only checkout.
+#:
+#: This was the round-3 hole the reviewer found: the old rule was
+#: ``script-not-sourced AND some variable unset``, so sourcing the script
+#: short-circuited the whole check and a gate that never exported ``$OR_SRC``
+#: passed — while its own last command is ``git -C "$OR_SRC" status
+#: --porcelain``, which with an empty ``$OR_SRC`` inspects the current directory
+#: instead of the upstream tree.  Narrowed, not removed:
+#: :func:`test_the_gate_still_needs_or_src_which_the_script_cannot_supply` pins
+#: both directions.
+ORACLE_ENV_SCRIPT_ESTABLISHES = ("OR_ROOT", "OR_BUILD")
 ORACLE_ENV_SCRIPT = "oracle_env.sh"
 
 
@@ -974,13 +990,17 @@ def phase0_exit_gate_problems(text=None):
                 f"PYRADIOSS_ORACLE_REQUIRED={env.get('PYRADIOSS_ORACLE_REQUIRED')!r}"
                 " -- the oracle tests SKIP instead of running, so the gate "
                 "passes without verifying the oracle")
-        if not any(s.rstrip("/").endswith(ORACLE_ENV_SCRIPT) for s in sourced) \
-                and [v for v in ORACLE_ENV_VARS if not env.get(v)]:
+        script_sourced = any(
+            s.rstrip("/").endswith(ORACLE_ENV_SCRIPT) for s in sourced)
+        unresolved = [v for v in ORACLE_ENV_VARS
+                      if not env.get(v)
+                      and not (script_sourced
+                               and v in ORACLE_ENV_SCRIPT_ESTABLISHES)]
+        if unresolved:
             problems.append(
                 f"gate line {lineno} runs pytest with no oracle environment: "
-                f"tools/oracle/{ORACLE_ENV_SCRIPT} is not sourced and "
-                f"{', '.join(v for v in ORACLE_ENV_VARS if not env.get(v))} "
-                "is not exported")
+                f"tools/oracle/{ORACLE_ENV_SCRIPT} is not sourced (or does not "
+                f"establish them) and {', '.join(unresolved)} is not exported")
     if not gate_runs_pytest:
         problems.append("the gate never runs pytest, so it verifies nothing")
     return problems, commands
@@ -1113,3 +1133,69 @@ def test_the_gate_checker_survives_reformatting_but_not_a_dropped_flag():
     assert any("oracle environment" in p for p in problems), (
         f"running pytest before the oracle environment is established went "
         f"unnoticed: {problems}")
+
+
+def test_the_gate_still_needs_or_src_which_the_script_cannot_supply():
+    """Sourcing ``oracle_env.sh`` proves ``$OR_BUILD``/``$OR_ROOT``, not ``$OR_SRC``.
+
+    The reviewer's hole, and it is a real one rather than a stylistic quibble:
+    the checker's rule was "``oracle_env.sh`` is not sourced AND some of
+    ``OR_SRC``/``OR_ROOT``/``OR_BUILD`` is unset".  With the script sourced the
+    ``and`` short-circuits, so a gate that never mentions ``$OR_SRC`` passes —
+    even though ``$OR_SRC`` is the one variable the script cannot establish and
+    the one the phase actually needs:
+
+    * ``tools/oracle/oracle_env.sh`` opens with ``: "${OR_BUILD:?...}"`` and
+      ``: "${OR_ROOT:?...}"`` and re-exports both, so sourcing it *is* proof
+      those two are set.  It never mentions ``$OR_SRC`` — measured: the only
+      variables it exports are ``OR_BUILD``, ``OR_ROOT``, ``OPENRADIOSS_PATH``,
+      ``RAD_CFG_PATH`` (now conditional), ``LD_LIBRARY_PATH``,
+      ``OMP_STACKSIZE``, ``OR_STARTER``, ``OR_ENGINE`` and ``PATH``.
+    * the gate's own last command is ``git -C "$OR_SRC" status --porcelain``
+      (P0.3: the read-only checkout must be unmodified), which expands to the
+      current directory when ``$OR_SRC`` is empty — so the gate would "verify"
+      the wrong tree;
+    * ``OR_SRC`` is what every upstream citation in the records resolves
+      against, and ``pyradioss.paths.or_src()`` is what
+      ``tests/test_p0_oracle_provenance.py`` reads the digests from.
+
+    So the exemption is narrowed rather than removed: the script may stand in
+    for the variables it establishes, and ``$OR_SRC`` must be exported.  Both
+    directions are pinned — today's gate passes, the ``$OR_SRC``-less variant
+    is reported by name, and the same variant WITH the export passes again, so
+    the rule cannot rot into "sourcing is never enough".
+    """
+    current = PLAN.read_text(encoding="utf-8")
+    assert phase0_exit_gate_problems(current)[0] == [], (
+        "the phase's own gate must satisfy the rule, OR_SRC included")
+
+    without_or_src = "\n".join(
+        l for l in current.splitlines()
+        if not re.match(r"\s*export OR_SRC=", l))
+    assert without_or_src != current, "the gate no longer exports OR_SRC"
+    problems, _ = phase0_exit_gate_problems(without_or_src)
+    assert any("OR_SRC" in p for p in problems), (
+        "a gate that sources oracle_env.sh but never exports OR_SRC passes the "
+        f"checker; the script does not establish OR_SRC. problems: {problems}")
+
+    # and it is specifically OR_SRC that is named, not the whole environment
+    reported = [p for p in problems if "oracle environment" in p]
+    assert reported and all("OR_SRC" in p for p in reported), (
+        "the report must name OR_SRC and not blame OR_ROOT/OR_BUILD, which the "
+        f"sourced script does establish: {problems}")
+
+    # anti-vacuity: re-adding the export clears it again
+    restored = without_or_src.replace(
+        "export PYRADIOSS_ORACLE_REQUIRED=1",
+        "export OR_SRC=$HOME/OpenCourant\nexport PYRADIOSS_ORACLE_REQUIRED=1", 1)
+    assert phase0_exit_gate_problems(restored)[0] == [], (
+        "restoring the OR_SRC export must clear the problem, or the rule is "
+        "rejecting the gate rather than the gap")
+
+    # the script really does establish the other two — a fact this test rests on
+    text = (REPO / "tools" / "oracle" / "oracle_env.sh").read_text(encoding="utf-8")
+    exported = set(re.findall(r"^\s*export\s+([A-Za-z_][A-Za-z_0-9]*)\b", text, re.M))
+    assert {"OR_BUILD", "OR_ROOT"} <= exported, f"oracle_env.sh exports {exported}"
+    assert "OR_SRC" not in exported, (
+        "oracle_env.sh now exports OR_SRC; if that is deliberate, add OR_SRC to "
+        f"ORACLE_ENV_SCRIPT_ESTABLISHES deliberately. exports: {exported}")

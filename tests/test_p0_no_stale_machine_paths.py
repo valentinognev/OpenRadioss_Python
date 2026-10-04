@@ -105,6 +105,34 @@ them to, each for one named category —
   :func:`test_a_shell_variable_placeholder_is_not_a_machine_path` instead of
   being left to a future edit of the lookbehind.
 
+ROUND 4, after the review of round 3, which found the gate green here and red
+in CI on ``ubuntu-latest``.  Three corrections, each of which is a rule this
+file now states rather than a rule it merely has:
+
+* **a record may not name a path out of THIS box's ``$HOME``**
+  (:func:`test_no_record_may_name_a_path_out_of_this_machines_home_directory`).
+  Nineteen record lines did, so the whole gate was a snapshot of one checkout.
+  The fix is in the records — ``$OR_SRC`` / ``$OR_ROOT`` / ``$OR_BUILD`` /
+  ``$HOME/…``, i.e. the indirection ``plan/00_ORCHESTRATION.md`` §4.1 already
+  documents — and the test re-points ``$HOME`` and masks the disk answer under
+  this box's home, so the same scan runs as if the reader were somebody else.
+  Two properties survive it, both asserted: a placeholder is accepted on every
+  box, and a bare absolute path under a ``$HOME`` that is not this one is still
+  caught.
+* **the link-target exemption is a SPAN, not the rest of the line**
+  (:func:`_in_uri_target`).  It found the first ``](`` to the left of a match
+  and treated everything after it as the target, so
+  ``see [x](C:/a/b) and … /home/valentin/anaconda/lib`` reported ``[]`` — the
+  exact opposite of what the helper's own docstring promised.  The target must
+  now close before the match ends, which is why ``end`` is a required argument.
+* **a requirement FLOOR is not a measurement** (:func:`_is_floor`).
+  ``numpy>=1.22`` was already skipped as an operator-prefixed requirement, but
+  the prose spelling — ``requires numpy 1.21 at minimum``, ``numpy 1.21+``,
+  ``cmake 3.15 or newer`` — fell through to the pin comparison and to
+  ``<tool> --version``.  A floor is satisfied by every value the lock could
+  hold.  The window is one CLAUSE, so a floor word elsewhere in the sentence
+  cannot exempt a real measurement.
+
 What is deliberately STILL out of reach, stated here so nobody mistakes silence
 for green: **backslash Windows paths** (``C:\\OpenRadioss\\exec``,
 ``.venv\\Scripts\\python.exe``, ``C:\\Users\\pmqua\\…``).  :data:`MACHINE_PATH`
@@ -119,7 +147,9 @@ round surfaced for its owner.
 
 from __future__ import annotations
 
+import contextlib
 import functools
+import os
 import re
 import shutil
 import subprocess
@@ -238,9 +268,12 @@ MACHINE_PATH = re.compile(
 #: ``scheme:`` — the first token of a URI (``C:``, ``file:``, ``https:``).
 _URI_SCHEME = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*:")
 
+#: What closes a link target: the ``)`` of ``](…)``, or the ``>`` of ``](<…>)``.
+_LINK_CLOSE = re.compile(r"[)>]")
 
-def _in_uri_target(line: str, start: int) -> bool:
-    """Is the match at ``start`` inside a markdown/HTML link TARGET?
+
+def _in_uri_target(line: str, start: int, end: int) -> bool:
+    """Is the span ``line[start:end]`` inside a markdown/HTML link TARGET?
 
     ``[starter_keywords.py:14847](C:/Users/pmqua/…/starter_keywords.py:14847)``
     — the span after ``](`` up to the closing ``)``.  Such a span is an address
@@ -251,13 +284,31 @@ def _in_uri_target(line: str, start: int) -> bool:
 
     Added in round 3 for the records: the dated bug report carries 18 such
     permalinks on 12 lines and every one of them is a locator into the
-    pre-migration checkout.  Two properties keep this from being a laundering
-    route:
+    pre-migration checkout.  Four properties keep this from being a laundering
+    route, and the round-3 review found the first version missing three of them:
 
     * only the TARGET is exempt — the link text, where a claim would actually be
       written, is outside the span and still read by both rules;
     * a scheme is REQUIRED, so a bare relative target (``](tools/foo.py)``) and
-      an ordinary absolute path in prose are unaffected.
+      an ordinary absolute path in prose are unaffected;
+    * **the target must be CLOSED before the match ends** (``end``).  This is
+      the reviewer's case, verbatim::
+
+          see [x](C:/a/b) and … /home/valentin/anaconda/lib      ->  []
+
+      The old code took the *first* ``](`` to the left of a match and treated
+      the whole remainder of the line as the target, so one URI-ish token
+      anywhere earlier on the line exempted every later path — which
+      contradicts the very docstring above ("up to the closing ``)``").  The
+      closing delimiter is therefore located by search from ``](`` and the match
+      must end at or before it;
+    * an unterminated ``](`` is not a link at all, so a target that never closes
+      buys nothing.
+
+    ``end`` is required, not optional, for the same reason: given only ``start``
+    there is no way to ask the third property.  :func:`_path_claims` passes the
+    real ``match.end()``; :func:`test_the_uri_exemption_is_a_span_not_the_rest_of
+    _the_line` pins the signature so "optional again" fails with a name.
     """
     head = line[:start]
     open_at = head.rfind("](")
@@ -266,7 +317,10 @@ def _in_uri_target(line: str, start: int) -> bool:
     target = head[open_at + 2:]
     if "(" in target:          # a further, unclosed target began before this
         return False           # match — the span we found is not the real one
-    return bool(_URI_SCHEME.match(target.lstrip("<")))
+    if not _URI_SCHEME.match(target.lstrip("<")):
+        return False
+    close = _LINK_CLOSE.search(line, open_at + 2)
+    return close is not None and end <= close.start()
 
 
 #: Phrases that mark a statement as being about ANOTHER machine (or another
@@ -486,7 +540,7 @@ def _path_claims(lines: list[str]) -> list[tuple[int, str, str]]:
     claims = []
     for index, line in enumerate(lines):
         for match in MACHINE_PATH.finditer(line):
-            if _in_uri_target(line, match.start()):
+            if _in_uri_target(line, match.start(), match.end()):
                 continue      # an address in a link namespace (round 3)
             path = match.group(1).rstrip(".,;:)'\"")
             claims.append((index, path, _label_window(lines, index)))
@@ -545,6 +599,116 @@ def test_a_machine_path_this_box_does_not_have_is_marked_history():
         f"{', '.join(HISTORY_MARKERS[:6])}...): " + "; ".join(offenders)
         + ". Either the path exists here, or the sentence says which machine / "
         "which record it describes.")
+
+
+# ---------------------------------------------------------------------------
+# 1b. ... and the same rule on a box whose $HOME is not this box's
+# ---------------------------------------------------------------------------
+
+#: This box's ``$HOME``, measured at import time (before anything patches it).
+#: ``Path(__file__).resolve()`` puts the repository itself under ``/mnt/...`` on
+#: this checkout, so masking ``$HOME`` cannot hide the repo's own files.
+THIS_BOX_HOME = str(Path(os.path.expanduser("~")))
+
+#: The ``$HOME`` the simulation pretends this box has.
+FOREIGN_HOME = "/home/some-other-user"
+
+
+@contextlib.contextmanager
+def _a_box_whose_home_is_not_this_one():
+    """Pretend the reader's ``$HOME`` is somebody else's, for the scan only.
+
+    What a differently-homed box actually differs in is the DISK under its home
+    directory: nothing under ``/home/<that user>/`` exists on it.  So that is
+    exactly what this masks — ``Path.exists`` answers "no" for any path under
+    :data:`THIS_BOX_HOME` and defers to the real filesystem for everything
+    else (``/usr/bin/cmake``, ``/opt/OpenRadioss``, the repository under
+    ``/mnt/...``).  ``$HOME`` itself is re-pointed so anything that resolves a
+    ``~`` sees the other box.
+
+    Nothing in the working tree is touched and no copy of the repo is made: the
+    records are READ, and only the answer to "is this path here" changes, for
+    the duration of one ``with`` block.
+    """
+    real_exists = Path.exists
+    real_home = os.environ.get("HOME")
+    prefix = THIS_BOX_HOME + os.sep
+
+    def foreign_exists(self, *args, **kwargs):
+        if str(self).startswith(prefix):
+            return False
+        return real_exists(self, *args, **kwargs)
+
+    Path.exists = foreign_exists
+    os.environ["HOME"] = FOREIGN_HOME
+    try:
+        yield
+    finally:
+        Path.exists = real_exists
+        if real_home is None:
+            os.environ.pop("HOME", None)
+        else:
+            os.environ["HOME"] = real_home
+
+
+def test_no_record_may_name_a_path_out_of_this_machines_home_directory():
+    """The records must read true on a box that is not this one.
+
+    Round 3 shipped a gate that was green here and **red in CI**
+    (``.github/workflows/ci.yml`` runs the fast tier on ``ubuntu-latest``, whose
+    ``$HOME`` is ``/home/runner``): 19 record lines named this box's absolute
+    ``/home/valentin/...`` paths, so a reader on any other machine would be told
+    about a directory that is not there.  A gate whose verdict is true of one
+    checkout is not a gate — it is a snapshot.
+
+    The fix is in the records, not in the rule: a record that says "the mirror
+    is ``$OR_BUILD``" (or ``$HOME/…``, or ``~``) is true everywhere, while
+    "``/home/valentin/OpenRadioss_build``" is true on exactly one machine.  This
+    test is what keeps it fixed, and it runs the SAME
+    :func:`_existence_offenders` over the SAME :func:`_record_sources` the live
+    test uses — only the disk answers differently.
+
+    Two properties had to survive, and both are asserted here so the fix cannot
+    be "make the rule stop looking":
+
+    * **a ``$HOME``-relative or ``$OR_*``-shaped path is not a claim.**  It is
+      a placeholder with nothing to stat, so it is accepted on every box.  It
+      was already outside :data:`MACHINE_PATH`
+      (:func:`test_a_shell_variable_placeholder_is_not_a_machine_path` pins the
+      regex), and it stays outside it — this test is the reason that has to be
+      true rather than lucky.
+    * **a bare absolute path under a ``$HOME`` that is not this box's is still
+      caught.**  ``/home/some-other-user/OpenRadioss_build`` is reported even
+      though ``$HOME`` is *set*, because the rule's job is to catch a claim of a
+      location that does not exist, and setting a variable is not evidence that
+      the directory is there.
+    """
+    with _a_box_whose_home_is_not_this_one():
+        offenders = _existence_offenders(_record_sources())
+    assert offenders == [], (
+        "these record lines name a path inside THIS box's $HOME ("
+        f"{THIS_BOX_HOME}), so they are false on every other machine — and "
+        f"the gate is red in CI for that reason, not only here. Offenders: "
+        + "; ".join(offenders)
+        + ". Use the project's own indirection instead: $OR_SRC / $OR_ROOT / "
+          "$OR_BUILD / $PYRADIOSS_HM_CFG (plan/00_ORCHESTRATION.md §4.1), or "
+          "$HOME/<name> where a home-relative directory is meant.")
+
+    with _a_box_whose_home_is_not_this_one():
+        # property 1: the documented indirection is accepted
+        assert _path_claims([
+            "the mirror is $OR_BUILD; the install prefix is $OR_ROOT;",
+            "the checkout is $HOME/OpenCourant and the venv is ~/wt-p0/.venv",
+        ]) == [], "a shell variable or a ~ is a placeholder, not a location"
+        assert _stale_paths_in([
+            "the mirror is $OR_BUILD and the tree is $HOME/OpenCourant"]) == [], (
+            "and therefore nothing to report about it")
+
+        # property 2: a bare absolute path under a foreign $HOME is a claim
+        foreign = f"{FOREIGN_HOME}/OpenRadioss_build"
+        assert _stale_paths_in([f"the mirror is at {foreign}"]) == [(0, foreign)], (
+            "a bare absolute path is a location claim and is still caught when "
+            "it does not exist — setting $HOME does not make it true")
 
 
 # ---------------------------------------------------------------------------
@@ -658,6 +822,63 @@ VERSION_CLAIM = re.compile(
 #: ``numpy 2.5.2`` does not.
 _MIGRATION_ARROW = re.compile(r"\s*(?:→|->|=>|⟶|-->)\s*")
 
+#: A FLOOR written in prose instead of with an operator.  :data:`_CONSTRAINT_TAIL`
+#: already skips ``numpy>=1.22`` for the toolchain rule, and
+#: :data:`VERSION_CLAIM` never matches that form — but the prose spelling
+#: ("requires numpy 1.21 at minimum") has no operator, so it fell through to the
+#: pin comparison and was reported as a false measurement.  A floor is satisfied
+#: by every pin the lock could hold, so comparing one with the lock is a
+#: requirement measured against reality.
+_FLOOR_MARKERS = (
+    "at minimum", "at least", "or newer", "or later", "or better",
+    "or above", "or higher", "or greater", "and up", "and newer",
+    "and later", "minimum", "floor",
+)
+
+#: Where a floor word still counts as describing THIS version: the clause it
+#: sits in.  One clause, not the whole line — otherwise a floor mentioned
+#: anywhere in a sentence would exempt a measurement elsewhere in it, which is
+#: the laundering shape :func:`_in_uri_target` was just fixed for.  Brackets and
+#: parentheses are breaks too, because a parenthetical "(at least 1.20 too)"
+#: is not a statement about the version it follows.
+_FLOOR_CLAUSE_BREAK = re.compile(r"[;,:.!?()\[\]]")
+
+#: How far either side of the version a floor word may sit and still count.
+_FLOOR_WINDOW = 32
+
+
+def _is_floor(line: str, match: re.Match) -> bool:
+    """Is this ``pkg version`` a REQUIREMENT floor rather than a measurement?
+
+    Two shapes, both scoped to the version's own clause:
+
+    * ``numpy 1.21+`` — the ``+`` suffix, checked on the character right after
+      the version;
+    * a :data:`_FLOOR_MARKERS` word within :data:`_FLOOR_WINDOW` characters
+      before the distribution name or after the version, **without crossing a
+      clause boundary**: on the left that is the text after the last break, on
+      the right the text before the first.
+
+    So ``requires numpy 1.21 at minimum`` and ``at minimum numpy 1.21`` are
+    floors, while ``numpy 1.21 was installed; at least 1.20 is required`` and
+    ``numpy 1.21 is the measured version (at least 1.20 too)`` are claims —
+    pinned from both sides by
+    :func:`test_a_requirement_floor_is_not_read_as_a_measurement`.
+    """
+    if line[match.end():].lstrip()[:1] == "+":
+        return True
+    head = line[:match.start()][-_FLOOR_WINDOW:]
+    tail = line[match.end():][:_FLOOR_WINDOW]
+    breaks = list(_FLOOR_CLAUSE_BREAK.finditer(head))
+    if breaks:
+        head = head[breaks[-1].end():]
+    breaks = list(_FLOOR_CLAUSE_BREAK.finditer(tail))
+    if breaks:
+        tail = tail[:breaks[0].start()]
+    return any(marker in span.lower() for span in (head, tail)
+               for marker in _FLOOR_MARKERS)
+
+
 _PIN_LINE = re.compile(r"^#\s*pin:\s*([A-Za-z0-9_.\-]+)==([^\s#]+)")
 
 
@@ -736,6 +957,8 @@ def _version_claim_offenders(lines: list[str], pins: dict[str, set[str]],
             pkg, ver = match.group("pkg").lower(), match.group("ver")
             if _MIGRATION_ARROW.match(line[match.end():]):
                 continue          # the superseded side of a stated migration
+            if _is_floor(line, match):
+                continue          # a requirement, not a measurement of the box
             if not _version_agrees(ver, pins[pkg]):
                 offenders.append(
                     f"{label}:{lineno}: {pkg} {ver} "
@@ -876,6 +1099,8 @@ def _tool_version_offenders(lines: list[str],
                                match.group("ver"))
             if any(op in tail for op in _CONSTRAINT_TAIL):
                 continue              # a requirement or a range, not a claim
+            if _is_floor(line, match):
+                continue              # a floor in prose ("cmake 3.15 at minimum")
             if _marked_history(window):
                 continue              # labelled as another machine's toolchain
             if index in quoted and _looks_like_captured_output(line):
@@ -1017,6 +1242,94 @@ def test_the_version_rule_can_still_fail():
     ) == ["pyproject.toml:2: numpy 2.5.2 (lock records 2.5.3)"], (
         "the whole rule, not just the comparison it ends in, must reject the "
         "exact comment f5bd4c5 removed")
+
+
+def test_a_requirement_floor_is_not_read_as_a_measurement():
+    """``numpy 1.21 at minimum`` says what the build NEEDS, not what is here.
+
+    The round-3 review found a false-positive class: :data:`_CONSTRAINT_TAIL`
+    already skips an operator-prefixed requirement (``numpy>=1.22``,
+    ``cmake >= 3.15``) for the toolchain rule, and :data:`VERSION_CLAIM` skips
+    the same form by construction — but the **prose** spelling of a floor has no
+    operator, so it fell through to the pin comparison and was reported::
+
+        requires numpy 1.21 at minimum   ->  numpy 1.21 (lock records 2.4.6/2.5.3)
+
+    That is the rule asserting something it cannot know: a floor is satisfied by
+    *every* pin the lock could hold, so comparing it with the lock compares a
+    requirement with a measurement — exactly the category error the operator
+    tails exist to prevent.  ``plan/README.md`` §Tech stack writes the very same
+    kind of sentence in the operator form ("NumPy ≥ 1.22") and must be allowed
+    to keep it.
+
+    The floor window is deliberately one CLAUSE — the text after the last break
+    on the left, the text before the first break on the right — not the whole
+    line, so the exemption cannot swallow a real claim that happens to sit in
+    the same sentence: the cases below that must still FAIL are the ones where
+    the floor word is in a different clause from the version.
+    """
+    pins = {"numpy": {"2.4.6", "2.5.3"}}
+
+    floors = [
+        "requires numpy 1.21 at minimum",
+        "requires numpy 1.21+",
+        "requires numpy 1.21 or newer",
+        "requires numpy 1.21 or later",
+        "requires numpy 1.21 and up",
+        "numpy 1.21 at least",
+        "at minimum numpy 1.21",
+        "the floor is numpy 1.21 for the accel extra",
+        "numpy>=1.21",          # operator form: never matched in the first place
+    ]
+    for line in floors:
+        assert _version_claim_offenders([line], pins, "x.md",
+                                        comment_only=False) == [], (
+            f"{line!r} is a REQUIREMENT (a floor), not a measurement of this "
+            f"box; it must not be compared with the lock")
+
+    still_caught = [
+        "on this box numpy 1.21 is what is installed",         # plain claim
+        "the lock pins numpy 1.21, verified here",              # plain claim
+        "numpy 1.21 was installed; at least 1.20 is required",  # floor elsewhere
+        "numpy 1.21 is the measured version (at least 1.20 too)",  # ditto
+        "we measured numpy 1.21",                               # plain claim
+    ]
+    for line in still_caught:
+        assert _version_claim_offenders([line], pins, "x.md",
+                                        comment_only=False) == [
+            f"x.md:1: numpy 1.21 (lock records 2.4.6/2.5.3)"], (
+            f"{line!r} states a measurement and must still be reported")
+
+    assert _recorded_pins()["numpy"], "the live lock still records numpy"
+
+
+def test_a_toolchain_floor_is_not_read_as_a_measurement():
+    """The same class on the toolchain rule, which has the same operator tail.
+
+    ``cmake 3.15 at minimum`` / ``gfortran 9.2 or newer`` is the build's
+    requirement; comparing it with ``cmake --version`` on this box is the same
+    category error :data:`_CONSTRAINT_TAIL` was added to prevent, and the
+    reviewer's report is that the prose spelling slipped through it.  The
+    measured claim beside it must still be reported, which is the whole point.
+    """
+    got, _ = _tool_version_offenders(["cmake 3.15 at minimum"], "x.md")
+    assert got == [], f"a toolchain floor must not be compared with PATH: {got}"
+    got, _ = _tool_version_offenders(["gfortran 9.2 or newer"], "x.md")
+    assert got == [], f"nor must an 'or newer' floor: {got}"
+    got, _ = _tool_version_offenders(["cmake 4.4.3 at minimum"], "x.md")
+    assert got == [], (
+        "and the NUMBER in a floor is still a requirement, not a measurement -- "
+        f"what makes it a floor is the word, not the value; got {got}")
+    got, _ = _tool_version_offenders(
+        ["on this box `command -v cmake` is cmake 4.4.3, at least per the "
+         "conda-forge build notes"], "x.md")
+    assert [o for o in got if "claims cmake 4.4.3" in o], (
+        "but a measurement whose floor word sits in a different clause is still "
+        f"a claim; got {got}")
+    got, _ = _tool_version_offenders(
+        ["# cmake 4.4.3 is the pre-migration conda-forge build"], "x.md")
+    assert got == [], (
+        "a history label is still honoured beside the new floor rule")
 
 
 def test_a_quoted_example_is_not_a_claim_but_prose_beside_it_is():
@@ -1383,7 +1696,8 @@ def test_a_uri_link_target_is_not_a_filesystem_claim():
     assert _path_claims([permalink]) == [], (
         "a Windows permalink target is an address in a link namespace, not a "
         "filesystem location on this box")
-    assert _in_uri_target(permalink, permalink.index("/Users/")), (
+    sole = next(m for m in MACHINE_PATH.finditer(permalink))
+    assert _in_uri_target(permalink, sole.start(), sole.end()), (
         "and the span is recognised as the one after '](' specifically")
 
     assert _stale_paths_in([
@@ -1393,14 +1707,15 @@ def test_a_uri_link_target_is_not_a_filesystem_claim():
         "the exemption is the TARGET span only: a claim in the link text is "
         "still a claim")
 
-    assert not _in_uri_target("see [the oracle](/home/valentin/anaconda/lib)"
-                              " for the claim",
-                              "see [the oracle](/home/valentin/anaconda/lib"
-                              .index("/home")), (
+    schemeless = "see [the oracle](/home/valentin/anaconda/lib) for the claim"
+    assert not _in_uri_target(schemeless, schemeless.index("/home"),
+                              schemeless.index("/home")
+                              + len("/home/valentin/anaconda/lib")), (
         "a scheme-less target is not exempt — only a URI is an address")
-    assert _in_uri_target("see [the oracle](https://ci/home/valentin/anaconda/lib)",
-                          "see [the oracle](https://ci/home/valentin/anaconda"
-                          ".lib".index("/home")), (
+    addressed = ("see [the oracle](https://ci/home/valentin/anaconda/lib) now")
+    assert _in_uri_target(addressed, addressed.index("/home"),
+                          addressed.index("/home")
+                          + len("/home/valentin/anaconda/lib")), (
         "a scheme is what makes it an address rather than a location")
     assert [claim[1] for claim in _path_claims(
         ["the mirror is at /home/valentin/anaconda/bin here"])] == [
@@ -1416,6 +1731,102 @@ def test_a_uri_link_target_is_not_a_filesystem_claim():
     assert _existence_offenders([bug_report]) == [], (
         "a dated report full of pre-migration permalinks is not 18 false "
         "claims")
+
+
+def test_a_uri_token_elsewhere_on_the_line_does_not_exempt_a_path():
+    """The reviewer's laundering case, and the reason the exemption is a span.
+
+    ``_in_uri_target`` found the *first* ``](`` to the left of a match and
+    treated everything after it as a link target, so one URI-ish token anywhere
+    earlier on the line disarmed every rule on every remaining path.  The
+    reviewer reproduced it in one line::
+
+        see [x](C:/a/b) and … /home/valentin/anaconda/lib      ->  []
+
+    The path after the ellipsis is prose — it is outside the link, its target
+    closed on the first ``)`` — and ``pyradioss/`` has no such directory, so the
+    existence rule must report it.  The helper's own docstring says the span
+    after ``](`` *up to the closing ``)``* is exempt; the code checked neither
+    the closing paren nor where the match ends.
+
+    Both halves are pinned, because the fix must not be "drop the exemption":
+    a genuine target is still an address, a bare path in prose is a claim, and
+    the boundary cases that used to launder (a second path on the same line, a
+    path that runs *past* the closing paren, an unclosed target) are all
+    reported.
+    """
+    gone = "/home/valentin/anaconda/lib"
+
+    laundering = "see [x](C:/a/b) and … " + gone
+    assert [claim[1] for claim in _path_claims([laundering])] == [gone], (
+        "one link target on the line must not exempt a bare path in prose "
+        f"beside it: {_path_claims([laundering])}")
+    assert _stale_paths_in([laundering]) == [(0, gone)], (
+        "and the existence rule must therefore report it — the defect this test "
+        "pins is that it reported nothing")
+
+    # the real thing still passes: an address in a link namespace
+    permalink = ("Location: [starter_keywords.py:14847](C:/Users/pmqua/x/"
+                 "starter_keywords.py:14847).")
+    assert _path_claims([permalink]) == [], (
+        "a genuine permalink target is an address, not a filesystem location")
+
+    # the boundary cases that used to launder, with their expected answers
+    gone = "/home/valentin/anaconda/lib"
+    for line, exempt in (
+        # a SECOND path in prose, after a target that has closed: the reviewer's
+        # shape, and the one the old code let through
+        (f"[a](https://example.invalid/ok) … {gone}", False),
+        (f"see [x](C:/a/b) and … {gone}", False),
+        # a path in the link TEXT, before any '](' at all
+        (f"the mirror is {gone}, see [x](C:/a/b)", False),
+        # a ']' + '(' inside the target: the span we found is not the real one
+        (f"[a](C:/x[0]({ gone})", False),
+        # genuinely inside a closed target: the URI's own path component
+        (f"[a](https://example.invalid/{gone})", True),
+        (f"[a](https://example.invalid{ gone})", True),
+        (f"[a](file://{gone})", True),
+        # a target that never closes is not a link
+        (f"[a](https://example.invalid/{gone} and prose", False),
+        # a scheme-less target is an ordinary path in a link
+        (f"[a]({gone})", False),
+    ):
+        got = [claim[1] for claim in _path_claims([line])]
+        assert got == ([] if exempt else [gone]), (
+            f"{line!r} -> {got}; only a path genuinely INSIDE a closed "
+            f"link target is exempt (expected exempt={exempt})")
+
+
+def test_the_uri_exemption_is_a_span_not_the_rest_of_the_line():
+    """:func:`_in_uri_target` takes the match's END, and bounds the target.
+
+    The hole was a signature problem as much as a logic one: given only
+    ``start`` there is no way to know whether the match ends before the target's
+    closing ``)``.  So ``end`` is required, ``_path_claims`` passes the real
+    ``match.end()``, and the closing delimiter is located by search rather than
+    assumed — both stated here so a future edit that makes ``end`` optional
+    again (or defaults it to "the rest of the line") is a failure with a name.
+    """
+    import inspect
+
+    params = list(inspect.signature(_in_uri_target).parameters)
+    assert params == ["line", "start", "end"], (
+        f"_in_uri_target's parameters are {params}; `end` (the match's end "
+        "offset) must be required, not optional — an optional `end` is how "
+        "'the whole rest of the line is the target' comes back")
+
+    gone = "/home/valentin/anaconda/lib"
+    line = "[a](https://example.invalid/x) … " + gone
+    start = line.index("/home/")
+    end = start + len(gone)
+    assert not _in_uri_target(line, start, end), (
+        "a path after the target's closing ')' is prose")
+    inside = "[a](https://example.invalid" + gone + ")"
+    assert _in_uri_target(inside, inside.index("/home/"), len(inside) - 1), (
+        "a path inside the target, up to but not including the ')', is an "
+        "address")
+
+
 def test_the_harness_imports_and_resolves_oracle_paths():
     """Importing the harness must still work after editing it.
 

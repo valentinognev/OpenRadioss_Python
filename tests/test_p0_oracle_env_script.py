@@ -561,6 +561,128 @@ def test_the_rule_accepts_the_live_file_because_it_quotes_the_measurement(
 # 3. the parts of the file this edit was not allowed to cost
 # ---------------------------------------------------------------------------
 
+#: The CFG card-schema tree ``RAD_CFG_PATH`` names (upstream's spelling of
+#: ``PYRADIOSS_HM_CFG``; ``$OR_SRC/INSTALL.md:39``).
+CFG_ENV = "RAD_CFG_PATH"
+
+
+def _source_oracle_env(tmp_path: Path, mirror: Path) -> dict:
+    """Actually source ``oracle_env.sh`` against ``mirror``; return the env.
+
+    Real sourcing in a child ``bash``, not a regex over the file: the property
+    under test is a *conditional export*, so the only thing that can observe it
+    is what the shell ends up holding.  ``OR_ROOT`` is a scratch directory that
+    merely satisfies the script's ``: "${OR_ROOT:?...}"`` guard — ``$OR_ROOT``
+    is only prefixed onto ``PATH`` and the two binary names here, and nothing in
+    this test runs a binary.  ``RAD_CFG_PATH`` / ``PYRADIOSS_HM_CFG`` are
+    deleted from the child environment first, so the answer is the script's and
+    not the caller's.
+    """
+    root = tmp_path / "or_root"
+    root.mkdir(exist_ok=True)
+    env = {k: v for k, v in os.environ.items()
+           if k not in (CFG_ENV, "PYRADIOSS_HM_CFG")}
+    env.update(OR_BUILD=str(mirror), OR_ROOT=str(root))
+    probe = "%s=${%s-<unset>}" % (CFG_ENV, CFG_ENV)
+    done = subprocess.run(
+        ["bash", "-c", ". " + str(ORACLE_ENV) + '\nprintf "%s\\n" "' + probe + '"'],
+        env=env, cwd=str(tmp_path), capture_output=True, text=True, timeout=60)
+    assert done.returncode == 0, done.stderr
+    line = done.stdout.strip().splitlines()[-1]
+    assert line.startswith(f"{CFG_ENV}="), done.stdout
+    return {"line": line, "value": line.split("=", 1)[1]}
+
+
+def _mirror(tmp_path: Path, name: str, *, cfg: bool) -> Path:
+    """A scratch ``$OR_BUILD``: a mirror ``is_or_mirror`` accepts, with or
+    without ``hm_cfg_files``.
+
+    ``pyradioss.paths.is_or_mirror`` wants ``CMakeLists.txt`` and
+    ``extlib/hm_reader`` -- the two gates ``build_oracle.sh:169,175`` enforces
+    -- so the fixture is a mirror by that same definition and not by assertion.
+    """
+    mirror = tmp_path / name
+    (mirror / "extlib" / "hm_reader").mkdir(parents=True, exist_ok=True)
+    (mirror / "CMakeLists.txt").write_text("# scratch mirror\n", encoding="utf-8")
+    if cfg:
+        (mirror / "hm_cfg_files").mkdir(exist_ok=True)
+    return mirror
+
+
+def test_the_cfg_export_is_withheld_when_the_tree_it_names_is_absent(tmp_path):
+    """``RAD_CFG_PATH`` must not be exported pointing at nothing.
+
+    The coupling this pins, and it is the whole defect: a variable that is set
+    but does not resolve is **terminal** for ``pyradioss.paths`` (§4.1 rule 1
+    read with rule 4 — ``_resolve`` warns and then raises).  So an unconditional
+    ``export RAD_CFG_PATH="$OR_BUILD/hm_cfg_files"`` is not a harmless default:
+    against a mirror with no ``hm_cfg_files`` it *poisons* the one variable
+    that would otherwise have let the resolver fall through to a real tree, and
+    ``hm_cfg_dir()`` raises instead of finding it.  Measured consequence before
+    the fix, on this box with a cfg-less mirror sourced:
+    ``tests/test_m539_law34_input_audit.py`` +
+    ``tests/test_m540_law37_input_audit.py`` → ``57 passed, 14 skipped``
+    (the 7 LAW34 and 7 LAW37 CFG audits all skip) against ``71 passed`` with no
+    environment at all.  A green run that silently stopped auditing two laws'
+    CFG schemas is exactly the failure mode a variable export can cause.
+
+    So the script must export the variable **only when the directory it names
+    exists**, and leave it unset otherwise — which is what §4.1 rule 1 asks for
+    (``$PYRADIOSS_HM_CFG`` / ``$RAD_CFG_PATH``, *if set*).  The positive half is
+    asserted in the next test, because a fix that simply deleted the export
+    would pass this one.
+    """
+    mirror = _mirror(tmp_path, "mirror_without_cfg", cfg=False)
+    assert not (mirror / "hm_cfg_files").exists(), "fixture is not cfg-less"
+    got = _source_oracle_env(tmp_path, mirror)
+    assert got["value"] == "<unset>", (
+        f"oracle_env.sh exported {CFG_ENV}={got['value']!r} for a mirror with "
+        f"no hm_cfg_files. An exported-but-unresolvable variable is TERMINAL for "
+        f"pyradioss.paths, so this makes hm_cfg_dir() raise and silently drops "
+        f"the LAW34/LAW37 CFG audits. Export it only when the directory exists.")
+
+
+def test_the_cfg_export_is_still_there_when_the_tree_exists(tmp_path):
+    """The other half: a mirror that HAS ``hm_cfg_files`` still gets it.
+
+    Without this, "delete the export" is a way to make the previous test green,
+    and upstream's own spelling of the variable (``$OR_SRC/INSTALL.md:39``,
+    accepted as an alias by ``paths.hm_cfg_dir``) would stop being set by the
+    one script that documents how to set it.  The tree here is a bare directory:
+    the script's job is to export the path, and ``is_cfg_tree`` is the
+    resolver's business, not this fixture's.
+    """
+    mirror = _mirror(tmp_path, "mirror_with_cfg", cfg=True)
+    got = _source_oracle_env(tmp_path, mirror)
+    assert got["value"] == str(mirror / "hm_cfg_files"), (
+        f"oracle_env.sh must still export {CFG_ENV} when the tree is there; "
+        f"got {got['value']!r}")
+
+
+def test_the_guarded_export_is_conditional_on_the_directory(tmp_path):
+    """The guard is a test of the filesystem, not a comment about it.
+
+    Pins the *mechanism* so the two tests above cannot be satisfied by
+    something that merely happens to produce the right environment: the script
+    must ask whether ``$OR_BUILD/hm_cfg_files`` is a directory.  A bare
+    ``export`` of the variable — with or without a surrounding ``if`` that never
+    evaluates false — fails here.
+
+    This is the drift pin the defect needs: ``oracle_env.sh`` and
+    ``pyradioss/paths.py`` are two files with no shared test, so the coupling
+    that broke (an exported variable meeting a terminal resolver) could
+    otherwise be reintroduced by either edit alone.
+    """
+    text = ORACLE_ENV.read_text(encoding="utf-8")
+    guarded = re.search(
+        r'^\s*if\s+\[?\s*-[dD]\s+"?\$\{?OR_BUILD\}?/hm_cfg_files"?\s*\]?',
+        text, re.M)
+    assert guarded, (
+        "oracle_env.sh must guard the RAD_CFG_PATH export with a directory test "
+        "on $OR_BUILD/hm_cfg_files (e.g. `if [ -d \"$OR_BUILD/hm_cfg_files\" ];"
+        " then`) so the variable is exported only where it resolves")
+
+
 def test_the_h3d_writer_stays_deliberately_out_of_reach():
     """``RAD_H3D_PATH`` unset is a safety decision; the rationale must survive.
 
