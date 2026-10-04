@@ -147,16 +147,41 @@ non-vacuity test
 (:func:`test_a_machine_path_planted_in_a_tooling_file_is_caught_by_the_simulation`)
 proves it fires on the exact shape it exists for.
 
-What is deliberately STILL out of reach, stated here so nobody mistakes silence
-for green: **backslash Windows paths** (``C:\\OpenRadioss\\exec``,
-``.venv\\Scripts\\python.exe``, ``C:\\Users\\pmqua\\…``).  :data:`MACHINE_PATH`
-is ``$HOME``-shaped, the Windows box this project still supports is not this
-one, and a rule that declared those false would be inventing a measurement
-nobody can take — task P1.0 owns that rewrite.  ``AGENTS.md`` itself **is** in
-scope for everything this gate can measure (that was measured: zero hits, so it
-is free), which means a Linux-shaped false claim introduced there is caught from
-now on.  ``plan/README.md`` §8 is not in that category — see the hits this
-round surfaced for its owner.
+ROUND 6, after task P1.0 rewrote ``AGENTS.md`` and this gate's one Windows-shaped
+assertion started failing on purpose.  The last round ended with a LIMITATION
+stated rather than fixed: **backslash Windows paths** (``C:\\OpenRadioss\\exec``,
+``.venv\\Scripts\\python.exe``, ``C:\\Users\\pmqua\\…``) were unreachable,
+because :data:`MACHINE_PATH` is ``$HOME``-shaped and this box is not the
+Windows box the project still supports — declaring those paths false would be
+the rule inventing a measurement nobody can take.  That was honest and it was
+also a hole exactly one edit wide: ``AGENTS.md`` was the agent contract and
+every line of it could name the pre-migration machine as a fact about this one
+without this gate ever raising, which is how the contract became Windows-only in
+the first place.
+
+So the shape is now measured, and measured the only way it can be honestly
+measured — by **framing**, not by ``Path.exists``.  There is no Windows box
+here in any simulation, so a Windows-shaped path can never be *measured*; what
+CAN be told apart is whether the sentence says the path is **this** machine's or
+the other supported machine's.  :func:`_stale_windows_paths_in` accepts the
+second (:data:`HISTORY_MARKERS` — another machine, another time — or
+:data:`FOREIGN_MACHINE_MARKERS` — an explicitly supported compatibility target)
+and reports the first, which is the defect class, stated as its own rule.
+
+Its scope is the two root records that state the **environment contract**,
+``README.md`` and ``AGENTS.md`` (:func:`_environment_contract_sources`), and the
+scope is stated there with the measurement that fixed it: of the 63 scanned
+files, 12 carry a Windows-shaped mention (65 in all) and **1 of them is
+``README.md``'s documented compatibility fallback**.  The other 64 are in
+``docs/BUG_REPORT_2026-09-05.md`` (22 permalinks and citations into the
+pre-migration checkout), ``plan/``'s and ``docs/STATE.md``'s records of what was
+done on that box, ``docs/ANTIGRAVITY_{PROMPT,SETUP}.md``'s Windows setup
+transcript and ``tools/lspp_check.py``'s LS-PrePost invocation notes —
+quotations of the past, which are this gate's *subject*, not its defect.
+Calling those false would be inventing the measurement the round-5 docstring
+refused to invent, so they are a FINDING for their owners, named in
+``_environment_contract_sources``' docstring and in the task report — not
+silence, and not this round's job.
 """
 
 from __future__ import annotations
@@ -192,11 +217,10 @@ SCANNED_SUFFIXES = (".py", ".sh", ".txt", ".md")
 
 #: The root records a future agent reads before anything else, plus the two
 #: directories of them.  ``AGENTS.md`` is deliberately in: it is the most
-#: read-first file in the repo, it is known to be Windows-shaped (task P1.0
-#: owns the rewrite), and including it was measured to cost **zero** hits —
-#: every path in it is backslash-shaped, which :data:`MACHINE_PATH` cannot see.
-#: So it buys coverage for any Linux-shaped claim added there, and costs
-#: nothing today.
+#: read-first file in the repo, and including it was measured to cost **zero**
+#: hits for the ``$HOME``-shape rule.  It has since been rewritten (task P1.0),
+#: and the Windows-shape rule of round 6 reads it as one of the two
+#: environment-contract records (:func:`_environment_contract_sources`).
 RECORD_FILES = (README, UPDATES, AGENTS, STATE)
 RECORD_GLOBS = ("docs/**/*.md", "plan/**/*.md")
 
@@ -261,9 +285,12 @@ def _scanned_sources() -> list[Path]:
       documented prefix and ``/usr/bin/cmake`` is the system toolchain; neither
       is a per-machine fact.  A per-machine fact in this repo is ``$HOME``-shaped
       (or a ``/mnt/...`` bind), which is what :data:`MACHINE_PATH` matches.
-    * backslash Windows paths, wherever they appear (``AGENTS.md``,
-      ``README.md``'s documented fallback) — see the module docstring: this box
-      cannot measure them and task P1.0 owns them.
+    * backslash Windows paths **outside the two environment-contract records**.
+      Round 6 gave the shape its own rule and its own stated scope
+      (:func:`_environment_contract_sources`); the 64 remaining mentions are
+      quotations of the pre-migration machine in dated reports, plan records and
+      setup transcripts, which this gate records as a finding rather than
+      declares false.
     """
     scripts = sorted(
         p for p in TOOLS.rglob("*")
@@ -357,6 +384,62 @@ HISTORY_MARKERS = (
     "foreign machine", "another machine", "other box", "history",
     "historically", "machine_of_record", "the box that", "supersede",
 )
+
+
+#: A WINDOWS-shaped machine path: a drive-letter root (``C:\\OpenRadioss\\exec``)
+#: or a UNC root (``\\\\server\\share``).  Round 5 left these out of the gate
+#: entirely and said why; round 6 measures them, and this is the shape it
+#: measures (:func:`_stale_windows_paths_in`).
+#:
+#: The UNC alternative REQUIRES a separator and a second segment on purpose: in
+#: a shell script ``"\\n"`` and ``"\\t"`` are escapes, not network paths, and a
+#: rule that flagged those would be the crying-wolf outcome this file exists to
+#: avoid (``tools/oracle/build_oracle.sh`` and
+#: ``tools/build_rd_decks_manifest.py`` each carry one).
+#:
+#: Forward-slash drive paths (``C:/Users/pmqua/…``) match here too, deliberately:
+#: :data:`MACHINE_PATH` only sees their ``/Users/`` tail, and the half it misses
+#: is the half that says which DRIVE the checkout was on.  Both shapes then get
+#: the same treatment, and the link-target exemption
+#: (:func:`_in_uri_target`) applies to both, which is what keeps the 33
+#: permalinks in ``docs/BUG_REPORT_2026-09-05.md`` out of the report.
+WINDOWS_PATH = re.compile(
+    r"(?<![\w.$~-])(?<!\\)"
+    r"((?:[A-Za-z]:[\\/][A-Za-z0-9._+@$~-]+"
+    r"|\\\\[A-Za-z0-9._+@$~-]+[\\/][A-Za-z0-9._+@$~%()-]*)"
+    r"(?:[\\/][A-Za-z0-9._+@$~%-]*)*)"
+)
+
+
+#: The framing that makes a Windows-shaped path a statement about the OTHER
+#: supported machine — the maintainer's Windows 11 box, which this project still
+#: supports and which ``AGENTS.md`` §"Windows compatibility" and ``README.md``'s
+#: "the Windows compatibility path ``C:\\OpenRadioss\\exec`` (the pre-cmake
+#: Windows install) is still tried last" both document on purpose.
+#:
+#: This is a SECOND list, and deliberately not an extension of
+#: :data:`HISTORY_MARKERS`.  That list's vocabulary is the most carefully limited
+#: thing in the file (see its comment: "a vocabulary that cannot be trusted" is
+#: how a rot scanner dies), and a *supported* second platform is not a *dead
+#: record*: the two need different words, and keeping them apart means a word
+#: added here can never loosen the ``$HOME`` rule and a word added there can
+#: never loosen this one.
+#:
+#: The entries are all explicit "this is the other machine" framings.  ``on
+#: windows`` and ``powerShell`` are deliberately absent: they are words a writer
+#: reaches for mid-sentence while describing a command, so they would exempt a
+#: claim written beside one.
+FOREIGN_MACHINE_MARKERS = (
+    "compatibility path", "compatibility fallback", "compatibility layer",
+    "compatibility target", "compatibility story", "compatibility spelling",
+    "windows compatibility", "supported compatibility",
+    "the other supported machine", "other supported machine",
+    "windows box", "maintainer box", "the maintainer's windows",
+)
+
+
+def _marked_foreign_machine(window: str) -> bool:
+    return any(marker in window for marker in FOREIGN_MACHINE_MARKERS)
 
 
 #: How many lines after a claim the "this is another machine's record" label
@@ -567,6 +650,112 @@ def _stale_paths_in(lines: list[str]) -> list[tuple[int, str]]:
             if not Path(path).exists() and not _marked_history(window)]
 
 
+def _opens_a_link_target(line: str, start: int, end: int) -> bool:
+    """Does this Windows path OPEN a markdown link TARGET, scheme and all?
+
+    :func:`_in_uri_target` answers the same question for a ``$HOME``-shaped
+    match and there the match always starts *inside* the target: ``C:/Users/…``
+    only becomes a match at its ``/Users/`` tail, so ``C:`` is left over for the
+    helper to read the scheme from.  A :data:`WINDOWS_PATH` match on the same
+    span begins at the target's FIRST character, there is nothing left of it to
+    read, and the helper — correctly, for what it can see — returns False.
+
+    It is the same address either way (``C:`` is the scheme, and a link target
+    is not a filesystem location on this box), so the check is made here, and it
+    is made with the same two conditions: the span must open with ``](`` and the
+    target must CLOSE at or after the end of the match.  A ``](`` further left
+    with prose in between opens nothing, so ``see [x](C:/a/b) and … C:\\d\\e``
+    is still two claims rather than one address.
+    """
+    if not line[:start].rstrip().endswith("]("):
+        return False
+    close = _LINK_CLOSE.search(line, start)
+    return close is not None and end <= close.start()
+
+
+def _windows_path_claims(lines: list[str]) -> list[tuple[int, str, str]]:
+    """``(index, path, label_window)`` for every Windows-shaped path.
+
+    The twin of :func:`_path_claims` over :data:`WINDOWS_PATH`, and it borrows
+    that function's two decisions unchanged: a span inside a markdown link
+    TARGET is an address (:func:`_in_uri_target`, :func:`_opens_a_link_target`),
+    and the window travels with the claim so the caller never has to rediscover
+    which lines it belongs to.
+    """
+    claims = []
+    for index, line in enumerate(lines):
+        for match in WINDOWS_PATH.finditer(line):
+            if _in_uri_target(line, match.start(), match.end()) \
+                    or _opens_a_link_target(line, match.start(), match.end()):
+                continue      # an address in a link namespace (round 3/6)
+            path = match.group(1).rstrip(".,;:)'\"")
+            claims.append((index, path, _label_window(lines, index)))
+    return claims
+
+
+def _stale_windows_paths_in(lines: list[str]) -> list[tuple[int, str]]:
+    """``(line index, path)`` for Windows paths asserted as facts about HERE.
+
+    There is no ``Path.exists`` answer to consult and there must not be one:
+    ``Path("C:\\\\OpenRadioss\\\\exec").exists()`` is false on this box for a
+    reason that says nothing about whether the sentence is honest, so a rule
+    built on it would report the documented compatibility fallback and call it a
+    defect — the rule inventing a measurement, which rounds 1-5 refused to do
+    twice.
+
+    So the discriminator is the FRAMING, and it is the same shape the
+    ``$HOME`` rule already uses: a claim is accepted when the statement says
+    which machine it describes — :data:`HISTORY_MARKERS` (another machine,
+    another time) or :data:`FOREIGN_MACHINE_MARKERS` (a supported second
+    platform) — and reported when it does not.  Both directions are pinned by
+    :func:`test_a_windows_path_asserted_about_this_box_is_not_a_claim`.
+    """
+    return [(index, path) for index, path, window in _windows_path_claims(lines)
+            if not (_marked_history(window)
+                    or _marked_foreign_machine(window))]
+
+
+#: The two root records that state the ENVIRONMENT CONTRACT — where things are
+#: on a machine, and which tree is read-only — and therefore the two records
+#: where a path asserted about the wrong machine is acted on.  This is the scope
+#: of the Windows-shape rule (:func:`_stale_windows_paths_in`) and nothing else:
+#: the ``$HOME``-shape rule above still reads all 63 scanned files.
+#:
+#: MEASURED, not guessed: of the 63 scanned files, 12 carry a Windows-shaped
+#: mention (65 in all) and **one of the 65 is in scope** —
+#: ``README.md:170``'s ``C:\\OpenRadioss\\exec``.  The other 64 are in
+#: ``docs/BUG_REPORT_2026-09-05.md`` (22), ``plan/`` and ``docs/STATE.md``'s
+#: records of what was done on that box (18), ``docs/ANTIGRAVITY_{PROMPT,SETUP}
+#: .md``'s Windows setup transcript (11), ``tools/lspp_check.py``'s LS-PrePost
+#: notes (4) and four one-liners elsewhere — quotations of the past, which are
+#: this gate's *subject*, not its defect.  Calling those false would be inventing
+#: the measurement, so they stay out and are named here instead of being left as
+#: silence; their owners (each is a record one ``HISTORY_MARKERS`` label away)
+#: are the finding.
+ENVIRONMENT_CONTRACT_FILES = (README, AGENTS)
+
+
+def _environment_contract_sources() -> list[Path]:
+    """The environment-contract records, in a stable order (:data:`ENVIRONMENT_CONTRACT_FILES`)."""
+    return [path for path in ENVIRONMENT_CONTRACT_FILES if path.is_file()]
+
+
+def _offenders(paths: list[Path], pick) -> list[str]:
+    """``file:line: path`` for whatever ``pick(lines)`` reports, in a stable order.
+
+    One driver for both rules' reports, extracted (round 6) so
+    :func:`_existence_offenders` and :func:`_windows_existence_offenders` cannot
+    drift apart on how a finding is LABelled — only on what counts as one.
+    """
+    offenders = []
+    for path in paths:
+        for index, stale in pick(_lines(path)):
+            label = (path.relative_to(REPO).as_posix()
+                     if path.is_relative_to(REPO) else path.name)
+            offenders.append(f"{label}:{index + 1}: {stale}")
+    return offenders
+
+
 def _existence_offenders(paths: list[Path]) -> list[str]:
     """``file:line: path`` for every path claim that is false here and unmarked.
 
@@ -575,13 +764,12 @@ def _existence_offenders(paths: list[Path]) -> list[str]:
     and prove the rule catches what is planted in it.  A scope regression is
     otherwise invisible: narrowing the scope does not raise, it silences.
     """
-    offenders = []
-    for path in paths:
-        for index, stale in _stale_paths_in(_lines(path)):
-            label = (path.relative_to(REPO).as_posix()
-                     if path.is_relative_to(REPO) else path.name)
-            offenders.append(f"{label}:{index + 1}: {stale}")
-    return offenders
+    return _offenders(paths, _stale_paths_in)
+
+
+def _windows_existence_offenders(paths: list[Path]) -> list[str]:
+    """:func:`_offenders` over the Windows-shape rule (:func:`_stale_windows_paths_in`)."""
+    return _offenders(paths, _stale_windows_paths_in)
 
 
 # ---------------------------------------------------------------------------
@@ -1722,23 +1910,24 @@ def test_a_shell_variable_placeholder_is_not_a_machine_path():
 def test_a_documented_windows_fallback_is_not_a_false_claim():
     """The Windows box this project still supports must stay documentable.
 
-    Two independent reasons the record passes, and both are asserted here so
-    neither can be taken away silently:
+    One independent reason the record passes, asserted here so it cannot be
+    taken away silently:
 
     * ``README.md`` documents ``C:\\OpenRadioss\\exec`` as an intentional
       fallback — "the Windows compatibility path ... is still tried last" — and
       :data:`MACHINE_PATH` is ``$HOME``-shaped, so a backslash path is not a
-      claim this gate can measure.  That is a LIMITATION, not a permission:
-      there is no Windows box here to compare against, and declaring those
-      paths false would be the rule inventing a measurement.  Task P1.0 owns
-      the rewrite of the Windows-shaped files.
-    * ``AGENTS.md``'s ``.venv\\Scripts\\python.exe`` is the same shape, and
-      ``AGENTS.md`` is nevertheless IN the scanned scope, so the forward-slash
-      claims it makes (a ``/home/...`` path added tomorrow, a ``gfortran``
-      version) are read.
+      claim the *existence* rule can measure.  That is a LIMITATION, not a
+      permission: there is no Windows box here to compare against, and
+      declaring those paths false would be the rule inventing a measurement.
 
-    Both are checked against the REAL files, not against a paraphrase, so a
-    rewrite of either line is what would have to keep this test true.
+    What this test asserted about ``AGENTS.md`` — that it *is* Windows-shaped,
+    with ``.venv\\Scripts\\python.exe`` in it — was a statement about a
+    transient state ("task P1.0 has not run yet"), not about the defect class,
+    and its own failure message said so.  Round 6 replaced it with
+    :func:`test_the_agent_contract_names_this_machines_paths` (the real paths)
+    and :func:`test_a_windows_path_asserted_about_this_box_is_not_a_claim` (the
+    Windows shape, now measurable).  ``AGENTS.md`` remains IN the scanned
+    scope, so its ``$HOME``-shaped claims are still read here and below.
     """
     readme = _lines(README)
     fallback = next(i for i, line in enumerate(readme)
@@ -1748,17 +1937,209 @@ def test_a_documented_windows_fallback_is_not_a_false_claim():
         "README.md's documented Windows fallback moved; this test is pinned to "
         "the wording that makes it an intentional fallback, not a stale path")
     assert _path_claims(readme[fallback - 1:fallback + 2]) == [], (
-        "a backslash Windows path is outside what this box can measure — see "
-        "the module docstring; if this ever fires, MACHINE_PATH was widened")
+        "a backslash Windows path is outside what the existence rule can "
+        "measure — see the module docstring; if this ever fires, MACHINE_PATH "
+        "was widened")
+    assert _marked_foreign_machine(window.lower()), (
+        "the wording that makes this a documented fallback rather than a stale "
+        "claim is gone, and the round-6 Windows rule keys on exactly it: "
+        f"{window!r}")
 
     agents = _lines(AGENTS)
-    assert any("C:\\OpenRadioss" in line for line in agents), (
-        "AGENTS.md is expected to be Windows-shaped (task P1.0 owns the "
-        "rewrite). If it has been rewritten, this test should be replaced by "
-        "one that pins the new machine's real paths.")
     assert _path_claims(agents) == [], (
         "AGENTS.md is in the scanned scope, so any $HOME-shaped path in it is "
         f"a claim: {_path_claims(agents)}")
+
+
+# ---------------------------------------------------------------------------
+# 7. the Windows shape, now that there is a Windows-shaped contract to catch
+# ---------------------------------------------------------------------------
+def test_the_agent_contract_names_this_machines_paths():
+    """The REPLACEMENT for "``AGENTS.md`` is expected to be Windows-shaped".
+
+    That assertion, and the failure message that came with it, were honest
+    about themselves: ``AGENTS.md`` was pinned to a *pending rewrite* rather
+    than to a property, so it went red the moment task P1.0 landed and could
+    only be satisfied by leaving the file Windows-only.  Its own words were the
+    instruction — "this test should be replaced by one that pins the new
+    machine's real paths" — and that is what this is.
+
+    What ``AGENTS.md`` says now is "the dev box's values ... are::
+
+        export OR_SRC="$HOME/Projects/OpenRadioss/OpenCourant"
+        export OR_BUILD="$HOME/OpenRadioss_build"
+        export OR_ROOT="$HOME/OpenRadioss_or"
+
+    and ``pyradioss/paths.py`` finds this layout unaided".  That is a claim
+    about this machine in the one spelling the foreign-``$HOME`` rule cannot
+    check — ``$HOME/…`` is a placeholder, so
+    :func:`test_no_record_may_name_a_path_out_of_this_machines_home_directory`
+    is right to pass it on any box, and right to have nothing to say about
+    whether the directory named by ``$HOME`` is really there.  So this test is
+    the other half: the documented value must be the tree the one resolver
+    actually returns, and it must exist.
+
+    Skipped (never silently passed) on a box with no oracle configured, which is
+    the established mechanism — see
+    ``tests/test_p0_oracle_build.py::_require_live_oracle``, the same gate the
+    RPATH claim uses, and the reason this stays green in CI on a runner that
+    has no ``$OR_SRC`` at all.  ``PYRADIOSS_ORACLE_REQUIRED=1`` turns the skip
+    into a failure, which is what the phase gates set.
+    """
+    from tests.test_p0_oracle_build import _require_live_oracle
+
+    _require_live_oracle(runtime_env=False)
+    from pyradioss import paths
+
+    lines = _lines(AGENTS)
+    documented = {}
+    for variable, resolver in (("OR_SRC", paths.or_src),
+                               ("OR_BUILD", paths.or_build),
+                               ("OR_ROOT", paths.or_root)):
+        line = next((l for l in lines if f'export {variable}="$HOME/' in l), "")
+        assert line, (
+            f"AGENTS.md no longer states {variable} as a $HOME-relative path; "
+            "the dev-box values it documents are the claim this test checks")
+        home = str(Path(os.path.expanduser("~")))
+        documented[variable] = line.split('"$HOME/')[1].rstrip('"').split('"')[0]
+
+        claimed = Path(home) / documented[variable]
+        assert claimed.exists(), (
+            f"AGENTS.md documents {variable} as {claimed}, which is not on "
+            "this box — a documented machine path that does not exist here is "
+            "the defect class this file exists for")
+        # the documented tree and the tree the resolver returns must be ONE tree.
+        # ``$HOME/Projects/OpenRadioss/OpenCourant`` is a symlink to the
+        # ``/mnt/...`` mount on this checkout, so the comparison is resolved,
+        # not textual: the point is "the same directory", not "the same string".
+        assert claimed.resolve() == Path(resolver()).resolve(), (
+            f"AGENTS.md documents {variable} as {claimed} but "
+            f"pyradioss.paths resolves it to {resolver()}; the contract and "
+            "the one resolver have drifted apart, which is the failure §"
+            "Environment warns about ('resolution lives in code, not in your "
+            "head'). Fix the record or fix the layout — do not set a variable "
+            "to hide it")
+
+    env_script = TOOLS / "oracle" / "oracle_env.sh"
+    assert env_script.is_file(), (
+        "AGENTS.md tells every oracle run to start with `source "
+        f"{env_script.relative_to(REPO)}` and that file is not in the "
+        "repository")
+    assert any("source tools/oracle/oracle_env.sh" in l for l in lines), (
+        "AGENTS.md no longer names the script it requires an oracle run to "
+        "source; the runtime environment is the part of the contract a solver "
+        "run cannot work without")
+
+
+def test_a_windows_path_asserted_about_this_box_is_not_a_claim(tmp_path):
+    """A Windows path may be DOCUMENTED as the other machine, never asserted as this one.
+
+    The defect class, stated as a rule and measured in both directions on the
+    real records plus scratch copies of them (never planted in the working
+    tree):
+
+    * **the legitimate direction, on the real file.**  ``README.md``'s
+      ``C:\\OpenRadioss\\exec`` sits in a window that says what it is — "the
+      Windows compatibility path ... (the pre-cmake Windows install) is still
+      tried last" — so it is a statement about the supported Windows box and
+      the rule must pass it.  This is the half a naive "forbid ``C:``" rule
+      would fail, and failing it would delete the compatibility story from the
+      onboarding document.
+    * **the defect, planted.**  "the hm_cfg tree is at ``C:\\OpenRadioss\\
+      hm_cfg_files`` on this box" is the pre-migration sentence this gate
+      exists to catch, written in the one spelling it could not see until
+      round 6.  It is reported, in a copy of each contract record, with the
+      file and line.
+    * **the same sentence labelled as the other machine is not reported**, so
+      the acceptance cannot be "delete every Windows path": the rule
+      discriminates on the framing, which is the whole difference between
+      documented compatibility and a stale fact.
+
+    Also pinned: the rule is portable by construction.  It consults no disk at
+    all, so a box whose ``$HOME`` is somebody else's sees the same verdict —
+    asserted here rather than assumed, because round 4's lesson was that a
+    portability proof narrower than the thing it proves is a snapshot.
+    """
+    # 1. the real, legitimate mention — recognised as one, by content
+    readme = _lines(README)
+    documented = [(index, path) for index, path, window
+                  in _windows_path_claims(readme)
+                  if "C:\\OpenRadioss" in path]
+    assert documented, (
+        "README.md no longer documents the Windows compatibility fallback this "
+        "rule keys on; replace this test with one that pins whatever replaced it")
+
+    # 2. the live scan over the environment-contract records
+    assert _windows_existence_offenders(_environment_contract_sources()) == [], (
+        "these lines in the environment contract name a Windows path with "
+        f"nothing saying it describes the other supported machine: "
+        + "; ".join(_windows_existence_offenders(
+            _environment_contract_sources()))
+        + f". Frame it as the compatibility target (accepted: "
+        + ", ".join(FOREIGN_MACHINE_MARKERS[:4]) + "...), or name the tree "
+          "through $OR_SRC / $HOME, which is true on every box.")
+
+    # 3. the planted defect, in a scratch COPY of each contract record
+    planted = ("On this box the hm_cfg card-schema tree is at "
+               "C:\\OpenRadioss\\hm_cfg_files and the oracle is under "
+               "C:\\OpenRadioss_old.")
+    for real in _environment_contract_sources():
+        copy = tmp_path / real.name
+        copy.write_text(real.read_text(encoding="utf-8") + f"\n{planted}\n",
+                        encoding="utf-8")
+        found = _windows_existence_offenders([copy])
+        untouched = _windows_existence_offenders([real])
+        assert untouched == [], (
+            f"the real {real.name} must be clean for this test to mean "
+            f"anything: {untouched}")
+        assert found == [f"{copy.name}:{len(_lines(copy))}: "
+                         "C:\\OpenRadioss\\hm_cfg_files",
+                         f"{copy.name}:{len(_lines(copy))}: "
+                         "C:\\OpenRadioss_old"], (
+            "a Windows path asserted as this box's reality must be reported, "
+            f"in a copy of {real.name} as well as in one: {found}")
+
+    # 4. the same sentence, framed as the other machine, is not a defect
+    labelled = ["The maintainer's Windows 11 box is a supported target; the "
+                "Windows compatibility path `C:\\OpenRadioss\\hm_cfg_files` "
+                "is tried last."]
+    assert _stale_windows_paths_in(labelled) == [], (
+        "a documented compatibility fallback must survive the rule, or the "
+        "only way to satisfy it is to delete the compatibility story")
+    assert _stale_windows_paths_in([planted]) == [(0, "C:\\OpenRadioss\\hm_cfg_files"),
+                                                  (0, "C:\\OpenRadioss_old")], (
+        "the identical paths with no such framing are the defect")
+
+    # 5. a link target is an address in both shapes, not a location
+    permalink = ("Location: [starter_keywords.py:14847](C:/Users/pmqua/"
+                 "PycharmProjects/OpenRadioss_Python/pyradioss/input/"
+                 "starter_keywords.py:14847).")
+    assert _windows_path_claims([permalink]) == [], (
+        "a Windows permalink target is an address in a link namespace, in "
+        "either separator, exactly as it is for the $HOME rule")
+    for line, expected in (
+        # genuinely opening a closed target, in both separators: an address
+        ("[a](C:/OpenRadioss/exec)", []),
+        ("[a](C:\\OpenRadioss\\exec)", []),
+        # a second path in prose, after a target that has closed: a claim
+        ("[x](C:/a/b) and … C:\\OpenRadioss_old", ["C:\\OpenRadioss_old"]),
+        # a path in the link TEXT, before any '](' at all: a claim
+        ("the mirror is C:\\OpenRadioss_old, see [x](C:/a/b)",
+         ["C:\\OpenRadioss_old"]),
+        # a target that never closes is not a link: a claim
+        ("[a](C:/OpenRadioss and prose", ["C:/OpenRadioss"]),
+    ):
+        got = [claim[1] for claim in _windows_path_claims([line])]
+        assert got == expected, (
+            f"{line!r} -> {got}; a Windows path is an address only when it "
+            f"opens a closed link target (expected {expected})")
+
+    # 6. portability: the rule takes no disk answer, so it cannot be a snapshot
+    with _a_box_whose_home_is_not_this_one():
+        assert _windows_existence_offenders(
+            _environment_contract_sources()) == [], (
+            "the Windows-shape rule must reach the same verdict on a box whose "
+            "$HOME is somebody else's — it consults no disk, and this asserts it")
 
 
 def test_a_version_of_the_other_supported_machine_is_allowed():
