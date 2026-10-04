@@ -2,9 +2,58 @@
 
 *The onboarding document. Read this + AGENTS.md before any work; everything
 else (PORTING_GUIDE.md 535 KB, VALIDATION.md 233 KB) is grep-only reference.*
-*Last updated: 2026-10-04 (fix wave 3: §Baseline restated as commands + dated
-measurements, no bare suite counts; before that: 2026-10-03 post-migration
-re-baseline, 2026-08-02 handover preparation after M41).*
+*Read §Licensing gate first — it says what you may not do yet.*
+*Last updated: 2026-10-04 (the licence gate made visible in the onboarding doc;
+fix wave 3 before that: §Baseline restated as commands + dated measurements, no
+bare suite counts; before that: 2026-10-03 post-migration re-baseline, 2026-08-02
+handover preparation after M41).*
+
+## Licensing gate — UNRESOLVED: no new upstream-derived code
+
+**Stop here before you port anything.** `$OR_SRC` is **AGPL-3.0-or-later**
+(Siemens 2026 header on every source file); this repository declares **MIT**
+(`LICENSE:1-3`) *and* **GPL-3.0** (`README.md:300-302`), and `pyproject.toml:10`
+points `license` at the MIT `LICENSE`. A literal port transcribes
+AGPL-covered expression, so AGPL §5(c) makes the ported files derivative works
+and shipping the work under MIT is not defensible. This is
+`plan/00_ORCHESTRATION.md` **§1.3, lines 58-73**, and it is marked **GATING,
+UNRESOLVED**.
+
+- **What is blocked.** Until a maintainer records a decision, "agents may not
+  add new upstream-derived code beyond what already exists"
+  (`plan/00_ORCHESTRATION.md` §1.3, line 73). Every later phase whose entry
+  criterion is *Task P0.0 decided* is therefore unsatisfied — Phase 1 onward.
+  Phase 0's own work is done and its exit gate passes; **a green phase 0 is not
+  a clearance to start phase 1.**
+- **The four lawful options**, in `docs/LICENSING.md`
+  §The four lawful resolutions (lines 88-134): (1) relicense the port to
+  AGPL-3.0-or-later; (2) keep the derived status and relicense only the new
+  program — *unlawful* for a literal port, §5(c); (3) re-derive every formula
+  from published physics instead of transcribing the Fortran — the only route
+  that keeps a permissive licence, and it contradicts this project's stated
+  goal; (4) obtain a commercial or dual-licence grant from Siemens.
+- **Who can unblock it: the maintainer, not an agent.** `docs/LICENSING.md`
+  §Decision (lines 136-156) records **no decision**, states option 1 as a
+  *recommendation only*, and says in terms that none may be recorded by an
+  agent. Nothing in `LICENSE`, `README.md` or `pyproject.toml` is evidence of
+  which option was chosen (`docs/LICENSING.md` lines 168-169). **What would
+  unblock you:** the maintainer records the chosen option in that §Decision and
+  applies it to the three artefacts; `test_p0_licensing.py` is then updated by
+  hand (the strict xfail XPASSes and fails the suite the moment the artefacts
+  agree) and the "Task P0.0 decided" entry criterion is satisfied. Until that
+  text exists, it is blocked.
+- **What actually enforces it — and what does not.** The only enforcement is
+  `tests/test_p0_licensing.py::test_declared_licence_is_consistent`, marked
+  `@pytest.mark.xfail(strict=True)` (lines 49-61). **That test passes**, by
+  design: it is the contradiction staying visible, not a blocker. Nothing
+  mechanical stops the next phase, and no red test anywhere will. This section
+  is the stop.
+- **Do not "fix" it yourself.** Reconciling the three artefacts makes the strict
+  xfail XPASS, which *fails the suite* (`docs/LICENSING.md` lines 160-163) — and
+  that is not a licence decision either. Leave `LICENSE`, `README.md` and
+  `pyproject.toml` alone; say the gate is blocking and stop.
+- **What you may do meanwhile:** run the suite, run the oracle, review, and
+  work on code that is not upstream-derived — then wait for the maintainer.
 
 ## What this is
 
@@ -72,15 +121,19 @@ Collection size, when you need it: `.venv/bin/python -m pytest -q --collect-only
 -m "not slow"`. The collected total is deliberately **not** written down here —
 it is the fastest-decaying number in this file.
 
-**Row 3 measured 2026-10-04** (fix wave 3, `plan/p0`): the exit gate exactly as
+**Row 3 measured 2026-10-04** (fix wave 4, `plan/p0`): the exit gate exactly as
 `plan/01_phase0_oracle_and_licensing.md` §Exit gate writes it — line 2 `32
 passed, 1 skipped` (the skip is `th_to_csv`, documented in
-`test_p0_compare_t01.py`), line 3 `14600 passed, 15 skipped, 20 deselected, 26
-xfailed, 26 warnings in 727.12s (0:12:07)`, **exit 0**, line 4 (`git -C "$OR_SRC"
+`test_p0_compare_t01.py`), line 3 `14601 passed, 15 skipped, 20 deselected, 26
+xfailed, 26 warnings in 806.75s (0:13:26)`, **exit 0**, line 4 (`git -C "$OR_SRC"
 status --porcelain`) empty, exit 0. **Rows 1 and 2 were last measured 2026-10-03
 at commit `13deef2`** (`14575 passed, 16 skipped` and `14574 passed, 17 skipped`,
-both exit 0) and have **not** been re-run since — the counts in those two rows
-are three test additions out of date. Quote row 3, or re-run the row you mean.
+both exit 0) and have **not** been re-run since. Those two figures live in this
+sentence, not in the table — its rows carry commands only — and they are three
+test additions out of date. Quote row 3, or re-run the row you mean.
+*(The fix-wave-3 run of the same gate measured `14600 passed, … in 727.12s
+(0:12:07)`, also exit 0, on 2026-10-04; the one-test difference is this pass's
+new record-count test.)*
 
 *Unverified, stated for the next agent:* the phase review measured row 3's
 environment on 2026-10-04 as `1 failed, 14567 passed, 15 skipped` (backend

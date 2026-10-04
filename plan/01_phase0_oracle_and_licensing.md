@@ -657,7 +657,8 @@ records restate), `$OR_SRC/starter/CMakeLists.txt:14-19` (`set(PYTHON_EXEC
 "python3")` on non-Windows — the fact P0.16 r1 mis-recorded).
 **Files:** Modify `tools/validation_data/oracle_provenance.json`,
 `tools/validation_data/oracle_smoke.json`; Create
-`tests/test_p0_oracle_provenance.py` (10 tests).
+`tests/test_p0_oracle_provenance.py` (10 tests; re-count with
+`.venv/bin/python -m pytest -q --collect-only tests/test_p0_oracle_provenance.py`).
 
 **Interfaces:**
 - Consumes: `pyradioss.paths.or_starter()/or_engine()`, `sha256sum`,
@@ -762,9 +763,9 @@ both).
 **Files:** Modify `tools/validate_vs_fortran.py` (docstrings only),
 `tools/oracle/build_oracle.sh` (comments only), `pyproject.toml` (comment);
 Create `tests/test_p0_no_stale_machine_paths.py` (9 tests at P0.15; **10**
-after `00b5112` added the literal-block case, 2026-10-03; **22** as of
-2026-10-04 after the record-portability, URI-span and floor cases — re-count
-with `.venv/bin/python -m pytest -q --collect-only tests/test_p0_no_stale_machine_paths.py`).
+after `00b5112`, 2026-10-03; **24** as of 2026-10-04 — `**22**` was wrong)
+`.venv/bin/python -m pytest -q --collect-only tests/test_p0_no_stale_machine_paths.py`
+re-measures it.
 
 **Interfaces:**
 - Consumes: `elf_search_paths`, `<tool> --version`, the lock's `# pin:` lines,

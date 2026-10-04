@@ -19,7 +19,7 @@ arbiter if a range is ever disputed.
 | Artefact | Declared licence |
 | --- | --- |
 | `LICENSE:1-3` | `MIT License` / `Copyright (c) 2026 Minh Quang Pham` |
-| `README.md:290-294` | `GPL-3.0 (see [LICENSE](LICENSE)) — inherited from files derived from OpenRadioss, © Altair Engineering Inc.` |
+| `README.md:300-302` | `GPL-3.0 (see [LICENSE](LICENSE)) — inherited from files derived from OpenRadioss, © Altair Engineering Inc.` |
 | `pyproject.toml:10` | `license = { file = "LICENSE" }` — points at the MIT file |
 | upstream `OpenCourant/LICENSE.md:1-3` | `GNU AFFERO GENERAL PUBLIC LICENSE` / `Version 3, 19 November 2007` |
 | upstream source headers, e.g. `OpenCourant/engine/source/engine/resol.F:1-7` | `GNU Affero General Public License … either version 3 of the License, or (at your option) any later version.` |
@@ -54,7 +54,7 @@ points at Simcenter Radioss:
 > `Copyright>        commercial version may interest you:`
 > `Copyright>        https://www.siemens.com/en-us/products/simcenter/mechanical-simulation/radioss/.`
 
-So `README.md:290-294` misattributes the upstream copyright holder as well as
+So `README.md:300-302` misattributes the upstream copyright holder as well as
 naming the wrong licence.
 
 This repository is a **literal port**: it transcribes upstream Fortran
@@ -138,7 +138,7 @@ nothing can be assumed about the outcome — the repository cannot depend on it.
 **No decision recorded, and none may be recorded by an agent.** The licence
 choice is a MAINTAINER decision (`plan/00_ORCHESTRATION.md` §1.3) and no such
 decision exists in this repository. Per the Task 0.0 brief this task ends at
-*recommendation*: `pyproject.toml:10` and `README.md:290-294` are deliberately
+*recommendation*: `pyproject.toml:10` and `README.md:300-302` are deliberately
 left untouched, so neither artefact silently adopts any option on the
 maintainer's behalf.
 

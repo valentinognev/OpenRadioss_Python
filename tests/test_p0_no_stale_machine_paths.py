@@ -928,6 +928,21 @@ _FLOOR_MARKERS = (
 #: is not a statement about the version it follows.
 _FLOOR_CLAUSE_BREAK = re.compile(r"[;,:.!?()\[\]]")
 
+#: … and a clause that ASSERTS this version is what is on this box is never a
+#: floor, however the sentence hedges it.  ``on this box numpy 1.21 is
+#: installed at least`` is a measurement with a trailing "at least": the clause
+#: says *this is what is here*, and the floor word only softens the claim.  The
+#: clause break cannot catch it — there is no punctuation between the version
+#: and the hedge — so this is the second half of the narrowing.
+#:
+#: ``is`` alone is deliberately NOT the trigger, because "the floor is numpy
+#: 1.21" and "the requirement is cmake 3.15 or newer" are requirements; the
+#: pattern needs an actual predicate of installation or measurement.
+_MEASURED_CLAUSE = re.compile(
+    r"\b(?:is|was|are|were)\s+(?:already\s+|still\s+|currently\s+|actually\s+)*"
+    r"(?:installed|imported|importable|pinned|resolved|present|measured)\b",
+    re.I)
+
 #: How far either side of the version a floor word may sit and still count.
 _FLOOR_WINDOW = 32
 
@@ -942,13 +957,14 @@ def _is_floor(line: str, match: re.Match) -> bool:
     * a :data:`_FLOOR_MARKERS` word within :data:`_FLOOR_WINDOW` characters
       before the distribution name or after the version, **without crossing a
       clause boundary**: on the left that is the text after the last break, on
-      the right the text before the first.
+      the right the text before the first — and **not at all** when either
+      clause carries a :data:`_MEASURED_CLAUSE` assertion.
 
     So ``requires numpy 1.21 at minimum`` and ``at minimum numpy 1.21`` are
-    floors, while ``numpy 1.21 was installed; at least 1.20 is required`` and
-    ``numpy 1.21 is the measured version (at least 1.20 too)`` are claims —
-    pinned from both sides by
-    :func:`test_a_requirement_floor_is_not_read_as_a_measurement`.
+    floors, while ``numpy 1.21 was installed; at least 1.20 is required``,
+    ``numpy 1.21 is the measured version (at least 1.20 too)`` and ``on this
+    box numpy 1.21 is installed at least`` are claims — pinned from both sides
+    by :func:`test_a_requirement_floor_is_not_read_as_a_measurement`.
     """
     if line[match.end():].lstrip()[:1] == "+":
         return True
@@ -960,6 +976,8 @@ def _is_floor(line: str, match: re.Match) -> bool:
     breaks = list(_FLOOR_CLAUSE_BREAK.finditer(tail))
     if breaks:
         tail = tail[:breaks[0].start()]
+    if _MEASURED_CLAUSE.search(head) or _MEASURED_CLAUSE.search(tail):
+        return False          # "… is installed at least" is a hedged claim
     return any(marker in span.lower() for span in (head, tail)
                for marker in _FLOOR_MARKERS)
 
@@ -1352,6 +1370,14 @@ def test_a_requirement_floor_is_not_read_as_a_measurement():
     line, so the exemption cannot swallow a real claim that happens to sit in
     the same sentence: the cases below that must still FAIL are the ones where
     the floor word is in a different clause from the version.
+
+    A clause break is not enough, though, because a clause can hedge a
+    measurement in the same breath.  The reviewer's laundering case is
+    ``on this box numpy 1.21 is installed at least``: no punctuation separates
+    the version from "at least", the clause-scoped window therefore admitted
+    it, and a false *measurement* of the box exited the gate as a
+    *requirement*.  :data:`_MEASURED_CLAUSE` closes that — a clause that says
+    the version IS installed/present/pinned is a claim whatever follows it.
     """
     pins = {"numpy": {"2.4.6", "2.5.3"}}
 
@@ -1364,6 +1390,7 @@ def test_a_requirement_floor_is_not_read_as_a_measurement():
         "numpy 1.21 at least",
         "at minimum numpy 1.21",
         "the floor is numpy 1.21 for the accel extra",
+        "the requirement is numpy 1.21 and up",
         "numpy>=1.21",          # operator form: never matched in the first place
     ]
     for line in floors:
@@ -1378,6 +1405,11 @@ def test_a_requirement_floor_is_not_read_as_a_measurement():
         "numpy 1.21 was installed; at least 1.20 is required",  # floor elsewhere
         "numpy 1.21 is the measured version (at least 1.20 too)",  # ditto
         "we measured numpy 1.21",                               # plain claim
+        # the reviewer's laundering case: same clause, no punctuation, and the
+        # "at least" used to buy the claim an exemption
+        "on this box numpy 1.21 is installed at least",
+        "numpy 1.21 is present at least",
+        "at least numpy 1.21 is installed",
     ]
     for line in still_caught:
         assert _version_claim_offenders([line], pins, "x.md",

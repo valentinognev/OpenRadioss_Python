@@ -11,9 +11,72 @@ authoritative *current* count written down anywhere**, by design: the collected
 total and the fast tier are produced by the commands in `docs/STATE.md`
 §Baseline, and a number written down here is a dated measurement of the tree it
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
-— see §1.8.0.*
+— see §1.8.0 and §1.9.0.*
 
-## 1.8.0 - Fix wave 3: the last three machine paths, a record-count rule, and a portability proof that read the wrong files
+## 1.9.0 - The licensing gate is now in the onboarding document, and two record rules can see what they were blind to (2026-10-04)
+
+The substantive item of this wave is a single absence: `docs/STATE.md` — the
+document every agent is told to read first — never mentioned the licensing gate
+at all. An agent read it, saw a green Phase 0, and would start porting
+upstream-derived code into a repository whose licence status is unresolved,
+which is exactly the failure `plan/00_ORCHESTRATION.md` §1.3 exists to prevent.
+Nothing mechanical stopped it: the only enforcement is an `xfail(strict=True)`,
+which **passes**.
+
+- **The gate, where it is read.** New `docs/STATE.md` §Licensing gate, the first
+  section of the onboarding document, ahead of §Quick start. It states what is
+  blocked (no new upstream-derived code beyond what already exists —
+  `plan/00_ORCHESTRATION.md` §1.3, lines 58-73), why (a literal port transcribes
+  AGPL-covered expression, so AGPL §5(c) makes it a derivative work; `LICENSE:1-3`
+  says MIT, `README.md:300-302` says GPL-3.0, `pyproject.toml:10` points at the
+  MIT file, upstream is AGPL-3.0-or-later), the four lawful options with
+  `docs/LICENSING.md` line references, who can unblock it (**the maintainer** —
+  §Decision, lines 136-156, records *no decision* and says in terms that none may
+  be recorded by an agent) and exactly **what would unblock you**, what the
+  enforcement is (an xfail that passes, so nothing stops the next phase and no
+  red test ever will — this section is the stop), and that reconciling the three
+  artefacts to make the xfail XPASS is *not* a licence decision either.
+  **No decision is taken, recorded or implied.** `pyproject.toml`, `LICENSE` and
+  `README.md` are untouched and `tests/test_p0_licensing.py` is unchanged:
+  `1 passed, 1 xfailed`.
+- **`**22**` → `**24`** in `UPDATES.md` and `plan/01_phase0_oracle_and_licensing.md`
+  (measured 2026-10-04, `.venv/bin/python -m pytest -q --collect-only
+  tests/test_p0_no_stale_machine_paths.py` → `24 tests collected`). Both records
+  now also carry that command.
+- **`tests/test_p0_record_suite_counts.py` had the blind spot the rot lived in:**
+  `SUITE_COUNT` needs a pytest RESULT word, so `**22** at 2026-10-04` — a
+  module's size — was invisible to it, and the date it carried was a perfectly
+  good binding. A binding rule cannot catch that: 22 *was* a dated claim, it was
+  simply not true. New `unreproducible_module_sizes()` / `test_a_module_size_figure_names_the_command_that_re_measures_it`:
+  a figure whose unit is `tests` and whose subject is a named `tests/*.py` module
+  must carry the command that re-measures it. **Measured: 4 offenders on the
+  pre-fix tree** (`UPDATES.md:268`, `UPDATES.md:923`,
+  `plan/01_phase0_oracle_and_licensing.md:660`, `:764`), 0 after the record fixes.
+  Two exempt shapes, each stated: a milestone table row (its figures are that
+  milestone's own measurement) and a contribution marker (`New`/`added`), the
+  same category as the `34 new tests` delta.
+- **`_is_floor` no longer launders a measurement into a requirement.** The
+  reviewer's case — `on this box numpy <version> is installed at least`, with a
+  version the lock does not record — returned `[]` (exempt): the clause break
+  cannot separate the version from a trailing hedge.
+  New `_MEASURED_CLAUSE` — a clause that says the version *is* installed /
+  present / pinned / resolved is a claim whatever follows it — closes it, and the
+  three laundering cases are pinned in
+  `test_a_requirement_floor_is_not_read_as_a_measurement` while its ten
+  legitimate floor prose forms still pass. Both directions proven on the toolchain
+  rule too (`on this box cmake <version> is installed at least` is now reported;
+  `cmake 3.15 at minimum` is still exempt). **The module's own count did not
+  move — 24 before and after** (the cases were added to the existing test, not as
+  a new one).
+- **Three record inaccuracies corrected:** `docs/STATE.md` §Baseline no longer
+  says "the counts in those two rows" (its rows carry commands only — the figures
+  are in the sentence); the `§1.8.0` heading now carries the date of the commit
+  that recorded it, `4dad39c` (2026-10-04), like the other 18; and
+  `docs/LICENSING.md`'s `README.md:290-294` citation now points at
+  `README.md:300-302`, which is where the GPL declaration actually is.
+- **`tests/test_p0_record_suite_counts.py` had no trailing newline.** Fixed.
+
+## 1.8.0 - Fix wave 3: the last three machine paths, a record-count rule, and a portability proof that read the wrong files (2026-10-04)
 
 Round 4 fixed nineteen record lines and shipped the gate green here and still
 red in CI, because three hits sat outside what the portability proof read. This
@@ -66,16 +129,21 @@ three rounds running, and closes the structural hole behind the hits.
   legitimate instead of violations.
 - **Shape-based path comparison: measured, then declined.** Widening
   `MACHINE_PATH` to `/opt`, `/srv`, `/usr/local`, `/tmp`, `/data`, `/work`,
-  `/root`, `/var` was tried before anything was written: it yields **13 hits and
-  0 true positives** on this tree — 7 are `/tmp/no-such-mirror-xyz` and
-  `/tmp/opencode` (documented scratch paths, three of them inside plan code
-  samples), 2 are `/opt/OpenRadioss/…` (upstream's own documented prefix), and
-  the rest would need a per-root allow-list. A rule whose every hit needs an
-  exemption is a rule that cries wolf. The structural half *is* fixed: a
-  `/opt`-shaped path that is wrong **here** was always caught by the live
-  existence rule; what stayed invisible was a path true here and false
-  elsewhere, and closing that needs a record of which roots are per-machine,
-  which this repo does not have.
+  `/root`, `/var` was tried before anything was written. Measured with the
+  gate's own existence rule over the whole scanned scope (`_scanned_sources()`):
+  **13 hits over 9 distinct paths on commit `4dad39c`** (2026-10-04), and
+  **11 over 8 on the tree as committed here** — this restatement stopped
+  spelling the offending paths, and quoting them adds hits. Not one hit is a
+  stale claim: the scratch-root ones are the documented no-such-mirror fixture
+  and the tooling's own scratch files, the `/opt` ones are upstream's own
+  documented install prefix, and the rest sit under roots that would each need
+  an allow-list entry. *(Corrected 2026-10-04: this entry first split the 13 as
+  "7 / 2 / the rest"; the 13 reproduces under the gate's own scan, that split
+  does not.)* A rule whose every hit needs an exemption is a rule that cries
+  wolf. The structural half *is* fixed: a `/opt`-shaped path that is wrong
+  **here** was always caught by the live existence rule; what stayed invisible
+  was a path true here and false elsewhere, and closing that needs a record of
+  which roots are per-machine, which this repo does not have.
 
 ## 1.7.0 - Fix wave 2: a gate that is green here and red in CI, an export that silently dropped two law audits, and a URI exemption that laundered claims (2026-10-04)
 
@@ -266,7 +334,9 @@ label "P0.11" for the binary-T01 parity route, which is a **different** task.
   pre-migration `cmake 4.4.3` in `build_oracle.sh`, where `/usr/bin/cmake`
   is 3.28.3.
   `tests/test_p0_no_stale_machine_paths.py` (9 tests at P0.15, **10** at
-  2026-10-03, **22** at 2026-10-04)
+  2026-10-03, **24** at 2026-10-04 —
+  `.venv/bin/python -m pytest -q --collect-only tests/test_p0_no_stale_machine_paths.py`
+  re-measures it; this entry first wrote `**22**` there, wrong by two)
   keeps them from rotting and distinguishes a claim about this box from a
   quoted specimen of a tool's output.
 - **P0.16** — `toolchain_probe.json` is a **gated record**, not a test side
@@ -920,7 +990,9 @@ Four honesty-layer defects fixed, none in the solver path:
   an unresolvable `OR_ROOT` nests its own candidate list instead of printing
   a placeholder, and "unset" is no longer claimed for a variable that was set
   and merely absent.
-- **Tests** `tests/test_p0_paths.py` 60 tests (was 35): every neighbouring
+- **Tests** `tests/test_p0_paths.py` 60 tests at P0.6 (was 35; **71** on
+  2026-10-03 — re-count with `.venv/bin/python -m pytest -q --collect-only
+  tests/test_p0_paths.py`): every neighbouring
   precedence pair, loud failures for `or_build()`/`or_engine()`, both cfg
   spellings, the empty-`CFG` rejection, and the catalogue-follows-`reload`
   invariant. 7/7 mutants killed by a harness in `/tmp/opencode`

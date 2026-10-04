@@ -69,13 +69,41 @@ block now states commands and dated measurements instead of bare numbers, and
 why :func:`test_the_baseline_names_the_command_not_only_a_number` pins the
 command half of the treatment.
 
+A PER-MODULE SIZE IS A CLAIM ABOUT NOW, AND ONLY A COMMAND CHECKS NOW
+--------------------------------------------------------------------
+:data:`SUITE_COUNT` above is deliberately narrow, and the narrowness had a hole
+in it: it needs a pytest RESULT word, so it cannot see a figure whose unit is
+``tests`` and whose subject is a module — ``**22** at 2026-10-04``.  Two records
+carried exactly that, one in ``UPDATES.md`` and one in
+``plan/01_phase0_oracle_and_licensing.md``, both **bound** to a date, both
+looking honest, and both **wrong** (the measured figure was 24).  A binding rule
+cannot catch that: 22 *was* a dated claim, it was simply not true, and nothing
+short of re-running the count can tell.
+
+So the treatment for a **size** is the decoration treatment stated above, and
+the rule below is its teeth: a figure about a named ``tests/*.py`` module must
+carry the command that re-measures it (:data:`_RECOUNT`), in the two lines
+either side.  A date says *when the claim was made*; the command is the only
+thing that says *whether it is still true*, which is the whole difference
+between the figure being evidence and being decoration.
+
+Two shapes are exempt, each for a stated reason:
+
+* **a milestone table row** (``| M701 | …``) — the §"What is implemented"
+  preamble already defines every row figure as *that milestone's own*
+  measurement, so the row is a dated measurement of a past tree by
+  construction, not a claim about the module today.
+* **a contribution marker** (``New``/``added``/``created``/``fresh``) — the
+  figure is what a task *delivered*, and the dated entry that records the task
+  binds it.  Same category as the ``34 new tests`` delta skipped above.
+
 WHAT IS DELIBERATELY OUT OF REACH
 ---------------------------------
-A count with **no** RESULT word (``the reader library is 1,210 lines``), and a
-count in ``.superpowers/`` reports — those are working notes, not records.  The
-record scope is imported from the sibling gate rather than re-listed, so a
-record added to ``docs/`` or ``plan/`` tomorrow is scanned by both rules without
-anyone remembering to update either file.
+A count with **no** RESULT word **and no named module** (``the reader library
+is 1,210 lines``), and a count in ``.superpowers/`` reports — those are working
+notes, not records.  The record scope is imported from the sibling gate rather
+than re-listed, so a record added to ``docs/`` or ``plan/`` tomorrow is scanned
+by both rules without anyone remembering to update either file.
 """
 
 from __future__ import annotations
@@ -118,6 +146,77 @@ WINDOW = 2
 
 #: The languages whose fenced block is a CODE SAMPLE rather than prose.
 CODE_INFO = re.compile(r"^```\s*[A-Za-z0-9_+#-]+\s*$")
+
+#: ``tests/<module>.py`` — the *subject* of a size figure.  Scoped to that shape
+#: on purpose: a figure naming a module is re-derivable (run pytest on that one
+#: file), which is what makes the command requirement below reasonable.  A
+#: figure like "their 20 tests stay green" describes a set of behaviours in a
+#: dated entry and has no single command.
+NAMED_MODULE = re.compile(r"\btests/[A-Za-z0-9_]+\.py\b")
+
+#: The unit a size is stated in.  :data:`SUITE_COUNT` cannot see it, because that
+#: pattern requires a pytest RESULT word and this shape has none — the blind spot
+#: this whole section exists to close.
+SIZE_UNIT = re.compile(r"\b\d[\d,]*\s*\*?\*?\s*(?:tests?|test\s+cases?)\b", re.I)
+
+#: The command that re-measures a module's size.  Named as a *shape* (the flag),
+#: not the whole incantation, so an invocation written differently still counts.
+_RECOUNT = re.compile(r"--collect-only")
+
+#: What ends the clause a figure lives in.  ``.w`` guards against a row that
+#: simply runs on: ``… and ``tools/x.py``: 7 tests`` is a second clause.
+_SIZE_CLAUSE_BREAK = re.compile(r"[;:!?]|\.\w")
+
+#: How far after the module's name its figure may sit and still be *about* it.
+_SIZE_GAP = 70
+
+#: A milestone row of the §"What is implemented" table, whose preamble makes
+#: every row figure that milestone's own measurement.
+_MILESTONE_ROW = re.compile(r"^\s*\|\s*M\d")
+
+#: A figure that states what a task DELIVERED.  Bound by the dated entry that
+#: records the task, in the same category as the ``34 new tests`` delta.
+CONTRIBUTION = re.compile(r"\b(?:new|added|created|fresh)\b", re.I)
+
+
+def _size_about_a_named_module(line: str) -> bool:
+    """Does ``line`` state how many tests a named module has?
+
+    The module name and the figure must be in the **same clause**: ``… and
+    ``tools/x.py``: 7 tests`` is two claims, and the second one is about a
+    different file.
+    """
+    for named in NAMED_MODULE.finditer(line):
+        span = line[named.end():][:_SIZE_GAP]
+        brk = _SIZE_CLAUSE_BREAK.search(span)
+        if brk:
+            span = span[:brk.start()]
+        if SIZE_UNIT.search(span):
+            return True
+    return False
+
+
+def unreproducible_module_sizes(lines: list[str]) -> list[int]:
+    """Indices of lines stating a module's size with no way to re-check it.
+
+    Binding is already handled by :func:`unbound`; this is the other half.  A
+    size changes the moment anybody adds a test to the module, so the date
+    beside it binds only the past — and the figure this rule was written for was
+    bound to 2026-10-04, looked impeccable, and was wrong by two.
+    """
+    fenced, quoted = _fenced(lines), _quoted_example_lines(lines)
+    out = []
+    for index, line in enumerate(lines):
+        if index in fenced or index in quoted:
+            continue
+        if _MILESTONE_ROW.match(line) or CONTRIBUTION.search(line):
+            continue          # a past tree's figure, or a task's own output
+        if not _size_about_a_named_module(line):
+            continue
+        window = "\n".join(lines[max(0, index - WINDOW):index + WINDOW + 1])
+        if not _RECOUNT.search(window):
+            out.append(index)
+    return out
 
 
 def _fenced(lines: list[str]) -> set[int]:
@@ -263,6 +362,61 @@ def test_the_baseline_names_the_command_not_only_a_number():
             f"docs/STATE.md §Baseline no longer carries {command!r}: the "
             "replacement for a bare count is the command that produces the "
             "current one, so it has to be there")
+
+
+# ---------------------------------------------------------------------------
+# 2b. ... and a per-module SIZE is a claim about NOW, so it needs a command
+# ---------------------------------------------------------------------------
+def test_a_module_size_figure_names_the_command_that_re_measures_it() -> None:
+    """A figure with no command cannot be checked, and a date is not a check.
+
+    The round-4 defect this rule exists for: ``UPDATES.md`` and
+    ``plan/01_phase0_oracle_and_licensing.md`` both stated that
+    ``tests/test_p0_no_stale_machine_paths.py`` holds ``**22**`` tests, bound to
+    ``2026-10-04``, and the measured figure is **24**.  Every existing rule
+    passed it — :data:`SUITE_COUNT` needs a pytest RESULT word, so the shape was
+    invisible, and the date it carried was a perfectly good binding.  A binding
+    answers "when was this true"; nothing but the command answers "is it still
+    true".
+    """
+    offenders = []
+    for path in _record_sources():
+        lines = _lines(path)
+        offenders += [
+            f"{_label(path)}:{i + 1}: {lines[i].strip()[:90]}"
+            for i in unreproducible_module_sizes(lines)]
+    assert offenders == [], (
+        "these record lines state how many tests a named test module has, with "
+        "no command that re-measures it: " + "; ".join(offenders)
+        + ". A module's size is a claim about NOW — it changes on the next "
+          "added test — so the date beside it binds only the past. Quote the "
+          "command (`.venv/bin/python -m pytest -q --collect-only <file>`), "
+          "drop the number, or keep it explicitly as a milestone/contribution "
+          "figure of a past tree.")
+
+    # ... and the rule can still tell the four apart, or it is decoration:
+    checked = [
+        "`tests/test_p0_no_stale_machine_paths.py` (24 tests as of 2026-10-04; "
+        "re-count with `.venv/bin/python -m pytest -q --collect-only "
+        "tests/test_p0_no_stale_machine_paths.py`).",
+        # a milestone row: the table's preamble binds it to that milestone
+        "| M701 | Oracle records (`tests/test_p0_oracle_provenance.py`, 10 "
+        "tests). |",
+        # a task's own output, in the dated entry that records the task
+        "- **New** `tests/test_p0_paths.py` (35 tests) — every resolver per tier.",
+        # not a size of a named module: nothing to re-derive, so no command owed
+        "- their 20 tests stay green and neither file was touched.",
+    ]
+    for line in checked:
+        assert unreproducible_module_sizes([line]) == [], (
+            f"{line!r} is not an unreproducible size claim")
+
+    for line in ("`tests/test_p0_paths.py` 60 tests (was 35): every pair.",
+                 "`tests/test_p0_oracle_provenance.py` (10 tests)."):
+        assert len(unreproducible_module_sizes([line])) == 1, (
+            f"{line!r} states a module's size with no command to re-check it "
+            "and must be reported — this is the exact shape the binding rule "
+            "could not see")
 
 
 # ---------------------------------------------------------------------------
