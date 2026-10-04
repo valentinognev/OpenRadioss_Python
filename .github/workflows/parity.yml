@@ -1,0 +1,190 @@
+# ---------------------------------------------------------------------------
+# Parity against the real Fortran OpenRadioss binaries — and nothing else.
+#
+# Why this is a separate workflow from ci.yml: it needs resources a hosted
+# runner does not have. tools/validate_vs_fortran.py parity resolves five of
+# them through pyradioss.paths and refuses to report anything without the
+# first two (ORACLE_KEYS = starter, engine, th_to_csv, h3d_lib,
+# hm_reader_lib; validate_vs_fortran.py:1933-1945):
+#
+#   * $OR_STARTER / $OR_ENGINE   the two compiled solvers (ORACLE_KEYS[:2]);
+#                                 a Linux build out of $OR_ROOT/bin, plus its
+#                                 RPATH- and LD_LIBRARY_PATH-resolved extlib
+#   * extlib/hm_reader/linux64   the native .k reader library (hm_reader_lib)
+#   * extlib/h3d/lib/linux64     the h3d writer the harness REFUSES to let the
+#                                 solver reach (h3d_lib); absent is fine and
+#                                 reported, present-but-visible is fatal
+#   * th_to_csv                   optional; without it the harness reads the
+#                                 Fortran binary T01 directly
+#   * hm_cfg_files                fetchable (AGPL, so not vendored here)
+#
+# Four of the five have to be supplied by whoever runs this: the two solvers
+# (a licensed upstream build) and the native-.k reader; the fifth,
+# th_to_csv, is optional because the harness can read the Fortran binary T01
+# itself; and the h3d writer must NOT be reachable at all. Only the CFG tree
+# can be fetched over the network. So this workflow does not pretend: the job
+# is gated on CONFIGURATION, and the gate, the notice and the reason are all
+# visible.
+#
+# To open it, set repository variables (not secrets -- a path is not a
+# secret, and the `secrets` context is not available in a job-level `if:`):
+#
+#   OR_STARTER     path to the Fortran starter   (required)
+#   OR_ENGINE      path to the Fortran engine    (required)
+#   OR_HM_CFG      path to an hm_cfg_files tree  (optional; fetched if unset)
+#   PARITY_RUNNER  a runner label, if the oracle lives on a self-hosted
+#                  machine rather than on ubuntu-latest (optional)
+# ---------------------------------------------------------------------------
+
+name: parity
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only: the parity sweep writes only to the runner's temp directory.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  parity:
+    name: parity vs the Fortran oracle
+    # Configured or not, this is the whole gate: with the variables unset the
+    # expression is false, no runner is assigned, and the job below explains
+    # it. `vars` and not `secrets` because `secrets` does not resolve in a
+    # job-level `if:` -- such a gate would skip silently and forever.
+    if: "${{ vars.OR_STARTER != '' && vars.OR_ENGINE != '' }}"
+    # Default: a hosted runner, which cannot satisfy the preflight below for
+    # an upstream build. Set PARITY_RUNNER to a self-hosted label that has the
+    # oracle installed and this becomes the job that actually runs it -- and
+    # note that a label with no online runner QUEUES, so an offline
+    # self-hosted box parks this job until timeout-minutes, it does not skip.
+    runs-on: "${{ vars.PARITY_RUNNER || 'ubuntu-latest' }}"
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package + test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . scipy pytest
+
+      - name: Resolve the oracle, or say plainly that we stop here
+        id: oracle
+        shell: bash
+        # Configuration is not availability: OR_STARTER may well be a path
+        # from the maintainer's machine, and a job that turned red on every
+        # pull request because of that would train everyone to ignore it.
+        # pyradioss.paths fails loudly on purpose (that is right for a tool);
+        # here the loudness is a notice and an honest stop.
+        env:
+          OR_STARTER: ${{ vars.OR_STARTER }}
+          OR_ENGINE: ${{ vars.OR_ENGINE }}
+        run: |
+          missing=""
+          for var in OR_STARTER OR_ENGINE; do
+            if [ -z "${!var}" ]; then
+              missing="$missing $var(not configured)"
+            elif [ ! -x "${!var}" ]; then
+              missing="$missing $var='${!var}'(not executable here)"
+            fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::notice title=parity skipped::configured but not available here:$missing. Nothing was run, no comparison was made, and this job claims no parity."
+            echo "resolved=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "resolved=true" >> "$GITHUB_OUTPUT"
+          echo "starter: $OR_STARTER"
+          echo "engine : $OR_ENGINE"
+
+      - name: Provide the hm_cfg card-schema tree (starter needs RAD_CFG_PATH)
+        if: steps.oracle.outputs.resolved == 'true'
+        shell: bash
+        env:
+          OR_HM_CFG: ${{ vars.OR_HM_CFG }}
+        run: |
+          if [ -n "$OR_HM_CFG" ]; then
+            echo "PYRADIOSS_HM_CFG=$OR_HM_CFG" >> "$GITHUB_ENV"
+          else
+            git clone --depth 1 --filter=blob:none --sparse \
+              https://github.com/OpenRadioss/OpenRadioss.git "$RUNNER_TEMP/or_cfg"
+            git -C "$RUNNER_TEMP/or_cfg" sparse-checkout set hm_cfg_files/config/CFG
+            echo "PYRADIOSS_HM_CFG=$RUNNER_TEMP/or_cfg/hm_cfg_files" >> "$GITHUB_ENV"
+          fi
+
+      - name: Parity sweep against the Fortran oracle
+        if: steps.oracle.outputs.resolved == 'true'
+        # AGENTS.md: a missing oracle must fail loudly, not skip quietly.
+        env:
+          PYRADIOSS_ORACLE_REQUIRED: "1"
+          VALRUNS_DIR: ${{ runner.temp }}/parity
+        run: |
+          echo "::notice title=parity::the sweep's own exit code is 0 whenever it COMPLETED, whatever the channels said (validate_vs_fortran.py:2163) -- the next step reads the rows back, so this step exiting 0 is not a parity verdict"
+          # `-m tools.validate_vs_fortran`, NOT `tools/validate_vs_fortran.py`:
+          # running the file by path puts tools/ on sys.path instead of the
+          # repository root, and the harness's own binary-T01 route does
+          # `from tools import compare_t01` (validate_vs_fortran.py:1563) --
+          # which is the route a runner WITHOUT th_to_csv is guaranteed to take.
+          # Measured here: the path form raises ModuleNotFoundError: No module
+          # named 'tools' the moment that route is reached.
+          python -m tools.validate_vs_fortran parity --workdir "$VALRUNS_DIR" --tol 0.05
+
+      - name: "Read the rows back: a deviation is a failure"
+        if: steps.oracle.outputs.resolved == 'true'
+        # The mechanical half of the parity verdict. PORT-ONLY(...) is NOT
+        # fatal: those classes are the harness's own vocabulary for a deck the
+        # Fortran chain cannot be asked about (a port-only /IMPL card, an
+        # old-dialect deck), not a disagreement between two solvers.
+        env:
+          PARITY_JSON: ${{ runner.temp }}/parity/parity_results.json
+        run: |
+          # One line on purpose. A multi-line `python -c "..."` inside a YAML
+          # block scalar depends on the block's base indentation being stripped
+          # exactly, which makes the script break silently-but-confusingly the
+          # first time somebody re-indents the step; this form cannot.
+          python -c "import json,sys;rows=json.load(open('$PARITY_JSON'));print('\n'.join('%-34s %-26s %s' % (r.get('example'), r.get('class'), r.get('max_rel_rms','-')) for r in rows));bad=[r for r in rows if r.get('class') in ('DEVIATION','PYRADIOSS-FAIL') or str(r.get('class')).startswith('FORTRAN-FAIL')];print('\n'.join('::error title=parity::%s is %s' % (r.get('example'), r.get('class')) for r in bad));sys.exit(1 if bad or not rows else 0)"
+
+      - name: Upload the parity table
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-results
+          path: ${{ runner.temp }}/parity/parity_results.json
+          if-no-files-found: warn
+
+  parity-not-configured:
+    name: parity (oracle not configured)
+    # The negation of the gate above, and it DOES run: a job whose `if:` is
+    # false is never assigned a runner, so a notice inside it would never be
+    # printed. This one is green on purpose -- there is no oracle to be
+    # angry at -- and the log says exactly what was not run.
+    if: "${{ vars.OR_STARTER == '' || vars.OR_ENGINE == '' }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Say why there is no parity evidence
+        shell: bash
+        env:
+          OR_STARTER: ${{ vars.OR_STARTER }}
+          OR_ENGINE: ${{ vars.OR_ENGINE }}
+        run: |
+          if [ -z "$OR_STARTER" ]; then
+            echo "::notice::parity job skipped — OR_STARTER not configured"
+          fi
+          if [ -z "$OR_ENGINE" ]; then
+            echo "::notice::parity job skipped — OR_ENGINE not configured"
+          fi
+          echo "::notice title=why::the Fortran oracle is a licensed upstream build: its two solvers, the extlib/hm_reader library and (deliberately) no reachable extlib/h3d writer. A hosted runner has none of them, so no parity comparison was made and none is claimed. This notice is the whole output of the parity gate when it is unconfigured -- it is not a pass. Set the repository variables OR_STARTER and OR_ENGINE (paths) to open it; see .github/workflows/parity.yml."

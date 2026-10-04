@@ -1,22 +1,45 @@
 # ---------------------------------------------------------------------------
 # Continuous integration for pyradioss (the OpenRadioss Python port).
 #
-# Two jobs:
+# Linux runners, and the platform the port is actually validated on: the
+# oracle, the fast tier and the parity sweeps all live on Linux
+# (AGENTS.md "Linux-first"), so a CI that runs anywhere else is measuring a
+# platform nobody ships. docs/OPEN_BUGS.md item 6 is the receipt -- two LAW4
+# cfg tests that PASS in the old Windows-shaped pipeline and FAIL on Linux.
 #
-#   fast-tests        - the everyday PR gate: full test tree minus tests marked
-#                       'slow', on Python 3.10 and 3.12, parallelised with
-#                       pytest-xdist. The suite runs pinned to the NumPy
-#                       reference backend (PYRADIOSS_BACKEND=numpy) so it is
-#                       deterministic and hermetic. The 3.10 leg additionally
-#                       installs numba so the optional accelerated backend's
-#                       parity tests (tests/test_m7_backends.py, gated by
+# Three jobs:
+#
+#   fast-tests        - the everyday PR gate: the project's own gate selection
+#                       (pytest -q -m "not slow", AGENTS.md §Commands) on
+#                       Python 3.10 and 3.12, parallelised with pytest-xdist.
+#                       The suite runs pinned to the NumPy reference backend
+#                       (PYRADIOSS_BACKEND=numpy) so it is deterministic and
+#                       hermetic. The 3.10 leg additionally installs numba so
+#                       the optional accelerated backend's parity tests
+#                       (tests/test_m7_backends.py, gated by
 #                       @pytest.mark.skipif(not HAS_NUMBA)) actually run, and
 #                       runs one dedicated step that exercises the M40 'auto'
 #                       default resolving to numba end-to-end
 #                       (tests/test_m40_auto_backend.py, unpinned).
 #
-#   full-suite-nightly - the whole suite including 'slow' tests, weekly +
-#                       on demand, with a generous timeout.
+#   ledger-gate       - the MECHANICAL verdict, and the reason this workflow
+#                       exists. A summary line is a judgement call: it says
+#                       "14601 passed" without saying which tests it counted,
+#                       and three records in this project have quoted such a
+#                       number wrongly. tools/regression_ledger.py (Task P1.8)
+#                       replaces the line with a record of node ids, and this
+#                       job's verdict is that tool's exit code: 0 clean,
+#                       1 a NEW failure, 2 not comparable, 3 no comparison.
+#                       One suite run, one comparison (--record, then --check
+#                       --results); the plain fast-tests job above still runs
+#                       so that a red suite is red *visibly*, with pytest's own
+#                       summary and tracebacks, in the same run.
+#
+#   full-suite-nightly - the whole suite including 'slow' tests, weekly + on
+#                       demand, with a generous timeout. It reports; it does
+#                       not gate: the record the ledger compares against is the
+#                       fast tier, so a full-suite run is not a comparable
+#                       measurement and is deliberately not fed to --check.
 # ---------------------------------------------------------------------------
 
 name: CI
@@ -30,6 +53,12 @@ on:
     # `if:` guard below): weekly, Sunday 03:00 UTC.
     - cron: "0 3 * * 0"
   workflow_dispatch:
+
+# Read-only: nothing here writes to the repository, and the default
+# permissions are repository-configurable, so they are stated rather than
+# inherited.
+permissions:
+  contents: read
 
 concurrency:
   # Cancel superseded runs of the same PR / branch to save runner minutes.
@@ -115,6 +144,11 @@ jobs:
         # was written against the NumPy reference; numba parity and the 'auto'
         # selection are covered separately (tests/test_m7_backends.py and the
         # dedicated M40 step below), so pinning here loses no coverage.
+        #
+        # This job's exit code is pytest's: a red suite is red here, with
+        # pytest's own summary and tracebacks. The ledger verdict about
+        # *regressions* is the ledger-gate job below, which says which node
+        # ids changed state.
         env:
           PYRADIOSS_BACKEND: numpy
         run: python -m pytest tests -q -m "not slow" -n auto --durations=15 --deselect tests/test_m40_auto_backend.py
@@ -128,6 +162,120 @@ jobs:
         # flipping the default). Kept cheap — one small module.
         if: matrix.python-version == '3.10'
         run: python -m pytest tests/test_m40_auto_backend.py -q --durations=5
+
+  # -------------------------------------------------------------------------
+  # The mechanical verdict: no NEW failures against the committed record.
+  # -------------------------------------------------------------------------
+  ledger-gate:
+    name: ledger gate (no new failures, py3.12)
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    # Generous, and honestly so: this job runs the fast tier a second time,
+    # SERIALLY (see the record step). A 2-core runner is slower than the dev
+    # box this record was measured on, and nobody has measured it. If this
+    # times out, that is a finding to fix here, not a reason to shorten the
+    # selection.
+    timeout-minutes: 150
+    # One interpreter only, on purpose: the committed record was made on 3.12
+    # (tools/validation_data/baseline.json, environment.python), so this leg
+    # is the one whose environment key is closest to it. The 3.10 leg's job is
+    # the numba coverage above, not a second copy of the same gate.
+    env:
+      PYRADIOSS_BACKEND: numpy
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package + test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . scipy pytest
+
+      - name: Cache OpenRadioss hm_cfg_files
+        id: cfg-cache
+        uses: actions/cache@v4
+        with:
+          path: or_cfg/hm_cfg_files/config/CFG
+          key: hm-cfg-files-v1
+
+      - name: Fetch OpenRadioss hm_cfg_files (sparse)
+        if: steps.cfg-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse \
+            https://github.com/OpenRadioss/OpenRadioss.git or_cfg
+          git -C or_cfg sparse-checkout set hm_cfg_files/config/CFG
+
+      - name: Point pyradioss at the cfg tree
+        run: echo "PYRADIOSS_HM_CFG=$GITHUB_WORKSPACE/or_cfg/hm_cfg_files" >> "$GITHUB_ENV"
+
+      - name: Record this run (the gate's own fast tier, serial)
+        # One suite run, one comparison: this writes the record, the step
+        # below compares it. The selection is the tool's own default, which IS
+        # the project's gate (`-q -m "not slow"`, tools/regression_ledger.py
+        # child_command) -- the same one the committed record carries.
+        #
+        # SERIAL, deliberately: no `-n auto` here. The tool's report plugin is
+        # loaded in every xdist worker and each one writes the SAME
+        # LEDGER_OUT file from pytest_sessionfinish, so the record would
+        # describe whichever process finished last. The tool is not this task's
+        # to edit; the honest workaround is a serial run, and the cost is
+        # named rather than paid silently.
+        run: python tools/regression_ledger.py --record "$RUNNER_TEMP/ci-fast-tier.json" --timeout 7800
+
+      - name: Gate on the committed record
+        # THE VERDICT IS THIS STEP'S EXIT CODE. 0 = no new failures, 1 = a new
+        # failure, 2 = the two runs are not comparable, 3 = no comparison.
+        #
+        # --allow-environment-drift, and why it is not papering over anything:
+        # a runner has no $OR_SRC / $OR_ROOT, so the oracle-dependent tests
+        # SKIP here and run on the dev box that recorded the baseline -- the
+        # counts cannot be equal, and the tool is right to refuse (exit 2) by
+        # default. The flag makes the comparison ADVISORY in exactly one
+        # direction (tools/regression_ledger.py _verdict): a NEW failure or a
+        # NEW error is still fatal, while a "fix", a deletion and a rename are
+        # not evidence in another environment. The alternative -- a record
+        # made in the runner's own environment -- is not available to CI: it
+        # has to be RECORDED here to be honest, and a record written in the
+        # same run would compare a run with itself.
+        #
+        # What this job therefore asserts, precisely: "this commit introduced
+        # no test failure that the committed record does not already carry".
+        # It does NOT assert "the suite is green" -- the fast-tests job above
+        # reports that, with pytest's own words.
+        #
+        # KNOWN STATE, so nobody meets it cold: the committed record carries
+        # exactly one failure --
+        # tests/test_p0_no_stale_machine_paths.py::
+        # test_a_documented_windows_fallback_is_not_a_false_claim -- and a
+        # comparison in a MATCHED environment reports it as `unresolved` and
+        # exits 1 as soon as that test stops failing (the record's restricted
+        # selected set cannot prove a now-green id still exists). That is
+        # P1.8's rule working: a changed failure set is a deliberate act and
+        # needs its own ledger entry, i.e. a re-record of
+        # tools/validation_data/baseline.json by whoever owns that file. Here
+        # the keys do NOT match -- a runner has no oracle -- so it is
+        # suppressed and this job is green; do not read that green as "the
+        # record is current".
+        run: |
+          echo "::notice title=ledger gate::verdict = no NEW failures against tools/validation_data/baseline.json; the environment drift is accepted and printed below (an absent \$OR_SRC turns oracle tests into skips)"
+          python tools/regression_ledger.py --check tools/validation_data/baseline.json --results "$RUNNER_TEMP/ci-fast-tier.json" --allow-environment-drift
+
+      - name: Upload the record (audit trail, not a gate)
+        # The runner's own record, kept so a maintainer can read the two
+        # environment keys side by side and, if this ever needs to be a strict
+        # comparison, record tools/validation_data/baseline_ci.json FROM THIS
+        # ARTIFACT and point --check at it instead of accepting a drift.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ledger-record-py3.12
+          path: ${{ runner.temp }}/ci-fast-tier.json
+          if-no-files-found: warn
 
   # -------------------------------------------------------------------------
   # Weekly full suite (includes the 'slow'-marked tests) + manual trigger.
