@@ -1,0 +1,69 @@
+{
+  "command": "/mnt/VirtualMachine/OpenRadioss/wt-p1/.venv/bin/python -m pytest -q -p _pyradioss_ledger_plugin -p no:cacheprovider -m 'not slow'",
+  "environment": {
+    "env": {
+      "PYRADIOSS_ALLOW_MISSING_DEPS": "<unset>",
+      "PYRADIOSS_BACKEND": "numpy",
+      "PYRADIOSS_ORACLE_REQUIRED": "<unset>"
+    },
+    "implementation": "CPython",
+    "packages": {
+      "numba": "0.68.0",
+      "numpy": "2.5.3",
+      "pytest": "9.1.1",
+      "scipy": "1.18.1"
+    },
+    "platform": "Linux-x86_64",
+    "python": "3.12.3",
+    "resources": {
+      "OR_ROOT": true,
+      "OR_SRC": true,
+      "hm_cfg": true
+    }
+  },
+  "environment_key": "Linux-x86_64/py3.12.3/numba0.68.0+numpy2.5.3+pytest9.1.1+scipy1.18.1/PYRADIOSS_ALLOW_MISSING_DEPS=<unset>,PYRADIOSS_BACKEND=numpy,PYRADIOSS_ORACLE_REQUIRED=<unset>/OR_ROOT=present,OR_SRC=present,hm_cfg=present",
+  "ledger": {
+    "deselected": 20,
+    "errors": [],
+    "failed": [
+      "tests/test_p0_no_stale_machine_paths.py::test_a_documented_windows_fallback_is_not_a_false_claim"
+    ],
+    "passed": 14649,
+    "selected": 14693,
+    "selected_in_failed_files": [
+      "tests/test_p0_no_stale_machine_paths.py::test_a_documented_windows_fallback_is_not_a_false_claim",
+      "tests/test_p0_no_stale_machine_paths.py::test_a_false_claim_planted_in_a_record_file_is_caught",
+      "tests/test_p0_no_stale_machine_paths.py::test_a_machine_path_planted_in_a_tooling_file_is_caught_by_the_simulation",
+      "tests/test_p0_no_stale_machine_paths.py::test_a_machine_path_this_box_does_not_have_is_marked_history",
+      "tests/test_p0_no_stale_machine_paths.py::test_a_quoted_example_is_not_a_claim_but_prose_beside_it_is",
+      "tests/test_p0_no_stale_machine_paths.py::test_a_requirement_floor_is_not_read_as_a_measurement",
+      "tests/test_p0_no_stale_machine_paths.py::test_a_shell_variable_placeholder_is_not_a_machine_path",
+      "tests/test_p0_no_stale_machine_paths.py::test_a_stale_claim_written_inside_a_literal_block_is_still_a_claim",
+      "tests/test_p0_no_stale_machine_paths.py::test_a_toolchain_floor_is_not_read_as_a_measurement",
+      "tests/test_p0_no_stale_machine_paths.py::test_a_uri_link_target_is_not_a_filesystem_claim",
+      "tests/test_p0_no_stale_machine_paths.py::test_a_uri_token_elsewhere_on_the_line_does_not_exempt_a_path",
+      "tests/test_p0_no_stale_machine_paths.py::test_a_version_of_the_other_supported_machine_is_allowed",
+      "tests/test_p0_no_stale_machine_paths.py::test_no_record_may_name_a_path_out_of_this_machines_home_directory",
+      "tests/test_p0_no_stale_machine_paths.py::test_packaging_version_claims_agree_with_the_recorded_pins",
+      "tests/test_p0_no_stale_machine_paths.py::test_record_version_claims_agree_with_the_recorded_pins",
+      "tests/test_p0_no_stale_machine_paths.py::test_the_build_script_names_the_tool_versions_this_box_has",
+      "tests/test_p0_no_stale_machine_paths.py::test_the_foreign_home_scan_covers_the_whole_scanned_scope",
+      "tests/test_p0_no_stale_machine_paths.py::test_the_harness_imports_and_resolves_oracle_paths",
+      "tests/test_p0_no_stale_machine_paths.py::test_the_harness_records_the_rpath_the_binaries_actually_carry",
+      "tests/test_p0_no_stale_machine_paths.py::test_the_history_rule_can_still_fail",
+      "tests/test_p0_no_stale_machine_paths.py::test_the_records_a_future_agent_reads_first_are_in_scope",
+      "tests/test_p0_no_stale_machine_paths.py::test_the_rpath_hazard_is_still_explained_and_stated_as_measured",
+      "tests/test_p0_no_stale_machine_paths.py::test_the_uri_exemption_is_a_span_not_the_rest_of_the_line",
+      "tests/test_p0_no_stale_machine_paths.py::test_the_version_rule_can_still_fail"
+    ],
+    "skipped": 17,
+    "xfailed": 26,
+    "xpassed": 0
+  },
+  "provenance": {
+    "git_commit": "f5c339f",
+    "git_dirty": "?? tests/test_p1_regression_ledger.py\n?? tools/regression_ledger.py\n?? tools/validation_data/baseline.json"
+  },
+  "recorded": "2026-10-04T18:12:06+03:00",
+  "schema": "pyradioss-regression-ledger/1"
+}
