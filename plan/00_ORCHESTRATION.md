@@ -55,22 +55,26 @@ task's requirements implicitly include this section.
   must never abort the Starter on their own.
 - Tests live in `tests/`, one file per phase task, named `test_p<phase>_<slug>.py`.
 
-### 1.3 Licensing — **GATING, UNRESOLVED**
+### 1.3 Licensing — **DECIDED 2026-10-07: AGPL-3.0-or-later**
 
 `$OR_SRC/LICENSE.md` is **GNU AGPL-3.0-or-later**; every source file carries a
-Siemens 2026 AGPL header. The port's own state contradicts this three ways:
+Siemens 2026 AGPL header. Phase 0 found this repository contradicting itself
+three ways (`LICENSE` said MIT, `README.md` said "GPL-3.0 … © Altair
+Engineering Inc.", `pyproject.toml` pointed at the MIT file).
 
-| Artefact | Says |
-|---|---|
-| `$OR_SRC/LICENSE.md` | AGPL-3.0-or-later (Siemens) |
-| `pyradioss/LICENSE` | **MIT** (© 2026 Minh Quang Pham) |
-| `pyradioss/README.md` | "GPL-3.0 … inherited from files derived from OpenRadioss, © Altair Engineering Inc." |
+A literal port copies AGPL-covered expression into this repository, so AGPL
+§5(c) requires the whole work to be licensed under the AGPL however it is
+packaged. Task P0.0 enumerated the four lawful resolutions; the maintainer
+chose **Option 1 — relicense the port to AGPL-3.0-or-later** on 2026-10-07,
+and the decision is recorded in `docs/LICENSING.md` §Decision.
 
-A literal port copies AGPL-covered expression into this repository. Shipping it
-under MIT is not defensible. This is **Task P0.0 and it blocks Phase 1 onward.**
-The task enumerates the four lawful resolutions; it does **not** pick one —
-that is a maintainer/legal decision. Until it lands, agents may not add new
-upstream-derived code beyond what already exists.
+**The gate is down.** `LICENSE` carries the complete AGPL-3.0 text and this
+project's `-or-later` grant, `pyproject.toml` declares
+`license = "AGPL-3.0-or-later"`, `README.md` agrees, and
+`tests/test_p0_licensing.py::test_declared_licence_is_consistent` reads those
+artefacts and passes for real (it is no longer `xfail(strict=True)`).
+Phase 1 onward is open; agents may add new upstream-derived code, which is
+AGPL work under this decision.
 
 ## 2. Model policy
 

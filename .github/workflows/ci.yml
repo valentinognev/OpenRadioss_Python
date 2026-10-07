@@ -78,8 +78,8 @@ jobs:
 
       # The M37 generic /MAT reader (pyradioss/input/mat_reader.py) parses
       # its per-law schemas from OpenRadioss's own hm_cfg_files CFG tree.
-      # Those files are NOT vendored into this MIT-licensed repo (they carry
-      # the upstream project's license); fetch them sparsely from the
+      # Those files are NOT vendored into this repo — they are read from an
+      # external tree, not copied in — so fetch them sparsely from the
       # official repo and point PYRADIOSS_HM_CFG at them. Without this the
       # cfg-dependent test modules skip (still green, but ~200 tests less).
       #

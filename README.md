@@ -297,9 +297,18 @@ tests/            # pytest suite incl. analytic validations
 
 ## License
 
-GPL-3.0 (see [LICENSE](LICENSE)) — inherited from files derived from
-OpenRadioss, © Altair Engineering Inc. This repository is an independent
-educational port and is not affiliated with Altair.
+**AGPL-3.0-or-later** (see [LICENSE](LICENSE)) — see `docs/LICENSING.md`
+§Decision for the maintainer decision and its reasoning.
+
+pyradioss is a literal transcription of OpenRadioss, which is
+AGPL-3.0-or-later, © 2026 Siemens (Simcenter Radioss). Because the port copies
+AGPL-covered expression, AGPL section 5(c) requires the whole work — this
+repository as a whole, however it is packaged — to be licensed under the
+AGPL, which it is. Copyright of the port itself is © 2026 Minh Quang Pham.
+
+This is an independent port. It is not affiliated with, endorsed by, or
+supported by Siemens; the upstream commercial alternative is Simcenter
+Radioss.
 
 ## Reading order for agents
 

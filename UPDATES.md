@@ -13,7 +13,71 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.10.0 - The licence decision is made: this repository is AGPL-3.0-or-later (2026-10-07)
+
+The gate documented since Phase 0 is down. The maintainer recorded the
+decision — verbatim: *"as to Licence resolution, set the license whatever you
+want, I dont care, just that it would not stop the development"* — and it is
+**Option 1: AGPL-3.0-or-later**, recorded as a maintainer decision in
+`docs/LICENSING.md` §Decision with his words quoted.
+
+**What changed.**
+
+- `LICENSE`: the MIT text is replaced by the **complete** AGPL-3.0 text,
+  preceded by this project's grant notice — copyright © 2026 Minh Quang Pham,
+  *"either version 3 of the License, or (at your option) any later version"* —
+  and a note that the port contains OpenRadioss-derived code © 2026 Siemens.
+  The licence body is reproduced unmodified (sha256 of the verbatim upstream
+  text `ad858d53cae05eed9531ecd4c467440803acffe34c69de7b88e03affc5b6a1bd`).
+- `pyproject.toml`: `license = "AGPL-3.0-or-later"` (PEP 639 SPDX string) with
+  `license-files = ["LICENSE"]`; `requires = ["setuptools>=77"]` is the floor
+  that SPDX form needs.
+- `README.md` §License: AGPL-3.0-or-later. It also no longer misattributes
+  upstream copyright to Altair — upstream is © Siemens.
+- `.github/workflows/ci.yml`: one comment no longer calls this an
+  "MIT-licensed repo".
+- `AGENTS.md`, `docs/STATE.md`, `plan/00_ORCHESTRATION.md` §1.3,
+  `plan/README.md`, `plan/01_…`, `plan/02_…`, `plan/13_…`, `plan/17_…`: the
+  STOP / GATING / UNRESOLVED notices now say the gate is down and that new
+  upstream-derived code is expected and unblocked.
+
+**The enforcement is no longer documentary.** `tests/test_p0_licensing.py::
+test_declared_licence_is_consistent` lost its `@pytest.mark.xfail(strict=True)`
+— that marker existed only to hold the contradiction open — and now passes for
+real: `2 passed`. It reads `pyproject.toml`, `README.md` and `LICENSE` and
+asserts they agree. It was strengthened in the same commit: it now also checks
+that `LICENSE` carries the *complete* AGPL text (the §5(c) and §13 clauses are
+present, so a stub or a one-line reference cannot pass), that the grant is
+`-or-later`, and that `README.md`'s License section no longer claims MIT, GPL,
+LGPL or BSD for this work. It reads files and parses values; it greps no source
+text.
+
+That test caught a real defect on the way through: the first `LICENSE` notice
+line-wrapped the canonical *"either version 3 of the License, or (at your
+option) any later version"* across a newline. The notice was fixed, not the
+check.
+
+**No second contradiction was found.** A full sweep found no per-source-file
+copyright or licence header in `pyradioss/**` (69+ modules carry
+`# Ported from …` provenance headers, which assert nothing about licensing), no
+`COPYING`/`NOTICE`/`setup.py`/`setup.cfg`/`MANIFEST.in`, and one `LICENSE` file
+only. The single `MIT` token inside `pyradioss/` is
+`pyradioss/failure/sahraei.py:8` — a citation of the Sahraei & Wierzbicki
+paper's licence, not a claim about this repository.
+
+**Not done, per scope.** No physics, solver, ported code, or test beyond the
+licence-consistency check was touched; no `pyradioss/` module body was
+modified. No AGPL per-file notice was added to the ported modules — AGPL
+§5(a)-(b) wants prominent modified notices, and adding headers to 69+ files is
+its own task, not part of applying the licence.
+
+`docs/LICENSING.md` keeps all four options and the reasoning that rejected
+three of them; the decision chose one of them and did not delete the record.
+
 ## 1.9.0 - The licensing gate is now in the onboarding document, and two record rules can see what they were blind to (2026-10-04)
+
+*(Superseded 2026-10-07 — see §1.10.0. This entry records the state on
+2026-10-04, when no decision existed; the gate it describes is now down.)*
 
 The substantive item of this wave is a single absence: `docs/STATE.md` — the
 document every agent is told to read first — never mentioned the licensing gate
@@ -218,6 +282,9 @@ decision changes.
   `test_the_harness_imports_and_resolves_oracle_paths`) in the gate module.
 
 ## 1.6.1 - Records corrected: the baseline figures, the oracle counts, a gate that skipped what it claimed to verify, and a ruling that was never made (2026-10-04)
+
+*(Superseded 2026-10-07 — see §1.10.0. This entry records 2026-10-04, when the
+decision had not been made; it has since been made: AGPL-3.0-or-later.)*
 
 A whole-branch review found four records asserting things that were false or
 unverifiable, with nothing keeping them true. All four are corrected here.

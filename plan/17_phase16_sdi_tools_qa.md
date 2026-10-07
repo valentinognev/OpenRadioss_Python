@@ -64,10 +64,14 @@ resolutions: port it, wrap it, or decline it. **This phase decides, per
 ### 1. The licence exposure is worst here
 
 `reader/` is **AGPL C++** (Task P0.0). Wrapping it means shipping or linking
-AGPL code, which is the question Task P0.0 must answer first. **Phase 16 cannot
-start its substantive work before Task P0.0 is decided.** The three
-observations below are therefore conditional on that decision, and each is
-written so it works under any of the four outcomes.
+AGPL code. Task P0.0 was **decided on 2026-10-07 — Option 1,
+AGPL-3.0-or-later** (`docs/LICENSING.md` §Decision), so that question is
+answered and **Phase 16 is no longer blocked by licensing**. The observation
+below was written while the decision was open, and each option was written so
+it works under any of them; the outcome selected is Option 1, under which
+linking `reader/` is consistent with this repository's licence and the
+remaining constraint is the AGPL §5(c) whole-work obligation, which this
+repository now satisfies.
 
 ### 2. Three components, three honest answers
 
@@ -156,11 +160,11 @@ def test_every_reader_component_has_a_decision_with_a_licence_implication():
 
 - [ ] **Step 2** — run → FAIL.
 - [ ] **Step 3** — decide, per component, and record the **licence implication of
-  each under all four Task P0.0 outcomes**. That is the deliverable: a
-  maintainer who later picks "relicense to AGPL" can read off what each decision
-  costs, and a maintainer who picks "rederive from literature" can read off what
-  is now prohibited. **The task does not choose**; the licence decision
-  constrains the answer and the task shows the shape of every option.
+  each**. That is the deliverable: a reader can see what each decision costs
+  under the licence this repository now carries (AGPL-3.0-or-later, decided
+  2026-10-07), and `docs/LICENSING.md` still records the three options that
+  were not taken and what each would have prohibited. **The task does not
+  reopen the licence decision**; the decision constrains the answer.
 - [ ] **Step 4** — run → FAIL → PASS; commit
   `docs(reader): per-component port decisions with licence implications`.
 
@@ -480,8 +484,9 @@ def test_every_declared_deviation_has_a_test_or_a_reason():
 
 Beyond `00_ORCHESTRATION.md` §9.1:
 
-- **P16.0** — every decision carries a licence implication **under all four
-  Task P0.0 outcomes**, and the task chose nothing.
+- **P16.0** — every decision carries a licence implication under the recorded
+  decision (`docs/LICENSING.md` §Decision, AGPL-3.0-or-later, 2026-10-07), and
+  the task did not reopen it.
 - **P16.2** — rejections are recorded with the CFG file and format string; the
   test was not adapted to the port's behaviour.
 - **P16.4** — the tolerances come from `qa-tools/constants.json`; a port-proposed

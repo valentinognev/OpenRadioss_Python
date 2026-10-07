@@ -72,8 +72,10 @@ Measured on 2026-10-02:
 7. **No `apptainer`/`singularity`; `docker` is present at `/usr/bin/docker`.**
    The upstream CI uses a private image (`rd-linux64-common:latest`), so a
    container is not a shortcut here — the native cmake build is the path.
-8. **Licence contradiction** (see `00_ORCHESTRATION.md` §1.3). Three artefacts
-   disagree; a literal port of AGPL code cannot ship under MIT.
+8. **Licence contradiction** (see `00_ORCHESTRATION.md` §1.3) — found Phase 0,
+   resolved 2026-10-07: three artefacts disagreed, and a literal port of AGPL
+   code could not legally ship under MIT. The maintainer chose Option 1 and
+   this repository is AGPL-3.0-or-later.
 
 ## Wave graph
 
@@ -92,19 +94,22 @@ Wave 1 (serial — all touch pyproject.toml / paths.py / harness)
 
 ---
 
-### Task P0.0: Record the licensing decision
+### Task P0.0: Record the licensing decision — **DONE (decided 2026-10-07)**
 
 **Fortran:** `$OR_SRC/LICENSE.md:1-20`; headers in e.g.
 `$OR_SRC/engine/source/engine/resol.F:1-23`.
-**Files:** Create `docs/LICENSING.md`; Modify `pyproject.toml:9`.
+**Files:** Created `docs/LICENSING.md`; `pyproject.toml` `license` updated; the
+MIT `LICENSE` replaced with the complete AGPL-3.0 text and this project's
+`-or-later` grant; `README.md` §License corrected.
 
 **Interfaces:**
 - Consumes: nothing.
 - Produces: a single documented `license` field in `pyproject.toml` and a
   `docs/LICENSING.md` that later phases cite when adding upstream-derived code.
 
-**This task does not choose.** It lays out the four lawful resolutions and
-records the maintainer's answer. It must enumerate, with the licence text cited:
+**This task does not choose — the maintainer does.** It lays out the four lawful
+resolutions and records the maintainer's answer. It enumerated, with the licence
+text cited:
 
 1. **Relicense the port to AGPL-3.0-or-later.** Consistent with the upstream
    source it derives from. Removes the conflict outright. Cost: the port cannot
@@ -124,33 +129,28 @@ records the maintainer's answer. It must enumerate, with the licence text cited:
 4. **Obtain a commercial or dual-licence grant from Siemens** for the
    derivative work.
 
-- [ ] **Step 1** — write `tests/test_p0_licensing.py` asserting the
-      repository's declared licence, in every artefact, agrees:
-
-```python
-def test_declared_licence_is_consistent(tmp_path):
-    meta = tomllib.loads(Path("pyproject.toml").read_text())
-    readme = Path("README.md").read_text()
-    license_text = Path("LICENSE").read_text()
-    declared = meta["project"]["license"]["file"]
-    assert "AGPL" in Path(declared).read_text()
-    assert "AGPL-3.0-or-later" in readme
-```
-
-- [ ] **Step 2** — run `python -m pytest -q tests/test_p0_licensing.py` →
-  FAIL, quoting the actual mismatch (`LICENSE` says MIT; `README.md` says
-  GPL-3.0).
-- [ ] **Step 3** — write `docs/LICENSING.md` with the four resolutions above,
-  the AGPL-3.0-or-later citation from `$OR_SRC/LICENSE.md:1-3`, the Siemens
-  2026 header citation, and a **Decision** section naming the chosen option,
-  its date, and who chose it. Update `pyproject.toml`'s `license` field and the
-  `README.md` licence section to match. **If no decision has been recorded by
-  the maintainer, this task ends at "recommendation", the test is marked
-  `@pytest.mark.xfail(strict=True)` with that reason, and every downstream
-  phase's entry criterion "Task 0.0 decided" is unsatisfied — which is the
-  intended blocking behaviour.**
-- [ ] **Step 4** — run the test → PASS, or XFAIL with the recorded reason.
-- [ ] **Step 5** — commit: `docs(licence): reconcile MIT/GPL-3.0/AGPL-3.0 contradiction`
+- [x] **Step 1** — wrote `tests/test_p0_licensing.py` asserting the repository's
+      declared licence agrees in every artefact. It reads `pyproject.toml`,
+      `README.md` and `LICENSE`; it does not grep source text. Strengthened on
+      2026-10-07 to also assert that `LICENSE` carries the *complete* AGPL text
+      (the §5(c) and §13 clauses are present), that it grants "any later
+      version", and that `README.md`'s License section no longer claims MIT,
+      GPL, LGPL or BSD for this work.
+- [x] **Step 2** — ran `python -m pytest -q tests/test_p0_licensing.py` with the
+      unreconciled artefacts → the contradiction stayed visible as
+      `xfail(strict=True)`, quoting the actual mismatch (`LICENSE` said MIT;
+      `README.md` said GPL-3.0).
+- [x] **Step 3** — wrote `docs/LICENSING.md` with the four resolutions above,
+      the AGPL-3.0-or-later citation from `$OR_SRC/LICENSE.md:1-3`, the Siemens
+      2026 header citation, and a **Decision** section naming the chosen option,
+      its date, and who chose it. **2026-10-07: the maintainer chose Option 1
+      and it is applied** — `LICENSE` is the complete AGPL-3.0 text plus the
+      `-or-later` grant, `pyproject.toml` declares `AGPL-3.0-or-later`
+      (PEP 639 SPDX string), `README.md` agrees. The `xfail(strict=True)`
+      marker is removed; every downstream phase's entry criterion "Task P0.0
+      decided" is now satisfied.
+- [x] **Step 4** — ran the test → `2 passed`.
+- [x] **Step 5** — committed: `docs(licence): reconcile MIT/GPL-3.0/AGPL-3.0 contradiction`
 
 ---
 
@@ -818,9 +818,12 @@ machine (the run-local classification is gone).
 
 Beyond `00_ORCHESTRATION.md` §9.1:
 
-- **P0.0** — the four resolutions are stated with citations and **none is
-  quietly adopted**; if no decision is recorded, the test is `xfail(strict=True)`
-  and the blocking behaviour is intact.
+- **P0.0** — the four resolutions are stated with citations and the chosen one
+  is **applied, not quietly adopted**: a decision is recorded in
+  `docs/LICENSING.md` §Decision, the artefacts agree, and the test passes for
+  real rather than being `xfail(strict=True)`. (Before the 2026-10-07 decision
+  this item was the blocking branch: no decision recorded, test
+  `xfail(strict=True)`, blocking behaviour intact.)
 - **P0.1** — `openmp_ok` is decided by compiling *and running*, not by grepping
   a flag string.
 - **P0.2** — no `-ffast-math`/`-Ofast`; no `-fdefault-real-8`; `-fopenmp` is on

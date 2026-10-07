@@ -137,8 +137,10 @@ def test_every_output_format_has_a_decision_and_a_reason():
   the maintainer**, and it has three defensible answers:
   - **write-native**: reimplement the Altair H3D binary from `extlib/h3d`'s
     observed layout. Highest effort, no proprietary dependency, and **legal
-    exposure** if the format is undocumented proprietary work — which is a
-    licence question for Task P0.0, not an engineering one;
+    exposure** if the format is undocumented proprietary work. That exposure is
+    a question about `extlib/h3d`'s own terms, not about this repository's:
+    Task P0.0 settled this repository's licence (AGPL-3.0-or-later, 2026-10-07,
+    `docs/LICENSING.md` §Decision) and does not settle H3D's;
   - **interop**: keep VTK/CSV and declare H3D out of scope, recording that the
     port's animation output is readable in ParaView (`README.md`'s stated
     position);

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,13 @@ name = "pyradioss"
 version = "0.1.0"
 description = "Python port of the OpenRadioss explicit finite-element solver (Starter + Engine)"
 readme = "README.md"
-license = { file = "LICENSE" }
+# The licence decision (maintainer, 2026-10-07): this repository is
+# AGPL-3.0-or-later as a whole.  Upstream OpenCourant is AGPL-3.0-or-later
+# and this is a literal transcription of it, so AGPL section 5(c) pulls the
+# whole work under the AGPL.  Reasoning and the four lawful options:
+# docs/LICENSING.md.  The SPDX string form is PEP 639 (setuptools >= 77).
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.9"
 dependencies = ["numpy>=1.22"]
 
