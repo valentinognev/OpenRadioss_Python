@@ -2,13 +2,13 @@
 /STACK & /PLY — Composite Ply Layup Stack Model (Classical Lamination Theory).
 
 Upstream Fortran reference:
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\properties\\composite_options\\stack\\lecstack_ply.F
+  - $OR_SRC/starter/source/properties/composite_options/stack/lecstack_ply.F
     Subroutine LECSTACK_PLY (lines 46-367)
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\properties\\composite_options\\stack\\preplyxfem.F
+  - $OR_SRC/starter/source/properties/composite_options/stack/preplyxfem.F
     Subroutine PREPLYXFEM (lines 29-94)
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\stack\\hm_read_stack.F
+  - $OR_SRC/starter/source/stack/hm_read_stack.F
     Subroutine HM_READ_STACK (lines 44-595)
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\elements\\shell\\coque\\lcgeo19.F
+  - $OR_SRC/starter/source/elements/shell/coque/lcgeo19.F
     Subroutine LCGEO19 (lines 37-181)
 
 Theory & Formulation
@@ -188,7 +188,7 @@ class PlyDefinition:
     """Definition of an individual composite ply layer (/PLY).
 
     Upstream Fortran reference:
-      C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\properties\\composite_options\\stack\\lecstack_ply.F
+      $OR_SRC/starter/source/properties/composite_options/stack/lecstack_ply.F
       and lcgeo19.F (lines 79-92).
 
     Attributes
@@ -252,7 +252,7 @@ class StackDefinition:
     """Composite ply layup stack (/STACK, /PROP/TYPE52, /PROP/PCOMPP).
 
     Upstream Fortran reference:
-      C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\properties\\composite_options\\stack\\lecstack_ply.F
+      $OR_SRC/starter/source/properties/composite_options/stack/lecstack_ply.F
       and hm_read_stack.F (lines 44-595).
 
     Attributes

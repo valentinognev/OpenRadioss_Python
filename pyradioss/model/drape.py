@@ -3,12 +3,12 @@
 Upstream OpenRadioss Fortran References:
 ----------------------------------------
 - Starter Card Readers & Modules:
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\properties\\composite_options\\drape\\hm_read_drape.F``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\properties\\composite_options\\drape\\shellthk_upd.F``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\share\\modules1\\drape_mod.F``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\hm_cfg_files\\config\\CFG\\radioss2017\\TABLE\\drape.cfg``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\hm_cfg_files\\config\\CFG\\radioss2022\\TABLE\\drape.cfg``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\hm_cfg_files\\config\\CFG\\radioss2022\\TABLE\\drape_ply_slice.cfg``
+  ``$OR_SRC/starter/source/properties/composite_options/drape/hm_read_drape.F``
+  ``$OR_SRC/starter/source/properties/composite_options/drape/shellthk_upd.F``
+  ``$OR_SRC/starter/share/modules1/drape_mod.F``
+  ``$OR_SRC/hm_cfg_files/config/CFG/radioss2017/TABLE/drape.cfg``
+  ``$OR_SRC/hm_cfg_files/config/CFG/radioss2022/TABLE/drape.cfg``
+  ``$OR_SRC/hm_cfg_files/config/CFG/radioss2022/TABLE/drape_ply_slice.cfg``
 
 Physics & Formulation:
 ----------------------
