@@ -645,6 +645,17 @@ def test_numba_mirror_is_bitwise_identical(name):
 ### Task P2.13: Close the reconciliation audit
 
 **Fortran:** every `missing` row of `tools/validation_data/solid_routine_status.json`.
+
+The P2.0 audit found that no earlier task in this phase dispatches the
+remaining `missing` rows. **P2.13 owns all of them**, and the families to
+name per row are: `solide`, `solide8`, `solide8e`, `solide8z`, `solide6z`,
+`solide4`, `solide4_sfem`, `solide10`, `solide20`, `sconnect`, and the
+standalone `srotorth.F`. (`solidez`, `solid_q1np` and `solide8s` are *not*
+listed here: P2.2, P2.9 and P2.10 own those families, and P2.3 … P2.8 own the
+individual files they name.) Each of those 213 rows becomes `ported`,
+`approximate` (with a deviation note) or `refused` here — see
+`tools/validation_data/solid_routine_status.json` and Step 3 for what
+"worked" means per row.
 **Files:** Modify `tools/validation_data/solid_routine_status.json`,
   `pyradioss/input/checks.py`.
 **Interfaces:**
