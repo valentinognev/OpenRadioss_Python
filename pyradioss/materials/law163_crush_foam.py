@@ -2,10 +2,10 @@ r"""
 LAW163 — Crushable Foam Material (/MAT/LAW163, /MAT/CRUSHABLE_FOAM, /MAT/CRUSH_FOAM).
 
 Upstream Fortran reference:
-- Engine physics: ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat163\sigeps163.F90``
+- Engine physics: ``$OR_SRC/engine/source/materials/mat/mat163/sigeps163.F90``
   Subroutine SIGEPS163 (lines 53-309)
-- Starter card reader: ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\mat\mat163\hm_read_mat163.F90``
-- Starter property update: ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\mat\mat163\law163_upd.F90``
+- Starter card reader: ``$OR_SRC/starter/source/materials/mat/mat163/hm_read_mat163.F90``
+- Starter property update: ``$OR_SRC/starter/source/materials/mat/mat163/law163_upd.F90``
 
 Theory & Algorithm (sigeps163.F90)
 ----------------------------------
@@ -462,7 +462,7 @@ def solid_update(
     r"""Vectorized constitutive update for /MAT/LAW163 Crushable Foam solid elements.
 
     Function: SIGEPS_163 (lines 53-309) in
-    C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat163\sigeps163.F90
+    $OR_SRC/engine/source/materials/mat/mat163/sigeps163.F90
 
     Parameters
     ----------
@@ -886,7 +886,7 @@ def tangent(*args: Any, **kwargs: Any) -> Any:
     r"""Consistent solid tangent stiffness for LAW163 per template.
 
     Function: SIGEPS_163 (lines 53-309) in
-    C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat163\sigeps163.F90
+    $OR_SRC/engine/source/materials/mat/mat163/sigeps163.F90
     """
     if len(args) == 1 and hasattr(args[0], "mat"):
         # Template call: tangent(group)

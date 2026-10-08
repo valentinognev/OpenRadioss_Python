@@ -1,9 +1,9 @@
 r"""LAW49 — Steinberg-Guinan high-strain-rate / shock plasticity model (/MAT/LAW49, /MAT/STEINB).
 
 Fortran origins:
-- ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat049\sigeps49.F``
+- ``$OR_SRC/engine/source/materials/mat/mat049/sigeps49.F``
   (engine constitutive update, implemented as ``m49law.F``)
-- ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\mat\mat049\hm_read_mat49.F``
+- ``$OR_SRC/starter/source/materials/mat/mat049/hm_read_mat49.F``
   (starter card reader, defaults & parameter estimation)
 
 Theory & Constitutive Formulation:

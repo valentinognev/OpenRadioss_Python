@@ -22,8 +22,8 @@
 LAW45 — Orthotropic fabric/membrane material model with rate-dependent Zhao plasticity (/MAT/LAW45).
 
 Upstream OpenRadioss Fortran reference:
-- Solids: C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat045\\sigeps45.F (SUBROUTINE SIGEPS45, lines 31-338)
-- Shells: C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat045\\sigeps45c.F (SUBROUTINE SIGEPS45C, lines 30-397)
+- Solids: $OR_SRC/engine/source/materials/mat/mat045/sigeps45.F (SUBROUTINE SIGEPS45, lines 31-338)
+- Shells: $OR_SRC/engine/source/materials/mat/mat045/sigeps45c.F (SUBROUTINE SIGEPS45C, lines 30-397)
 
 Theory:
 -------

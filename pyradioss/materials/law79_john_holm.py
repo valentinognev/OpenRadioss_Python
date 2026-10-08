@@ -1,6 +1,6 @@
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat079\sigeps79.F
+# $OR_SRC/engine/source/materials/mat/mat079/sigeps79.F
 # Function: SIGEPS79 (lines 28-311)
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\mat\mat079\hm_read_mat79.F
+# $OR_SRC/starter/source/materials/mat/mat079/hm_read_mat79.F
 # Function: HM_READ_MAT79 (lines 38-250)
 r"""LAW79 — Johnson-Holmquist (JH-2) ceramic/brittle damage model (/MAT/LAW79, /MAT/JOHN_HOLM).
 

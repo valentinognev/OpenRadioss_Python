@@ -2,20 +2,20 @@
 
 Ported from OpenRadioss Fortran source:
 - `/DFS/DETPOINT` (point detonator source):
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\initial_conditions\\detonation\\read_dfs_detpoint.F`
+  `$OR_SRC/starter/source/initial_conditions/detonation/read_dfs_detpoint.F`
   Subroutine: `READ_DFS_DETPOINT`
 - `/DFS/DETLINE` (line detonator source):
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\initial_conditions\\detonation\\read_dfs_detline.F`
+  `$OR_SRC/starter/source/initial_conditions/detonation/read_dfs_detline.F`
   Subroutine: `READ_DFS_DETLINE`
 - `/DFS/DETPLAN` (planar wave detonation front):
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\initial_conditions\\detonation\\read_dfs_detplan.F`
+  `$OR_SRC/starter/source/initial_conditions/detonation/read_dfs_detplan.F`
   Subroutine: `READ_DFS_DETPLAN`
 - Eikonal wavefront propagation:
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\initial_conditions\\detonation\\eikonal_solver.F90`
+  `$OR_SRC/starter/source/initial_conditions/detonation/eikonal_solver.F90`
   Subroutine: `EIKONAL_SOLVER`
 - Explosive burn fraction kinetics:
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat051\\compute_bfrac.F`
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat005\\m5law.F` (lines 108-121)
+  `$OR_SRC/engine/source/materials/mat/mat051/compute_bfrac.F`
+  `$OR_SRC/engine/source/materials/mat/mat005/m5law.F` (lines 108-121)
 
 Physics & Formulation:
 ----------------------

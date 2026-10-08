@@ -7,7 +7,7 @@
 Fortran origin:
    constitutive update: ``engine/source/materials/mat/mat028/sigeps28.F``
    parameter extraction: ``starter/source/materials/mat/mat028/hm_read_mat28.F``
-   CFG layout: ``C:\\OpenRadioss\\hm_cfg_files\\config\\CFG\\radioss110\\MAT\\matl28_honeycomb.cfg``
+   CFG layout: ``$OR_SRC/hm_cfg_files/config/CFG/radioss110/MAT/matl28_honeycomb.cfg``
 
 Theory and Fortran Semantics (sigeps28.F):
 -----------------------------------------

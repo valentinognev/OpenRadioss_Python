@@ -1,6 +1,6 @@
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat102\sigeps102.F
+# $OR_SRC/engine/source/materials/mat/mat102/sigeps102.F
 # Function: SIGEPS102 (lines 28-163)
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\mat\mat102\hm_read_mat102.F
+# $OR_SRC/starter/source/materials/mat/mat102/hm_read_mat102.F
 # Function: HM_READ_MAT102 (lines 38-301)
 r"""LAW102 — Extended Drucker-Prager 2nd formulation material model (/MAT/LAW102, /MAT/DPRAG2).
 

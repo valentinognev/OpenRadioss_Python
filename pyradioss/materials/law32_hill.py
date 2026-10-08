@@ -492,7 +492,7 @@ def hill1948_gradient(
       N = [d(seq)/d(sxx), d(seq)/d(syy), d(seq)/d(szz), d(seq)/d(sxy), d(seq)/d(syz), d(seq)/d(szx)]
 
     Upstream Fortran reference:
-      C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat032\\sigeps32.F
+      $OR_SRC/engine/source/materials/mat/mat032/sigeps32.F
     """
     sig_arr = np.asarray(sig, dtype=float)
     is_1d = (sig_arr.ndim == 1)
@@ -709,7 +709,7 @@ def solid_update(
     """3D solid constitutive update for Hill 1948 anisotropic plasticity with Newton radial return.
 
     Upstream Fortran reference:
-      C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat032\\sigeps32.F
+      $OR_SRC/engine/source/materials/mat/mat032/sigeps32.F
 
     Yield surface:
         sigma_eq = sqrt( F*(syy - szz)^2 + G*(szz - sxx)^2 + H*(sxx - syy)^2
@@ -927,7 +927,7 @@ def solid_tangent(
     """Consistent 3D solid algorithmic tangent stiffness tensor C^alg (6, 6) or (n, 6, 6).
 
     Upstream Fortran reference:
-      C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat032\\sigeps32.F
+      $OR_SRC/engine/source/materials/mat/mat032/sigeps32.F
     """
     mat = getattr(mat_or_group, "mat", mat_or_group)
     if mat is None:

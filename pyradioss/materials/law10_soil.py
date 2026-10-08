@@ -1,13 +1,13 @@
 r"""LAW10 — Soil and crushable material with Drucker-Prager yield and compaction EOS (/MAT/LAW10, /MAT/SOIL, /MAT/DPRAG).
 
 Fortran origins:
-- ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat010\m10law.F``
+- ``$OR_SRC/engine/source/materials/mat/mat010/m10law.F``
   (Subroutine M10LAW, lines 28-220; historically cited as sigeps10.F)
-- ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\common_source\eos\compaction.F90``
+- ``$OR_SRC/common_source/eos/compaction.F90``
   (Compaction equation of state, lines 103-180)
-- ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\mat\mat010\hm_read_mat10.F``
+- ``$OR_SRC/starter/source/materials/mat/mat010/hm_read_mat10.F``
   (Starter card reader, defaults & parameter estimation, lines 97-290)
-- ``C:\OpenRadioss\hm_cfg_files\config\CFG\radioss2020\MAT\matl10_law10.cfg``
+- ``$OR_SRC/hm_cfg_files/config/CFG/radioss2020/MAT/matl10_law10.cfg``
   (CFG attributes & card format)
 
 Theory

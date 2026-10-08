@@ -5,11 +5,11 @@ Documented Stub Implementation.
 Upstream OpenRadioss Fortran Reference:
 ----------------------------------------
 - Constitutive Stress Update (3D Solids):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat078\\sigeps78.F``
+  ``$OR_SRC/engine/source/materials/mat/mat078/sigeps78.F``
 - Constitutive Stress Update (2D Shells):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat078\\sigeps78c.F``
+  ``$OR_SRC/engine/source/materials/mat/mat078/sigeps78c.F``
 - Starter Card Reader:
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\materials\\mat\\mat078\\hm_read_mat78.F``
+  ``$OR_SRC/starter/source/materials/mat/mat078/hm_read_mat78.F``
 
 Theory and Physics Overview:
 ----------------------------
@@ -470,7 +470,7 @@ def solid_update(
        Initializes group.state and updates internal forces fint.
 
     Upstream Fortran reference:
-    ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat078\\sigeps78.F``
+    ``$OR_SRC/engine/source/materials/mat/mat078/sigeps78.F``
     """
     is_group = (
         hasattr(mat_or_group, "state")
@@ -591,7 +591,7 @@ def shell_update(
 
     Returns elastic stress placeholder (no damage).
     Upstream Fortran reference:
-    ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat078\\sigeps78c.F``
+    ``$OR_SRC/engine/source/materials/mat/mat078/sigeps78c.F``
     """
     p = resolve(mat)
     if sig is None:

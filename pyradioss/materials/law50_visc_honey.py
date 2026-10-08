@@ -1,7 +1,7 @@
 r"""LAW50 — Rate-Dependent Viscoelastic Honeycomb Material (/MAT/LAW50, /MAT/VISC_HONEY, /MAT/HYP_FOAM).
 
 Fortran origins:
-- Canonical Upstream Reference: ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat050\sigeps50.F``
+- Canonical Upstream Reference: ``$OR_SRC/engine/source/materials/mat/mat050/sigeps50.F``
   (in OpenRadioss source: ``engine/source/materials/mat/mat050/sigeps50s.F90``, 407 lines)
 - ``starter/source/materials/mat/mat050/hm_read_mat50.F90`` (card reader, parameters, table generation)
 - ``hm_cfg_files/config/CFG/radioss2025/MAT/mat_law50.cfg`` (CFG card layout and defaults)
@@ -671,7 +671,7 @@ def solid_update(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray] | np.ndarray:
     r"""Vectorized constitutive stress update for LAW50 solid elements.
 
-    Fortran origin: ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat050\sigeps50.F``
+    Fortran origin: ``$OR_SRC/engine/source/materials/mat/mat050/sigeps50.F``
     (implemented as ``engine/source/materials/mat/mat050/sigeps50s.F90``).
 
     Supports both calling conventions:

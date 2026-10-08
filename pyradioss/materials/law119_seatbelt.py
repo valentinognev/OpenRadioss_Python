@@ -859,14 +859,14 @@ def solid_update(*args: Any, **kwargs: Any) -> Any:
     r"""Solid update stub per template.
 
     Function: SIGEPS_119 (lines 33-152) in
-    C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat119\sigeps119c.F
+    $OR_SRC/engine/source/materials/mat/mat119/sigeps119c.F
 
     LAW119 is formulated specifically for 2D shell seatbelts and 1D cable/spring seatbelts.
     Solid elements are not supported (stubbed per template).
     """
     if len(args) == 7 or "fint" in kwargs:
         # Template call: solid_update(group, x, u, ur, dt, fint, mint)
-        # TODO: port from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat119\sigeps119c.F
+        # TODO: port from $OR_SRC/engine/source/materials/mat/mat119/sigeps119c.F
         return None
     # Constitutive call: solid_update(mat, sig, deps, ...)
     raise NotImplementedError("LAW119 (/MAT/SH_SEATBELT) is implemented for shell and seatbelt elements only.")
@@ -876,11 +876,11 @@ def tangent(*args: Any, **kwargs: Any) -> Any:
     r"""Consistent tangent operator for LAW119 per template.
 
     Function: SIGEPS_119 (lines 33-152) in
-    C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat119\sigeps119c.F
+    $OR_SRC/engine/source/materials/mat/mat119/sigeps119c.F
     """
     if len(args) == 1 and hasattr(args[0], "mat"):
         # Template call: tangent(group)
-        # TODO: port from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat119\sigeps119c.F
+        # TODO: port from $OR_SRC/engine/source/materials/mat/mat119/sigeps119c.F
         return None
     mat = args[0] if args else kwargs.get("mat")
     if mat is not None:

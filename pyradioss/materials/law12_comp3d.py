@@ -3,10 +3,10 @@ OpenRadioss /MAT/LAW12 (/MAT/3D_COMP, /MAT/COMP_3D) — 3D Orthotropic Elastic C
 
 Upstream OpenRadioss Fortran source references:
 - Engine constitutive kernel:
-  C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat012\m12law.F
+  $OR_SRC/engine/source/materials/mat/mat012/m12law.F
   Subroutine: M12LAW (referenced as sigeps12.F for LAW12)
 - Starter card reader and property initialization:
-  C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\mat\mat012\hm_read_mat12.F
+  $OR_SRC/starter/source/materials/mat/mat012/hm_read_mat12.F
   Subroutine: HM_READ_MAT12
 - Local fiber orientation transformations:
   engine/source/materials/mat/mat014/m14ama.F

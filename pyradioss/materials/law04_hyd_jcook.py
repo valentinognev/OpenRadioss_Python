@@ -2,10 +2,10 @@
 
 Function: SIGEPS_04 / M4LAW (lines 1-244)
 Upstream Fortran origins:
-- ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat004\\m4law.F`` (solid constitutive update, subroutine M4LAW / SIGEPS04)
-- ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\materials\\mat\\mat004\\hm_read_mat04.F`` (starter card reader & defaults, subroutine HM_READ_MAT04)
-- ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\eos\\gruneisen.F`` (Mie-Grüneisen equation of state, subroutine GRUNEISEN)
-- ``C:\\OpenRadioss\\hm_cfg_files\\config\\CFG\\radioss110\\MAT\\matl4_hyd_jcook.cfg`` (CFG attributes & format)
+- ``$OR_SRC/engine/source/materials/mat/mat004/m4law.F`` (solid constitutive update, subroutine M4LAW / SIGEPS04)
+- ``$OR_SRC/starter/source/materials/mat/mat004/hm_read_mat04.F`` (starter card reader & defaults, subroutine HM_READ_MAT04)
+- ``$OR_SRC/common_source/eos/gruneisen.F`` (Mie-Grüneisen equation of state, subroutine GRUNEISEN)
+- ``$OR_SRC/hm_cfg_files/config/CFG/radioss110/MAT/matl4_hyd_jcook.cfg`` (CFG attributes & format)
 
 Theory
 ------

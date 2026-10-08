@@ -3,7 +3,7 @@ r"""
 Barlat Yld2000-2d Anisotropic Plasticity Model for Shells.
 
 Reference upstream files:
-  - Canonical Reference: C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat087\sigeps87.F
+  - Canonical Reference: $OR_SRC/engine/source/materials/mat/mat087/sigeps87.F
     (engine/source/materials/mat/mat087/sigeps87c.F90)
   - Starter reader: starter/source/materials/mat/mat087/hm_read_mat87.F90
   - Swift-Voce hardening: engine/source/materials/mat/mat087/mat87c_swift_voce.F90
@@ -457,7 +457,7 @@ def barlat2000_yield_surface(
         \phi = |s_1' - s_2'|^m + |2s_2'' + s_1''|^m + |2s_1'' + s_2''|^m - 2\sigma_y^m
 
     Upstream Fortran reference:
-      C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat087\sigeps87.F
+      $OR_SRC/engine/source/materials/mat/mat087/sigeps87.F
       (engine/source/materials/mat/mat087/mat87c_swift_voce.F90 lines 263-296)
 
     Parameters
@@ -534,7 +534,7 @@ def barlat2000_gradient(
         d(sigma_eq) / d(sigma) = [d_seq/d_sigxx, d_seq/d_sigyy, d_seq/d_sigxy]
 
     Upstream Fortran reference:
-      C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat087\sigeps87.F
+      $OR_SRC/engine/source/materials/mat/mat087/sigeps87.F
       (engine/source/materials/mat/mat087/mat87c_swift_voce.F90 lines 385-465)
 
     Parameters

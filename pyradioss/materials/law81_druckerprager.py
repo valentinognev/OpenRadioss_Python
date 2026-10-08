@@ -5,9 +5,9 @@ only.
 
 Fortran origin
 --------------
-* engine : ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat081\sigeps81.F``
+* engine : ``$OR_SRC/engine/source/materials/mat/mat081/sigeps81.F``
            (and ``sigeps81.F90`` — the cutting-plane return mapping ported below block by block);
-* starter: ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\mat\mat081\hm_read_mat81.F90``
+* starter: ``$OR_SRC/starter/source/materials/mat/mat081/hm_read_mat81.F90``
   (defaults: alpha 0 -> 1/2 clamped to [0,1]; phi/psi clamped to
   [0, 89] degrees and stored as tangents; max_dilat 0 -> -inf else
   -|value|; c0/Pb0 default to 1.0 — they are SCALE factors when the

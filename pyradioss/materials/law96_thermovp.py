@@ -2,7 +2,7 @@
 
 Upstream OpenRadioss Fortran reference:
 ----------------------------------------
-Source: C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat096\\sigeps96.F
+Source: $OR_SRC/engine/source/materials/mat/mat096/sigeps96.F
 Subroutine: SIGEPS96 (lines 28-517)
 Associated Curve Interpolation: engine/source/tools/curve/vinter.F (VINTER2)
 Card reader: starter/source/materials/mat/mat096/hm_read_mat96.F
@@ -98,7 +98,7 @@ class Law96Params:
     """Parameters for OpenRadioss /MAT/LAW96 (Thermo-viscoplastic polymer).
 
     Upstream Fortran reference:
-        C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat096\\sigeps96.F
+        $OR_SRC/engine/source/materials/mat/mat096/sigeps96.F
         lines 110-127 (UPARAM array definition).
     """
     id: int = 1

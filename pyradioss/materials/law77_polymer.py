@@ -1,15 +1,15 @@
 """OpenRadioss /MAT/LAW77 (FOAM_AIR / POLYMER) — Rate-Dependent Thermoplastic / Viscoelastic Polymer Model.
 
 Ported from OpenRadioss Fortran source:
-C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat077\\sigeps77.F
+$OR_SRC/engine/source/materials/mat/mat077/sigeps77.F
 Subroutine: SIGEPS77 (engine 3D constitutive stress update)
 
 Starter and initialization references:
 - Starter Card Reader:
-  C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\materials\\mat\\mat077\\hm_read_mat77.F
+  $OR_SRC/starter/source/materials/mat/mat077/hm_read_mat77.F
   Subroutine: HM_READ_MAT77
 - Initialization / History Variables Setup:
-  C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\materials\\mat\\mat077\\m77init.F
+  $OR_SRC/starter/source/materials/mat/mat077/m77init.F
   Subroutine: M77INIT
 - HyperMesh Schema:
   hm_cfg_files/config/CFG/radioss140/MAT/mat_law77.cfg

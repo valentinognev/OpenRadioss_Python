@@ -343,7 +343,7 @@ def barlat1991_yield_function(
     """Evaluate Barlat 1991 3D yield function value and equivalent stress.
 
     Upstream Fortran reference:
-      C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat057\\sigeps57.F
+      $OR_SRC/engine/source/materials/mat/mat057/sigeps57.F
 
     Theory
     ------
@@ -435,7 +435,7 @@ def barlat1991_gradient(
     """Compute Barlat 1991 equivalent stress and its gradient d(sigma_eq)/d(sigma).
 
     Upstream Fortran reference:
-      C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat057\\sigeps57.F
+      $OR_SRC/engine/source/materials/mat/mat057/sigeps57.F
 
     Returns
     -------
@@ -769,7 +769,7 @@ def solid_update(
     """3D solid constitutive update for Barlat 1991 anisotropic plasticity with radial return.
 
     Upstream Fortran reference:
-      C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat057\\sigeps57.F
+      $OR_SRC/engine/source/materials/mat/mat057/sigeps57.F
 
     Yield surface:
         Phi = |s1 - s2|^m + |s2 - s3|^m + |s3 - s1|^m = 2 * sigma_y^m

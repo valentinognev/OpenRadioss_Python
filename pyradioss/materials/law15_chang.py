@@ -3,16 +3,16 @@ OpenRadioss /MAT/LAW15 (CHANG) — Chang-Chang Orthotropic Composite Model with 
 
 Upstream OpenRadioss Fortran source references:
 - Engine shell constitutive kernel:
-  C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat015\sigeps15c.F
+  $OR_SRC/engine/source/materials/mat/mat015/sigeps15c.F
   Subroutine: SIGEPS15C (shell constitutive update, also referenced as sigeps15.F)
 - Chang-Chang failure criteria and degradation:
-  C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat015\m15crak.F
+  $OR_SRC/engine/source/materials/mat/mat015/m15crak.F
   Subroutine: M15CRAK
 - Tsai-Wu anisotropic yield surface and plasticity:
-  C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat015\m15cplrc.F
+  $OR_SRC/engine/source/materials/mat/mat015/m15cplrc.F
   Subroutine: M15CPLRC
 - Starter card reader and property initialization:
-  C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\mat\mat015\hm_read_mat15.F
+  $OR_SRC/starter/source/materials/mat/mat015/hm_read_mat15.F
   Subroutine: HM_READ_MAT15
 - HyperMesh configuration:
   hm_cfg_files/config/CFG/radioss110/MAT/matl15_chang.cfg

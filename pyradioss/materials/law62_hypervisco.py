@@ -1,6 +1,6 @@
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat062\sigeps62.F
+# $OR_SRC/engine/source/materials/mat/mat062/sigeps62.F
 # Function: SIGEPS62 (lines 33-517)
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\mat\mat062\hm_read_mat62.F
+# $OR_SRC/starter/source/materials/mat/mat062/hm_read_mat62.F
 # Function: HM_READ_MAT62 (lines 38-339)
 """
 LAW62 — hyper-visco-elastic foam (/MAT/LAW62, /MAT/VISC_HYP).  Solids
