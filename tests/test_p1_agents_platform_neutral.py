@@ -77,9 +77,11 @@ REPO = Path(__file__).resolve().parents[1]
 AGENTS = REPO / "AGENTS.md"
 ORCHESTRATION = REPO / "plan" / "00_ORCHESTRATION.md"
 
-#: The commit that put the licensing gate where a fresh agent reads it, and the
-#: last state of ``AGENTS.md`` before the platform rewrite.
-STOP_COMMIT = "cf046a3"
+#: The commit that recorded the maintainer's licensing decision (Option 1,
+#: AGPL-3.0-or-later) and so the state of the ``## Licensing -- decided``
+#: section a fresh agent reads.  It supersedes ``cf046a3``, which put a STOP
+#: gate there instead; that gate is down, so the pin follows the decision.
+LICENCE_COMMIT = "d5557f6"
 PRE_P1_0_COMMIT = "cf046a3"
 
 #: The plan's Step 1 list (plan/02_phase1_foundation.md, Task P1.0), verbatim —
@@ -805,53 +807,65 @@ def test_agents_md_states_no_bare_suite_count():
 
 
 # ---------------------------------------------------------------------------
-# 3. the section that must survive untouched, and stay a gate
+# 3. the section that must survive untouched, and stay where it is
 # ---------------------------------------------------------------------------
-def test_the_stop_licensing_section_is_unchanged_and_still_a_gate():
-    """Byte-identical to ``cf046a3``'s, and still near the top of the file.
+def test_the_licensing_section_is_unchanged_and_stays_in_the_first_screen():
+    """Byte-identical to ``d5557f6``'s, and still near the top of the file.
 
-    Two properties, because either alone is gameable.  Byte-identity stops the
-    platform rewrite paraphrasing the notice an agent is expected to stop on;
-    the position stops the *next* rewrite burying it — a licensing gate at the
-    bottom of a 199-line contract is a section, and the whole point of
-    ``cf046a3`` was that a fresh agent meets it in the first screen.
+    Two properties, because either alone is gameable.  Byte-identity stops a
+    later rewrite paraphrasing the notice an agent meets first; the position
+    stops the *next* rewrite burying it -- a licensing section at the bottom of
+    a 199-line contract is a section, and the whole point is that a fresh
+    agent meets it in the first screen.
+
+    The pin is the maintainer's decision commit (Option 1, AGPL-3.0-or-later),
+    not ``cf046a3``: that commit put a STOP gate here instead, and the gate is
+    down.  Pinning the section that no longer governs would only assert that
+    the decision was undone.
 
     Skipped where the history is unreachable (a ``fetch-depth: 1`` CI
     checkout), and never silently passed: the tokens it protects are asserted
     unconditionally in the next test.
     """
     if shutil.which("git") is None or _git("cat-file", "-e",
-                                           f"{STOP_COMMIT}:AGENTS.md").returncode:
-        pytest.skip(f"{STOP_COMMIT} is not reachable in this checkout")
+                                           f"{LICENCE_COMMIT}:AGENTS.md").returncode:
+        pytest.skip(f"{LICENCE_COMMIT} is not reachable in this checkout")
 
-    now = _section(_agents_text(), "## STOP")
-    was = _section(_git("show", f"{STOP_COMMIT}:AGENTS.md").stdout, "## STOP")
+    heading = "## Licensing — decided: AGPL-3.0-or-later"
+    now = _section(_agents_text(), heading)
+    was = _section(_git("show", f"{LICENCE_COMMIT}:AGENTS.md").stdout, heading)
     assert now.rstrip() == was.rstrip(), (
-        "the ## STOP licensing gate was changed by the platform rewrite; it is "
-        "the section a fresh agent is expected to stop on, and commit "
-        f"{STOP_COMMIT} added it verbatim. First difference:\n"
+        "the licensing section was changed by the platform rewrite; it is the "
+        "section a fresh agent is expected to read, and commit "
+        f"{LICENCE_COMMIT} added it verbatim. First difference:\n"
         + "\n".join(f"  {n}: -{a!r}\n  {n}: +{b!r}"
                     for n, (a, b) in enumerate(
                         zip(was.splitlines(), now.splitlines()), 1)
                     if a != b)[:2000])
 
     lines = _agents_text().splitlines()
-    stop_heading = "## STOP — licensing gate: no new upstream-derived code"
-    assert lines.index(stop_heading) <= 15, (
-        f"## STOP has moved to line {lines.index(stop_heading) + 1}; commit "
-        "cf046a3 put it there so a fresh agent meets it before anything else")
+    assert lines.index(heading) <= 15, (
+        f"the licensing section has moved to line {lines.index(heading) + 1}; "
+        f"commit {LICENCE_COMMIT} put it there so a fresh agent meets it "
+        "before anything else")
 
 
-def test_the_stop_section_still_names_its_own_weak_enforcement():
-    """The one part of the gate that is a *fact about this repo* must survive.
+def test_the_licensing_section_still_states_the_decision_and_its_enforcement():
+    """The parts of the notice that are *facts about this repo* must survive.
 
     Unconditional, and deliberately so: it is what keeps the previous test from
-    becoming a gate that only runs where the history is.
+    becoming a gate that only runs where the history is.  These four are what
+    the decision actually rests on -- the gate is down, the licence is
+    AGPL-3.0-or-later, the consistency check reads the three artefacts, and
+    that check passes for real rather than being an ``xfail``.  Drop any one
+    and a paraphrase can quietly undo the decision without tripping the
+    byte-identity pin.
     """
     text = _agents_text()
-    for token in ("xfail(strict=True)", "an agent may not record one",
-                  "GATING, UNRESOLVED", "tests/test_p0_licensing.py"):
-        assert token in text, f"## STOP no longer says {token!r}"
+    for token in ("The licence gate is down.", "AGPL-3.0-or-later",
+                  "tests/test_p0_licensing.py::test_declared_licence_is_consistent",
+                  "no longer an `xfail`"):
+        assert token in text, f"the licensing section no longer says {token!r}"
 
 
 # ---------------------------------------------------------------------------
