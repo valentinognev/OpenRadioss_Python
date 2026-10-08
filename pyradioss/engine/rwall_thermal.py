@@ -3,11 +3,11 @@
 Upstream OpenRadioss Fortran References:
 ----------------------------------------
 - Card Reader:
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\constraints\\general\\rwall\\hm_read_rwall_therm.F``
+  ``$OR_SRC/starter/source/constraints/general/rwall/hm_read_rwall_therm.F``
 - Engine Solver:
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\constraints\\general\\rwall\\rgwal0.F`` (RGWALT)
+  ``$OR_SRC/engine/source/constraints/general/rwall/rgwal0.F`` (RGWALT)
 - CFG Schema:
-  ``C:\\OpenRadioss\\hm_cfg_files\\config\\CFG\\radioss110\\RWALL\\therm_plane.cfg``
+  ``$OR_SRC/hm_cfg_files/config/CFG/radioss110/RWALL/therm_plane.cfg``
 
 Physics & Formulation:
 ----------------------

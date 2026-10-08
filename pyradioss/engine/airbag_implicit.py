@@ -17,7 +17,7 @@ import numpy as np
 from pyradioss.model.model import Model
 
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\monv_imp0.F: IMP_PVGA (lines 2233-2294)
+# Ported from $OR_SRC/engine/source/airbag/monv_imp0.F: IMP_PVGA (lines 2233-2294)
 def compute_implicit_pressure_increment(
     p_old: float,
     e_old: float,
@@ -81,7 +81,7 @@ def compute_implicit_pressure_increment(
     return float(dp), float(pres), float(energy)
 
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\monv_imp0.F: MONV_KD, MONV_KEDI, MONV_KEDJ (lines 956-1150)
+# Ported from $OR_SRC/engine/source/airbag/monv_imp0.F: MONV_KD, MONV_KEDI, MONV_KEDJ (lines 956-1150)
 def compute_airbag_tangent_stiffness(
     mv: Any,
     model: Model,
@@ -162,7 +162,7 @@ def compute_airbag_tangent_stiffness(
     return k_diag, nodal_areas
 
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\monv_imp0.F: MV_MATV (lines 1767-1899)
+# Ported from $OR_SRC/engine/source/airbag/monv_imp0.F: MV_MATV (lines 1767-1899)
 def apply_airbag_matvec(
     mv: Any,
     model: Model,
@@ -270,7 +270,7 @@ def apply_airbag_matvec(
     return f_tan
 
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\monv_imp0.F: coupled implicit solve
+# Ported from $OR_SRC/engine/source/airbag/monv_imp0.F: coupled implicit solve
 def solve_implicit_airbag_step(
     mv: Any,
     model: Model,

@@ -3,19 +3,19 @@
 Upstream OpenRadioss Fortran References:
 ----------------------------------------
 - Nodal temperature time integration (TEMPUR):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\constraints\\thermic\\tempur.F``
+  ``$OR_SRC/engine/source/constraints/thermic/tempur.F``
 - Imposed temperature boundary conditions (FIXTEMP, /IMPTEMP):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\constraints\\thermic\\fixtemp.F``
+  ``$OR_SRC/engine/source/constraints/thermic/fixtemp.F``
 - Imposed heat flux sources (FIXFLUX, /FIXFLUX, /IMPFLUX):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\constraints\\thermic\\fixflux.F``
+  ``$OR_SRC/engine/source/constraints/thermic/fixflux.F``
 - Global thermal energy balance tracking (THERMBILAN):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\constraints\\thermic\\thermbilan.F``
+  ``$OR_SRC/engine/source/constraints/thermic/thermbilan.F``
 - Critical thermal time step limit (DTTHERM, /DT/THERM):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\time_step\\dttherm.F90``
+  ``$OR_SRC/engine/source/time_step/dttherm.F90``
 - Global thermal model parameters and ledger (GLOB_THERM_MOD):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\modules\\mat_elem\\glob_therm_mod.F90``
+  ``$OR_SRC/common_source/modules/mat_elem/glob_therm_mod.F90``
 - Solid element internal conduction (STHERM):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide\\stherm.F``
+  ``$OR_SRC/engine/source/elements/solid/solide/stherm.F``
 
 Physics Overview:
 -----------------
@@ -77,7 +77,7 @@ from .thermal_loads import compute_segment_area
 class GlobTherm:
     """Global thermal solver parameters, flags, and energy ledger.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\modules\\mat_elem\\glob_therm_mod.F90
+    Ported from $OR_SRC/common_source/modules/mat_elem/glob_therm_mod.F90
     """
 
     itherm_fe: int = 1  # 1 = thermal FE active for lagrangian analysis
@@ -199,7 +199,7 @@ def _resolve_node_indices(model: Any, target: Any) -> np.ndarray:
 def update_nodal_temperatures(model: Any, dt: float) -> np.ndarray:
     """Integrate nodal temperatures forward in time using explicit central difference / forward Euler.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\constraints\\thermic\\tempur.F
+    Ported from $OR_SRC/engine/source/constraints/thermic/tempur.F
 
     Upstream Fortran implementation:
     --------------------------------
@@ -331,7 +331,7 @@ def update_nodal_temperatures(model: Any, dt: float) -> np.ndarray:
 def apply_imposed_temperatures(model: Any, time: Optional[float] = None) -> Dict[int, float]:
     """Apply /IMPTEMP boundary conditions by setting prescribed temperatures on specified nodes.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\constraints\\thermic\\fixtemp.F
+    Ported from $OR_SRC/engine/source/constraints/thermic/fixtemp.F
 
     Upstream Fortran logic:
     -----------------------
@@ -437,7 +437,7 @@ def apply_imposed_temperatures(model: Any, time: Optional[float] = None) -> Dict
 def apply_imposed_flux(model: Any, dt: Optional[float] = None) -> float:
     """Apply /IMPFLUX / /FIXFLUX heat source loads and book heat into GLOB_THERM%HEAT_FFLUX.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\constraints\\thermic\\fixflux.F
+    Ported from $OR_SRC/engine/source/constraints/thermic/fixflux.F
 
     Upstream Fortran logic:
     -----------------------
@@ -630,7 +630,7 @@ def apply_imposed_flux(model: Any, dt: Optional[float] = None) -> float:
 def compute_thermal_balance(model: Any) -> Dict[str, Any]:
     """Compute and verify First-Law thermal energy balance across all heat exchange mechanisms.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\constraints\\thermic\\thermbilan.F
+    Ported from $OR_SRC/engine/source/constraints/thermic/thermbilan.F
 
     Upstream Fortran implementation:
     --------------------------------
@@ -712,7 +712,7 @@ def compute_thermal_balance(model: Any) -> Dict[str, Any]:
 def compute_thermal_dt(model: Any) -> float:
     """Calculate the critical explicit thermal time step based on element diffusion limit.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\time_step\\dttherm.F90
+    Ported from $OR_SRC/engine/source/time_step/dttherm.F90
 
     Upstream Fortran formulation:
     -----------------------------

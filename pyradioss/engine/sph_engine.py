@@ -1000,7 +1000,7 @@ def sph_step(model, dt, state, fint=None):
 # ---------------------------------------------------------------------------
 # SPH Symmetry Planes and Ghost Particles
 # ---------------------------------------------------------------------------
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\sph\spsym.F
+# Ported from $OR_SRC/engine/source/elements/sph/spsym.F
 # (lines 34-150: SPSYMP) and sptemp.F (lines 657-784: SPGTSYM)
 
 
@@ -1226,7 +1226,7 @@ def create_sph_ghost_particles(pos, vel, mass, rho, h_arr, planes, pressure=None
 # ---------------------------------------------------------------------------
 # SPH Thermal Conduction (sptemp.F)
 # ---------------------------------------------------------------------------
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\sph\sptemp.F
+# Ported from $OR_SRC/engine/source/elements/sph/sptemp.F
 # (lines 32-231: SPGRADT, lines 241-483: SPLAPLT, lines 657-784: SPGTSYM, lines 790-825: SPTEMPEL)
 
 
@@ -1452,7 +1452,7 @@ def sph_thermal_conduction(pos, temp, mass, rho, h_arr, conductivity, specific_h
 # ---------------------------------------------------------------------------
 # Solid-to-SPH Adaptive Conversion (soltosph*.F)
 # ---------------------------------------------------------------------------
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\sph\soltosph.F
+# Ported from $OR_SRC/engine/source/elements/sph/soltosph.F
 # (lines 39-507: SOLTOSPHF, lines 523-1311: SOLTOSPHP)
 # and soltospha.F (lines 39-439: SOLTOSPHA), soltosph_on1.F (lines 37-275: SOLTOSPH_ON1)
 

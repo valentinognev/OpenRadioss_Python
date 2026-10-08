@@ -6,29 +6,29 @@ for deformable bodies in OpenRadioss explicit dynamics.
 
 Fortran source origins:
 - Main system solver:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbsys.F
+  Ported from $OR_SRC/engine/source/constraints/fxbody/fxbsys.F
 - Generalized forces & gravity projection:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbyfor.F
+  Ported from $OR_SRC/engine/source/constraints/fxbody/fxbyfor.F
 - Physical velocity restitution:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbyvit.F
+  Ported from $OR_SRC/engine/source/constraints/fxbody/fxbyvit.F
 - Physical displacement restitution:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbdispl.F
+  Ported from $OR_SRC/engine/source/constraints/fxbody/fxbdispl.F
 - Force projection & modal internal/damping forces:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodfp.F
+  Ported from $OR_SRC/engine/source/constraints/fxbody/fxbodfp.F
 - Modal kinematics & links:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodv.F
+  Ported from $OR_SRC/engine/source/constraints/fxbody/fxbodv.F
 - Modal predictor/corrector, acceleration & energy accounting:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodvp.F
+  Ported from $OR_SRC/engine/source/constraints/fxbody/fxbodvp.F
 - Stress recovery from modal coordinates:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbsgmaj.F
+  Ported from $OR_SRC/engine/source/constraints/fxbody/fxbsgmaj.F
 - Secondary node & element activation:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbypid.F
+  Ported from $OR_SRC/engine/source/constraints/fxbody/fxbypid.F
 - Gravity correction:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxgrvcor.F
+  Ported from $OR_SRC/engine/source/constraints/fxbody/fxgrvcor.F
 - Starter keyword parsing & critical dt:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\constraints\fxbody\hm_read_fxb.F
+  Ported from $OR_SRC/starter/source/constraints/fxbody/hm_read_fxb.F
 - Starter initialization & ortho-normalization:
-  Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\constraints\fxbody\ini_fxbody.F
+  Ported from $OR_SRC/starter/source/constraints/fxbody/ini_fxbody.F
 
 Mathematical Formulation:
 -------------------------
@@ -67,8 +67,8 @@ class ModalEnergy(float):
     be unpacked as `(kinetic, potential)` or accessed via `.kinetic`,
     `.potential`, and `.total` attributes.
 
-    Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodvp.F (ECIN)
-    and C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodfp.F (ENINT)
+    Ported from $OR_SRC/engine/source/constraints/fxbody/fxbodvp.F (ECIN)
+    and $OR_SRC/engine/source/constraints/fxbody/fxbodfp.F (ENINT)
     """
 
     kinetic: float
@@ -229,7 +229,7 @@ class FlexBody:
                 raise ValueError("modal_stiffness must be 1D or 2D array")
 
         # Damping parameters
-        # Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodfp.F (lines 347-377)
+        # Ported from $OR_SRC/engine/source/constraints/fxbody/fxbodfp.F (lines 347-377)
         self.alpha = float(alpha)
         self.beta = float(beta)
         self.damping_ratio = damping_ratio
@@ -258,7 +258,7 @@ class FlexBody:
         self.q_force_prev = np.zeros(self.n_modes, dtype=float)
 
         # Energy tracking
-        # Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodvp.F (lines 149-154)
+        # Ported from $OR_SRC/engine/source/constraints/fxbody/fxbodvp.F (lines 149-154)
         self.external_work: float = 0.0
         self.dissipated_energy: float = 0.0
 
@@ -287,7 +287,7 @@ class FlexBody:
     def critical_dt(self) -> float:
         r"""Compute critical time step based on highest frequency: 2 / ω_max.
 
-        Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\constraints\fxbody\hm_read_fxb.F (lines 633-646)
+        Ported from $OR_SRC/starter/source/constraints/fxbody/hm_read_fxb.F (lines 633-646)
 
         Formulas:
             If stiffness damping beta > 0:
@@ -315,7 +315,7 @@ class FlexBody:
     def compute_generalized_forces(self, external_forces: Union[Sequence, np.ndarray]) -> np.ndarray:
         r"""Project physical external forces onto the modal basis: Q = Φᵀ · F.
 
-        Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodfp.F (lines 120-167)
+        Ported from $OR_SRC/engine/source/constraints/fxbody/fxbodfp.F (lines 120-167)
 
         Parameters
         ----------
@@ -348,9 +348,9 @@ class FlexBody:
         r"""Integrate modal equations of motion for one time step dt:
             q̈ = M⁻¹ (Q - K·q - C·q̇)
 
-        Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodvp.F (fxbodvp1, lines 60-155)
-        and C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodfp.F (fxbodfp2, lines 347-447)
-        and C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbsys.F (fxbsys, lines 30-67)
+        Ported from $OR_SRC/engine/source/constraints/fxbody/fxbodvp.F (fxbodvp1, lines 60-155)
+        and $OR_SRC/engine/source/constraints/fxbody/fxbodfp.F (fxbodfp2, lines 347-447)
+        and $OR_SRC/engine/source/constraints/fxbody/fxbsys.F (fxbsys, lines 30-67)
 
         Uses a symplectic Velocity-Verlet / central-difference scheme with
         implicit damping treatment:
@@ -404,8 +404,8 @@ class FlexBody:
             q_ddot_next = np.linalg.solve(self.M, rhs_force - self.C @ q_dot_next)
 
         # Step 4: Energy accounting
-        # Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodfp.F (lines 337-342)
-        # and C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodvp.F (lines 146-154)
+        # Ported from $OR_SRC/engine/source/constraints/fxbody/fxbodfp.F (lines 337-342)
+        # and $OR_SRC/engine/source/constraints/fxbody/fxbodvp.F (lines 146-154)
         q_dot_avg = 0.5 * (q_dot_old + q_dot_next)
         delta_q = q_next - q_old
         q_force_avg = 0.5 * (self.q_force_prev + self.q_force)
@@ -428,7 +428,7 @@ class FlexBody:
     def recover_displacements(self) -> np.ndarray:
         r"""Recover physical nodal displacements from modal amplitudes: u = Φ · q.
 
-        Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbdispl.F (fxbdepla, lines 57-127)
+        Ported from $OR_SRC/engine/source/constraints/fxbody/fxbdispl.F (fxbdepla, lines 57-127)
 
         Returns
         -------
@@ -441,7 +441,7 @@ class FlexBody:
     def recover_velocities(self) -> np.ndarray:
         r"""Recover physical nodal velocities from modal velocities: v = Φ · q̇.
 
-        Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbyvit.F (fxbodvp2, lines 202-307)
+        Ported from $OR_SRC/engine/source/constraints/fxbody/fxbyvit.F (fxbodvp2, lines 202-307)
 
         Returns
         -------
@@ -454,8 +454,8 @@ class FlexBody:
     def update_physical_nodes(self, model: Any) -> None:
         r"""Write recovered physical displacements and velocities back to model node arrays.
 
-        Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbdispl.F (lines 128-140)
-        and C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodvp.F (lines 325-341)
+        Ported from $OR_SRC/engine/source/constraints/fxbody/fxbdispl.F (lines 128-140)
+        and $OR_SRC/engine/source/constraints/fxbody/fxbodvp.F (lines 325-341)
 
         Parameters
         ----------
@@ -512,8 +512,8 @@ class FlexBody:
     def compute_modal_energy(self) -> ModalEnergy:
         r"""Compute kinetic and potential energies in modal space.
 
-        Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodvp.F (ECIN, lines 128-148)
-        and C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodfp.F (ENINT, lines 397-404)
+        Ported from $OR_SRC/engine/source/constraints/fxbody/fxbodvp.F (ECIN, lines 128-148)
+        and $OR_SRC/engine/source/constraints/fxbody/fxbodfp.F (ENINT, lines 397-404)
 
         Returns
         -------
@@ -566,8 +566,8 @@ class FlexBody:
 def init_flex_bodies(model: Any) -> List[FlexBody]:
     r"""Initialize flexible body solvers from model data (/FXBODY).
 
-    Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\constraints\fxbody\ini_fxbody.F
-    and C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\constraints\fxbody\hm_read_fxb.F
+    Ported from $OR_SRC/starter/source/constraints/fxbody/ini_fxbody.F
+    and $OR_SRC/starter/source/constraints/fxbody/hm_read_fxb.F
 
     Parameters
     ----------
@@ -648,8 +648,8 @@ def flex_body_forces(
 ) -> float:
     r"""Engine cycle hook for flexible bodies (/FXBODY).
 
-    Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbyfor.F
-    and C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbyvit.F
+    Ported from $OR_SRC/engine/source/constraints/fxbody/fxbyfor.F
+    and $OR_SRC/engine/source/constraints/fxbody/fxbyvit.F
 
     In each explicit cycle:
       1. Gathers nodal forces on the flexible body's boundary nodes.

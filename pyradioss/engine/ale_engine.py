@@ -942,7 +942,7 @@ def ale_grid_smooth_spring(x: np.ndarray,
                            vgy: float = 1.0) -> Tuple[np.ndarray, np.ndarray]:
     """Spring network grid smoothing for /ALE/GRID/SPRING.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\grid\\alew2.F
+    Ported from $OR_SRC/engine/source/ale/grid/alew2.F
     lines 83-295 & 371-385:
       Constructs a 24-spring elastic network per hex cell (12 edges + 12 diagonals).
       For each spring between nodes J1 and J2:
@@ -1063,7 +1063,7 @@ def ale_grid_smooth_curvature(x: np.ndarray,
                               gamma: float = 1.0) -> Tuple[np.ndarray, np.ndarray]:
     """Curvature-based grid smoothing for /ALE/GRID/STANDARD.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\grid\\alew4.F
+    Ported from $OR_SRC/engine/source/ale/grid/alew4.F
     lines 191-387 & 464-478:
       Computes face normal vectors across opposite face pairs, determines
       local surface curvature factors DLF and stretch rates DDLF, and
@@ -1179,7 +1179,7 @@ def ale_grid_smooth_volume(x: np.ndarray,
                            dt: float = 1e-4) -> Tuple[np.ndarray, np.ndarray]:
     """Centroidal Voronoi / volume grid smoothing for /ALE/GRID/VOLUME.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\grid\\alew6.F
+    Ported from $OR_SRC/engine/source/ale/grid/alew6.F
     lines 98-179:
       Computes cell centroids and element volumes.
       For each unconstrained interior ALE node i:

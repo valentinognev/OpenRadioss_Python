@@ -169,7 +169,7 @@ class ALEFVMState:
 def compute_alefvm_face_normals(xe: np.ndarray) -> np.ndarray:
     """Compute outward face area-normal vectors for hex elements.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alefvm\\alefvm_stress.F
+    # Ported from $OR_SRC/engine/source/ale/alefvm/alefvm_stress.F
     # lines 184-209:
     # Face 1 (-z): cross((X3-X1), (X2-X4))
     # Face 2 (+y): cross((X7-X4), (X3-X8))
@@ -240,7 +240,7 @@ def alefvm_prepare_stress_buffer(
 ) -> None:
     """Prepare face buffers, acoustic impedances, Mach numbers, and normal velocities.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alefvm\\alefvm_stress.F
+    # Ported from $OR_SRC/engine/source/ale/alefvm/alefvm_stress.F
     # lines 120-250:
     # 1. Total Cauchy stress: S = SIG + SVIS - QVIS * I
     # 2. Centroid pressure: P = -1/3 * (S11 + S22 + S33)
@@ -297,7 +297,7 @@ def alefvm_compute_internal_forces(
 ) -> np.ndarray:
     """Compute numerical interface pressures and assemble internal cell forces.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alefvm\\alefvm_sfint3.F
+    # Ported from $OR_SRC/engine/source/ale/alefvm/alefvm_sfint3.F
     # lines 206-301:
     #
     # Godunov Acoustic Riemann Problem (ISOLVER = 5):
@@ -415,7 +415,7 @@ def alefvm_compute_face_fluxes(
 ) -> Dict[str, np.ndarray]:
     """Compute 3D ALE face relative velocities, acoustic interface velocities, and fluxes.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alefvm\\alefvm_aflux3.F
+    # Ported from $OR_SRC/engine/source/ale/alefvm/alefvm_aflux3.F
     # lines 302-665 & 732-791:
     #
     # 1. Face grid velocity W_face = 1/4 * sum(W_node) for the 4 nodes of the face
@@ -573,7 +573,7 @@ def alefvm_update_momentum(
 ) -> np.ndarray:
     """Update cell momentum using net cell forces (FVM time integration).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alefvm\\alefvm_scheme.F
+    # Ported from $OR_SRC/engine/source/ale/alefvm/alefvm_scheme.F
     # lines 102-121:
     #   if DT_prev == 0:
     #       dMOM = 0.5 * dt * FCELL
@@ -610,7 +610,7 @@ def alefvm_expand_momentum_to_nodes(
 ) -> np.ndarray:
     """Expand cell momentum to element nodes and compute nodal velocities.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alefvm\\alefvm_expand_mom2.F
+    # Ported from $OR_SRC/engine/source/ale/alefvm/alefvm_expand_mom2.F
     # lines 89-107:
     #   For each cell e and each of its 8 nodes k:
     #     VERTEX(1:3, node_k) += MOM(e) / 8.0
@@ -659,7 +659,7 @@ def alefvm_reset_accelerations(
 ) -> np.ndarray:
     """Reset nodal accelerations for ALE FVM nodes.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alefvm\\alefvm_accele.F
+    # Ported from $OR_SRC/engine/source/ale/alefvm/alefvm_accele.F
     # lines 68-73:
     #   if NALE(n) /= 0:
     #     A(1:3, n) = 0
@@ -683,7 +683,7 @@ def alefvm_advect_scalar(
 ) -> np.ndarray:
     """First-order upwind convective transport of an intensive/extensive cell variable.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alefvm\\cut_cells\\a22conv3.F
+    # Ported from $OR_SRC/engine/source/ale/alefvm/cut_cells/a22conv3.F
     # lines 164-192:
     #   dPHI = sum_faces( VALVOIS * UpwFLUX_face ) + VALEL * FLU1
     #   dPHI = -0.5 * dt * dPHI

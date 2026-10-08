@@ -41,7 +41,7 @@ from pyradioss.engine.ale_engine import (
 def cross_prod_2d(v1: np.ndarray, v2: np.ndarray) -> float:
     """2D cross product (determinant of 2x2 matrix).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int22\\i22clip_tools.F
+    # Ported from $OR_SRC/engine/source/interfaces/int22/i22clip_tools.F
     # lines 29-47 (CrossProd2D)
     """
     return float(v1[0] * v2[1] - v1[1] * v2[0])
@@ -50,7 +50,7 @@ def cross_prod_2d(v1: np.ndarray, v2: np.ndarray) -> float:
 def is_on_1st_half_plane(point: np.ndarray, p1: np.ndarray, p2: np.ndarray, tol: float = 1e-10) -> bool:
     """Check if 2D point is on the left / inside half plane of directed line p1 -> p2.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int22\\i22clip_tools.F
+    # Ported from $OR_SRC/engine/source/interfaces/int22/i22clip_tools.F
     # lines 248-286 (IS_ON_1ST_HALF_PLANE)
     """
     v1 = p2 - p1
@@ -70,7 +70,7 @@ def intersect_segments_2d(
 ) -> Optional[np.ndarray]:
     """Find intersection point between segment [seg_p1, seg_p2] and line (line_p1, line_p2).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int22\\i22clip_tools.F
+    # Ported from $OR_SRC/engine/source/interfaces/int22/i22clip_tools.F
     # lines 181-243 (intersectP)
     """
     v1 = seg_p2 - seg_p1
@@ -103,7 +103,7 @@ def clip_edge_2d(
 ) -> np.ndarray:
     """Clip a 2D polygon against an infinite directed line p1 -> p2 using Sutherland-Hodgman.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int22\\i22clip_tools.F
+    # Ported from $OR_SRC/engine/source/interfaces/int22/i22clip_tools.F
     # lines 106-176 (ClipEdge)
     """
     n_pts = len(polygon)
@@ -143,7 +143,7 @@ def polygonal_clipping_2d(
 ) -> np.ndarray:
     """Clip a 2D polygon against another convex polygon (Sutherland-Hodgman).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int22\\i22clip_tools.F
+    # Ported from $OR_SRC/engine/source/interfaces/int22/i22clip_tools.F
     # lines 59-93 (PolygonalClipping)
     """
     result = np.array(subject_polygon, dtype=np.float64)
@@ -160,7 +160,7 @@ def polygonal_clipping_2d(
 def polygon_area_2d(polygon: np.ndarray) -> Tuple[float, float]:
     """Compute signed area and absolute area of a 2D polygon using Green's theorem / trapezoid rule.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int22\\i22clip_tools.F
+    # Ported from $OR_SRC/engine/source/interfaces/int22/i22clip_tools.F
     # lines 294-340 (SetClockWisePolyg) and lines 345-395 (SetCounterClockWisePolyg)
     """
     n = len(polygon)
@@ -183,7 +183,7 @@ def polygon_area_2d(polygon: np.ndarray) -> Tuple[float, float]:
 def i22aera(points: np.ndarray) -> Tuple[np.ndarray, np.ndarray, float]:
     """Compute 3D oriented area normal vector, centroid, and area magnitude of a planar polygon.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int22\\i22subvol.F
+    # Ported from $OR_SRC/engine/source/interfaces/int22/i22subvol.F
     # lines 2381-2460:
     #
     # For NPTS <= 4 (triangles and quads):
@@ -302,7 +302,7 @@ def slice_hex_edge_by_plane(
 ) -> Optional[Tuple[float, np.ndarray]]:
     """Compute intersection of a line segment with a cut plane.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int22\\i22intersect.F
+    # Ported from $OR_SRC/engine/source/interfaces/int22/i22intersect.F
     # lines 265-267:
     #   CUTCOOR = s in [0, 1]
     #   CUTPOINT = X1 + CUTCOOR * (X2 - X1)
@@ -362,7 +362,7 @@ def intersect_hex_cell_with_plane(
 ) -> CutCellInfo:
     """Intersect an 8-node brick element with a cut plane.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int22\\i22subvol.F
+    # Ported from $OR_SRC/engine/source/interfaces/int22/i22subvol.F
     # lines 150-350 and engine/source/interfaces/int22/i22wetsurf.F:
     #
     # 1. Evaluate signed distance for all 8 nodes of the hex
@@ -500,7 +500,7 @@ def compute_fsi_wet_surface_force(
 ) -> Tuple[np.ndarray, float]:
     """Compute FSI interaction forces on structural interface from fluid cell pressures.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int22\\i22wetsurf.F
+    # Ported from $OR_SRC/engine/source/interfaces/int22/i22wetsurf.F
     # lines 110-120 and engine/source/interfaces/int22/i22for3.F lines 240-270:
     #
     #   F_fsi = P_fluid * S_wet * n_wet
@@ -541,7 +541,7 @@ def build_secondary_cell_links(
 ) -> None:
     """Link small cut cells (secondary cells) to adjacent full or large cut cells (main cells).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alefvm\\cut_cells\\a22conv3.F
+    # Ported from $OR_SRC/engine/source/ale/alefvm/cut_cells/a22conv3.F
     # lines 203-220:
     #   SecndList: links small secondary cut cells to a main host cell.
     #   Prevents small volume time-step penalties (CFL condition).
@@ -573,7 +573,7 @@ def stack_secondary_cell_updates(
 ) -> np.ndarray:
     """Stack convective increments from secondary cut cells onto their main cells.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alefvm\\cut_cells\\a22conv3.F
+    # Ported from $OR_SRC/engine/source/ale/alefvm/cut_cells/a22conv3.F
     # lines 206-218:
     #   dPHI_main = dPHI_main + sum_{sec}( dPHI_sec )
     #   dPHI_sec = 0

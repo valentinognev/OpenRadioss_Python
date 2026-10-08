@@ -31,7 +31,7 @@ def euler_compute_gradients(x: np.ndarray,
                             face_normals: Optional[np.ndarray] = None) -> np.ndarray:
     """Eulerian 3D geometric gradient projection factors across hex faces.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\euler3d\\egrad3.F
+    Ported from $OR_SRC/engine/source/ale/euler3d/egrad3.F
     lines 145-272:
       Ni = 2Sn, |n|=1
       DiX = 8.dx[i], DiY = 8.dy[i], DiZ = 8.dz[i]
@@ -94,7 +94,7 @@ def euler_compute_fluxes(q_elem: np.ndarray,
                          limiter: str = "none") -> Dict[str, np.ndarray]:
     """Eulerian 3D face fluxes with fixed grid (W = 0).
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\euler3d\\eflux3.F
+    Ported from $OR_SRC/engine/source/ale/euler3d/eflux3.F
     lines 135-248 & 265-323:
       V_face = 1/4 Sum(V_node)
       Flux_face = 0.5 * V_face . N_face (where N_face = 2S.n)
@@ -208,7 +208,7 @@ def euler_advect_step(q_elem: np.ndarray,
                       dt: float) -> np.ndarray:
     """Consistently update Eulerian state variable over time step dt.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\ale3d\\aconv3.F
+    Ported from $OR_SRC/engine/source/ale/ale3d/aconv3.F
     lines 107-135:
       Q_new = Q_old - dt * sum_k flux_q_k
       q_new = Q_new / V

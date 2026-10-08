@@ -582,7 +582,7 @@ class NodalTimeStep:
         """Apply Rayleigh damping nodal stiffness scaling matching dtnodarayl.F:
 
         Upstream Fortran reference:
-            C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\time_step\\dtnodarayl.F
+            $OR_SRC/engine/source/time_step/dtnodarayl.F
             SUBROUTINE DTNODARAYL(MS, IN, STIFN, STIFR, DT2T, IGRNOD, DAMPR)
 
         When Rayleigh mass damping (alpha / DAMPAI) or stiffness damping (beta / DAMPBI)
@@ -972,7 +972,7 @@ def apply_rayleigh_damping_nodal(
     """Functional interface for Rayleigh damping stiffness reduction matching dtnodarayl.F:
 
     Upstream Fortran reference:
-        C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\time_step\\dtnodarayl.F
+        $OR_SRC/engine/source/time_step/dtnodarayl.F
         SUBROUTINE DTNODARAYL
 
     Formulation:

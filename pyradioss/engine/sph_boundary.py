@@ -1,8 +1,8 @@
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\loads\sph\hm_read_sphio.F
+# $OR_SRC/starter/source/loads/sph/hm_read_sphio.F
 # Subroutine: HM_READ_SPHIO (lines 44-610)
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\sph\sponof1.F
+# $OR_SRC/engine/source/elements/sph/sponof1.F
 # Subroutine: SPONOF1 (lines 39-558)
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\sph\sponof2.F
+# $OR_SRC/engine/source/elements/sph/sponof2.F
 # Subroutine: SPONOF2 (lines 39-820)
 """Smoothed Particle Hydrodynamics (SPH) Inflow and Outflow Boundary Conditions.
 

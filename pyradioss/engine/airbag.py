@@ -551,7 +551,7 @@ from pyradioss.engine.airbag_commu import (  # noqa: E402
 # /MONVOL/LFLUID — Liquid Fluid Monitored Volume (from volp_lfluid.F)
 # =======================================================================
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\volp_lfluid.F: VOLP_LFLUID (lines 32-173)
+# Ported from $OR_SRC/engine/source/airbag/volp_lfluid.F: VOLP_LFLUID (lines 32-173)
 def update_monvol_liquid_fluid(
     mv: Any,
     model: Model,
@@ -674,7 +674,7 @@ def update_monvol_liquid_fluid(
 # Extended Fabric Porosity Models (from porfor4.F and porfor6.F)
 # =======================================================================
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\porfor4.F: PORFOR4 / PORFORM4 (lines 30-131)
+# Ported from $OR_SRC/engine/source/airbag/porfor4.F: PORFOR4 / PORFORM4 (lines 30-131)
 def compute_porosity_porfor4(
     p: float,
     pext: float,
@@ -730,7 +730,7 @@ def compute_porosity_porfor4(
     return float(svtfac)
 
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\porfor6.F: PORFOR6 / PORFORM6 (lines 28-103)
+# Ported from $OR_SRC/engine/source/airbag/porfor6.F: PORFOR6 / PORFORM6 (lines 28-103)
 def compute_porosity_porfor6(
     p: float,
     pext: float,

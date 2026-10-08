@@ -3,13 +3,13 @@
 Upstream OpenRadioss Fortran References:
 ----------------------------------------
 - Starter Card Readers:
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\loads\\thermic\\hm_read_convec.F``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\loads\\thermic\\hm_read_radiation.F``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\loads\\thermic\\hm_preread_convec.F``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\loads\\thermic\\hm_preread_radiation.F``
+  ``$OR_SRC/starter/source/loads/thermic/hm_read_convec.F``
+  ``$OR_SRC/starter/source/loads/thermic/hm_read_radiation.F``
+  ``$OR_SRC/starter/source/loads/thermic/hm_preread_convec.F``
+  ``$OR_SRC/starter/source/loads/thermic/hm_preread_radiation.F``
 - Engine Time-Integration Kernels:
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\constraints\\thermic\\convec.F``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\constraints\\thermic\\radiation.F``
+  ``$OR_SRC/engine/source/constraints/thermic/convec.F``
+  ``$OR_SRC/engine/source/constraints/thermic/radiation.F``
 
 Physics Overview:
 -----------------

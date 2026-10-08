@@ -72,7 +72,7 @@ class MaterialEOS:
     ) -> Union[float, np.ndarray]:
         """Compute pressure P from density rho and volumetric internal energy eint_vol (rho * e).
 
-        # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\eos\\idealgas.F
+        # Ported from $OR_SRC/common_source/eos/idealgas.F
         # and engine/source/multifluid/multi_pressure_equilibrium.F lines 291-305
         """
         if self.kind in ("IDEAL-GAS", "IDEAL_GAS"):
@@ -94,7 +94,7 @@ class MaterialEOS:
     ) -> Union[float, np.ndarray]:
         """Compute sound speed c from density rho and pressure P.
 
-        # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_pressure_equilibrium.F lines 178-184
+        # Ported from $OR_SRC/engine/source/multifluid/multi_pressure_equilibrium.F lines 178-184
         """
         rho_safe = np.maximum(rho, 1e-12)
         if self.kind in ("STIFF-GAS", "STIFF_GAS", "STIFFENED_GAS"):
@@ -110,7 +110,7 @@ class MaterialEOS:
     ) -> Union[float, np.ndarray]:
         """Evaluate Grüneisen coefficient Gamma = (1/rho) * (dP/de)_rho.
 
-        # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_pressure_equilibrium.F lines 350-353
+        # Ported from $OR_SRC/engine/source/multifluid/multi_pressure_equilibrium.F lines 350-353
         """
         if np.isscalar(rho):
             return self.gamma - 1.0
@@ -331,7 +331,7 @@ def pressure_equilibrium(
 ) -> CellState:
     """Iterative multi-phase pressure equilibrium solve with energy reset.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_pressure_equilibrium.F
+    Ported from $OR_SRC/engine/source/multifluid/multi_pressure_equilibrium.F
     lines 151-758:
       Stage 1: Multi-phase pressure relaxation (Newton-Raphson on sum(alpha_m) = 1)
       Stage 2: Global energy reset ensuring sum(alpha_m * eint_m) = eint_global
@@ -537,7 +537,7 @@ def pressure_equilibrium(
 def limiter_sweby(phi: float, beta: float = 1.0) -> float:
     """Barth-Jespersen / Sweby slope limiter function.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_muscl_gradients.F
+    Ported from $OR_SRC/engine/source/multifluid/multi_muscl_gradients.F
     lines 631-640 (SUBROUTINE LIMITER):
       LIM = MAX(ZERO, MAX(MIN(ONE, BETA * PHI), MIN(PHI, BETA)))
     """
@@ -552,7 +552,7 @@ def muscl_gradients(
 ) -> Dict[str, np.ndarray]:
     """Compute least-squares spatial gradients with Barth-Jespersen slope limiter.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_muscl_gradients.F
+    Ported from $OR_SRC/engine/source/multifluid/multi_muscl_gradients.F
     lines 163-620:
       For each cell K:
         M = sum_F (x_L - x_K) (x_L - x_K)^T
@@ -742,7 +742,7 @@ def muscl_fluxes(
 ) -> Tuple[np.ndarray, Optional[Dict[str, np.ndarray]]]:
     """Compute numerical convective flux across a face interface.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_muscl_fluxes_computation.F
+    Ported from $OR_SRC/engine/source/multifluid/multi_muscl_fluxes_computation.F
     lines 477-734:
       HLLC approximate Riemann solver with optional Low-Mach correction and submaterial fluxes.
 
@@ -958,10 +958,10 @@ def time_evolution(
     """Explicit Euler conservative state update.
 
     Ported from OpenRadioss Fortran sources:
-    - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_evolve_global.F (lines 122-194)
-    - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_update_global.F (lines 79-98)
-    - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_evolve_partial.F (lines 125-215)
-    - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_update_partial.F (lines 75-103)
+    - $OR_SRC/engine/source/multifluid/multi_evolve_global.F (lines 122-194)
+    - $OR_SRC/engine/source/multifluid/multi_update_global.F (lines 79-98)
+    - $OR_SRC/engine/source/multifluid/multi_evolve_partial.F (lines 125-215)
+    - $OR_SRC/engine/source/multifluid/multi_update_partial.F (lines 75-103)
 
     Args:
         cell_state: CellState to update.
@@ -1107,7 +1107,7 @@ def viscous_diffusion(
 ) -> CellState:
     """Navier-Stokes viscous stress diffusion on velocity with strict energy conservation.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\ns_fvm_diffusion.F
+    Ported from $OR_SRC/engine/source/multifluid/ns_fvm_diffusion.F
     lines 166-300:
       F_visc = sum_faces Area * mu_face * (v_L - v_K) / dist_KL
       (rho * V) * dv/dt = F_visc
@@ -1191,7 +1191,7 @@ def compute_fvm_dt(
 ) -> float:
     """Compute CFL-limited time step for explicit FVM integration.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_compute_dt.F
+    Ported from $OR_SRC/engine/source/multifluid/multi_compute_dt.F
     lines 91-134:
       For each cell K:
         For each face f:
@@ -1244,7 +1244,7 @@ def fvm2fem_forces(
 ) -> np.ndarray:
     """Map cell FVM fluid pressure to nodal FEM force vectors.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\multifluid\\multi_fvm2fem.F
+    Ported from $OR_SRC/engine/source/multifluid/multi_fvm2fem.F
     lines 163-248:
       F_node = - 0.25 * P_cell * sum_faces (n_face * Area_face)
 

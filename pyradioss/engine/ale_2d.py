@@ -37,7 +37,7 @@ QUAD_EDGES = np.array([
 def build_quad_edge_connectivity(connectivity: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """Build element-element neighbor connectivity table across all 4 quad edges.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\ale2d\\aflux2.F
+    Ported from $OR_SRC/engine/source/ale/ale2d/aflux2.F
     lines 187-211 and common_source/modules/ale/ale_connectivity_mod.F.
 
     Args:
@@ -73,7 +73,7 @@ def build_quad_edge_connectivity(connectivity: np.ndarray) -> Tuple[np.ndarray, 
 def compute_quad_edge_normals(xe: np.ndarray, axisymmetric: bool = False) -> np.ndarray:
     """Compute outward area-normal vectors for all 4 edges of quad elements.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\ale2d\\aflux2.F
+    Ported from $OR_SRC/engine/source/ale/ale2d/aflux2.F
     lines 128-153:
       N1_y = (Z2 - Z1)
       N1_z = -(Y2 - Y1)
@@ -133,7 +133,7 @@ def compute_quad_edge_normals(xe: np.ndarray, axisymmetric: bool = False) -> np.
 def compute_quad_areas(x: np.ndarray, connectivity: np.ndarray, axisymmetric: bool = False) -> np.ndarray:
     """Compute areas (or axisymmetric volumes) of 4-node quad elements.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\grid\\alew6.F
+    Ported from $OR_SRC/engine/source/ale/grid/alew6.F
     lines 124-138:
       A1 = Y2*(Z3-Z4) + Y3*(Z4-Z2) + Y4*(Z2-Z3)
       A2 = Y2*(Z4-Z1) + Y4*(Z1-Z2) + Y1*(Z2-Z4)
@@ -175,7 +175,7 @@ def ale_2d_compute_gradients(x: np.ndarray,
                              axisymmetric: bool = False) -> np.ndarray:
     """Compute 2D face gradient geometric projection factors.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\ale2d\\agrad2.F
+    Ported from $OR_SRC/engine/source/ale/ale2d/agrad2.F
     lines 95-161:
       For each edge k connecting element I and neighbor IV_k:
         D_k = - YC(I) + sum_{nodes of IV_k} Y
@@ -232,7 +232,7 @@ def ale_2d_compute_fluxes(q_elem: np.ndarray,
                           axisymmetric: bool = False) -> Dict[str, np.ndarray]:
     """Compute upwind convective fluxes across quad edges in 2D ALE.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\ale2d\\aflux2.F
+    Ported from $OR_SRC/engine/source/ale/ale2d/aflux2.F
     lines 78-236.
 
     Relative velocity on edge: V_rel = 0.5 * ((V_a - W_a) + (V_b - W_b)).
@@ -349,7 +349,7 @@ def ale_2d_advect(vtot: np.ndarray,
                   neighbor_elem: Optional[np.ndarray] = None) -> np.ndarray:
     """Convective time update of state variables in 2D ALE.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\ale2d\\aconv2.F
+    Ported from $OR_SRC/engine/source/ale/ale2d/aconv2.F
     lines 68-93:
       VL(I, k) = PHI(IV_k) * FLUX(IE, k)  (or PHI(IE) if IV_k == 0)
       delta = 0.5 * dt * (- PHI(IE) * FLU1(I) - sum_k VL(I, k))
@@ -394,7 +394,7 @@ def ale_2d_remap(var: np.ndarray,
                  jmult: int = 0) -> np.ndarray:
     """Rezoning / remapping of 2D element variables.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\ale2d\\arezo2.F
+    Ported from $OR_SRC/engine/source/ale/ale2d/arezo2.F
     lines 68-106:
       VAR(I) = VAR(I) + 0.5 * dt * (PHI(IE) * sum(FLUX) - sum(PHI(IV_k) * FLUX_k)) / VOL
 
@@ -444,7 +444,7 @@ def ale_2d_momentum_forces(rho: np.ndarray,
                            off: float = 1.0) -> Tuple[np.ndarray, float]:
     """Compute 2D ALE momentum convective forces on nodes.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\ale2d\\amomt2.F
+    Ported from $OR_SRC/engine/source/ale/ale2d/amomt2.F
     lines 105-225 (standard formulation) & lines 226-372 (SUPG formulation).
 
     Calculates nodal forces F_conv that account for convective momentum transport:
@@ -570,7 +570,7 @@ def ale_2d_diffuse(phi_elem: np.ndarray,
                    neighbor_elem: np.ndarray) -> np.ndarray:
     """Finite-volume diffusion with harmonic interpolation on 2D quad mesh.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\ale2d\\adiff2.F
+    Ported from $OR_SRC/engine/source/ale/ale2d/adiff2.F
     lines 81-127:
       Harmonic interpolation:
         AA_face_k = (alpha_e * alpha_nbr) / max(1e-20, alpha_e + alpha_nbr)

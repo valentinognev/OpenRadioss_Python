@@ -2,11 +2,11 @@
 /ACCEL — 4th-order Butterworth digital filter for accelerometers (SAE J211 / ISO 6487).
 
 Upstream Fortran reference:
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\tools\\accele\\accel1.F
+  - $OR_SRC/engine/source/tools/accele/accel1.F
     Subroutine ACCEL1 (lines 28-117)
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\tools\\accele\\lecacc.F
+  - $OR_SRC/starter/source/tools/accele/lecacc.F
     Subroutine LECACC (lines 43-162)
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\engine\\resol.F
+  - $OR_SRC/engine/source/engine/resol.F
     Accelerometer integration loop (lines 7741-7762)
 
 Theory & Formulation
@@ -172,7 +172,7 @@ def parse_cfc(cfc: Union[int, str, float]) -> float:
 class FilterCoefficients(NamedTuple):
     """Filter coefficients for 4th-order cascaded Butterworth filter.
 
-    Matches variables in C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\tools\\accele\\accel1.F
+    Matches variables in $OR_SRC/engine/source/tools/accele/accel1.F
     lines 56-89.
     """
     c0: float
@@ -193,7 +193,7 @@ def compute_filter_coefficients(fc: float, dt: float) -> FilterCoefficients:
     """Compute cascaded 4th-order Butterworth digital filter coefficients.
 
     Follows SUBROUTINE ACCEL1 (lines 56-89) in:
-    C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\tools\\accele\\accel1.F
+    $OR_SRC/engine/source/tools/accele/accel1.F
 
     Parameters
     ----------
@@ -274,7 +274,7 @@ def accel1(
     """Execute OpenRadioss SUBROUTINE ACCEL1 step.
 
     Upstream Fortran reference:
-    C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\tools\\accele\\accel1.F
+    $OR_SRC/engine/source/tools/accele/accel1.F
     lines 28-117.
 
     Parameters

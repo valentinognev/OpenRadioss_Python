@@ -3,11 +3,11 @@
 Upstream OpenRadioss Fortran References:
 ----------------------------------------
 - Starter Card Readers:
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\loads\\general\\pfluid\\hm_read_pfluid.F``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\loads\\general\\pfluid\\hm_preread_pfluid.F``
+  ``$OR_SRC/starter/source/loads/general/pfluid/hm_read_pfluid.F``
+  ``$OR_SRC/starter/source/loads/general/pfluid/hm_preread_pfluid.F``
   ``hm_cfg_files/config/CFG/radioss120/LOADS/pfluid.cfg``
 - Engine Time-Integration Kernel:
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\loads\\general\\pfluid\\pfluid.F``
+  ``$OR_SRC/engine/source/loads/general/pfluid/pfluid.F``
 
 Physics Overview:
 -----------------

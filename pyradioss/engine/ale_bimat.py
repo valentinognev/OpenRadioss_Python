@@ -37,7 +37,7 @@ _FOURTH = 0.25
 def element_vof_from_nodal_fill(fill_nodes: np.ndarray) -> float:
     """Calculate element volume fraction alpha from 4-node fill function values.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\bimat\\balph2.F
+    Ported from $OR_SRC/engine/source/ale/bimat/balph2.F
     lines 136-147:
       ALPN = sum_{n=1..4} max(0, FILL_n)
       ALPD = sum_{n=1..4} |FILL_n|
@@ -99,7 +99,7 @@ def bimat_vof_evolution(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Evolve bi-material volume fraction for phase 1.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\bimat\\balph2.F
+    Ported from $OR_SRC/engine/source/ale/bimat/balph2.F
     lines 170-230:
       For element I:
         If ALPH_old in (0, 1):
@@ -196,7 +196,7 @@ def bimat_two_material_constraint(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Enforce the multi-material packing constraint alpha_1 + alpha_2 <= 1.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\bimat\\balph2.F
+    Ported from $OR_SRC/engine/source/ale/bimat/balph2.F
     lines 335-343:
       ALPHT = ALPH1 + ALPH2
       If ALPHT > 1:
@@ -249,7 +249,7 @@ def bimat_face_fluxes(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute interface-weighted face volume fluxes for a bi-material phase.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\bimat\\amulf2.F
+    Ported from $OR_SRC/engine/source/ale/bimat/amulf2.F
     lines 68-181:
       For each quad face (k=1..4) connecting nodes NC_A and NC_B:
         ALPN = max(0, FILL_A) + max(0, FILL_A - DFILL_A) + max(0, FILL_B) + max(0, FILL_B - DFILL_B)
@@ -371,7 +371,7 @@ def bimat_mixture_properties(
 ) -> Dict[str, np.ndarray]:
     """Compute homogenized mixture properties for bi-material elements.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\bimat\\bcumu2.F
+    Ported from $OR_SRC/engine/source/ale/bimat/bcumu2.F
     lines 110-140:
       SIGT(I, J)  = SIG1(I, J)*ALPH1(I) + SIG2(I, J)*ALPH2(I)
       EINTT(I)    = EINT1(I)*ALPH1(I)   + EINT2(I)*ALPH2(I)
@@ -428,7 +428,7 @@ def bimat_nodal_force_accumulation(
 ) -> np.ndarray:
     """Accumulate volume-fraction-weighted element forces to global nodal force vector.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\bimat\\bcumu2.F
+    Ported from $OR_SRC/engine/source/ale/bimat/bcumu2.F
     lines 82-97:
       F_node += alph_elem * F_elem_node
 
@@ -464,7 +464,7 @@ def bimat_nodal_fill_convection(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute convective variation of nodal fill function across quad elements.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\bimat\\bafil2.F
+    Ported from $OR_SRC/engine/source/ale/bimat/bafil2.F
     lines 63-189:
       Relative velocity v_d = v - w
       Mean relative velocity in element weighted by (fill + 1)
@@ -604,7 +604,7 @@ def bimat_nodal_fill_update(
 ) -> np.ndarray:
     """Update and clamp nodal fill function values.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\bimat\\bmultn.F
+    Ported from $OR_SRC/engine/source/ale/bimat/bmultn.F
     lines 51-70:
       For node N:
         If node_count(N) > 0:

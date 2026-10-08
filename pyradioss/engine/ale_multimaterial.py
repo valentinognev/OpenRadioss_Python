@@ -261,7 +261,7 @@ def least_squares_gradient_2d(
 ) -> np.ndarray:
     """Compute 2D least-squares gradient of volume fraction for quad elements.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alemuscl\\gradient_reconstruction2.F
+    Ported from $OR_SRC/engine/source/ale/alemuscl/gradient_reconstruction2.F
     lines 88-143:
       For each element II:
         mat(2, 2) = sum_{k=1..4} (x_L - x_K) (x_L - x_K)^T
@@ -325,7 +325,7 @@ def least_squares_gradient_3d(
 ) -> np.ndarray:
     """Compute 3D least-squares gradient of volume fraction for hex elements.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alemuscl\\gradient_reconstruction.F90
+    Ported from $OR_SRC/engine/source/ale/alemuscl/gradient_reconstruction.F90
     lines 134-265.
 
     Args:
@@ -383,7 +383,7 @@ def gradient_limiter_barth_jespersen_2d(
 ) -> np.ndarray:
     """Barth-Jespersen slope limiter for 2D quad element gradients.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\alemuscl\\gradient_limitation2.F
+    Ported from $OR_SRC/engine/source/ale/alemuscl/gradient_limitation2.F
     lines 71-115.
 
     Ensures the linearly extrapolated value at all 4 vertices lies within the
@@ -478,7 +478,7 @@ def ale51_upwind_flux(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute donor-acceptor upwinded face volume fluxes and momentum flux helpers.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\ale51\\ale51_upwind2.F
+    Ported from $OR_SRC/engine/source/ale/ale51/ale51_upwind2.F
     lines 162-176 and ale51_upwind3.F:
       FLUX(II, K) = FLUX_1(I) - UPWL * |FLUX_1(I)|
       QMV(II, 5)  = FLUX_1(I) + UPWL * |FLUX_1(I)|
@@ -512,7 +512,7 @@ def ale51_antidiffusion(
 ) -> np.ndarray:
     """Compute species volume fluxes with anti-diffusive limiter.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\ale51\\ale51_antidiff2.F
+    Ported from $OR_SRC/engine/source/ale/ale51/ale51_antidiff2.F
     lines 90-194 and ale51_antidiff3.F lines 148-260:
       VOL0 = VOL * (1 / DT1)
       For each species itrimat in 1..trimat:
@@ -638,7 +638,7 @@ def law51_pressure_relaxation(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, bool]:
     """Multi-material pressure relaxation algorithm for Law 51 elements.
 
-    Ported faithfully from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat051\\sigeps51.F90
+    Ported faithfully from $OR_SRC/engine/source/materials/mat/mat051/sigeps51.F90
     lines 1360-1571.
 
     Equilibrates the pressures of all active phases within an element to an
@@ -762,7 +762,7 @@ def law51_mixture_properties(
 ) -> Dict[str, Any]:
     """Compute homogenized mixture properties for Law 51 multi-material element.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat051\\sigeps51.F90
+    Ported from $OR_SRC/engine/source/materials/mat/mat051/sigeps51.F90
     lines 1570-1610:
       Total volume V = sum V_k,  alpha_k = V_k / V
       Total mass   M = sum M_k,  rho_mix = M / V = sum alpha_k * rho_k

@@ -19,7 +19,7 @@ import numpy as np
 # 1. 3D Geometric Clipping & Polygon Operations (from fvmesh.F)
 # =============================================================================
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\fvmesh.F: POLCLIP (lines 3160-3240)
+# Ported from $OR_SRC/engine/source/airbag/fvmesh.F: POLCLIP (lines 3160-3240)
 def polygon_clip_plane(
     poly_in: np.ndarray,
     plane_point: np.ndarray,
@@ -81,7 +81,7 @@ def polygon_clip_plane(
     return np.array(poly_out, dtype=np.float64)
 
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\fvmesh.F: ITRIBOX (lines 3106-3158)
+# Ported from $OR_SRC/engine/source/airbag/fvmesh.F: ITRIBOX (lines 3106-3158)
 def clip_triangle_to_box(
     triangle: np.ndarray,
     box_min: np.ndarray,
@@ -119,7 +119,7 @@ def clip_triangle_to_box(
     return poly
 
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\fvmesh.F: subroutines FACEPOLY, POLYHEDR
+# Ported from $OR_SRC/engine/source/airbag/fvmesh.F: subroutines FACEPOLY, POLYHEDR
 def compute_polygon_area_normal(
     poly: np.ndarray,
 ) -> Tuple[float, np.ndarray, np.ndarray]:
@@ -156,7 +156,7 @@ def compute_polygon_area_normal(
 # 2. Point-in-Polyhedron Test via Spherical Solid Angle (from fvrezone.F)
 # =============================================================================
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\fvrezone.F: PINPOLH (lines 799-902)
+# Ported from $OR_SRC/engine/source/airbag/fvrezone.F: PINPOLH (lines 799-902)
 def point_in_polyhedron(
     point: np.ndarray,
     triangles: np.ndarray,
@@ -297,7 +297,7 @@ class FvmPolyhedron:
     cpf: float = 0.0
 
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\fvmesh.F: subroutines FVMESH1, POLYHEDR
+# Ported from $OR_SRC/engine/source/airbag/fvmesh.F: subroutines FVMESH1, POLYHEDR
 def compute_polyhedron_volume(triangles: np.ndarray) -> Tuple[float, np.ndarray]:
     """Compute enclosed volume and centroid of a triangulated polyhedron.
 
@@ -337,7 +337,7 @@ def compute_polyhedron_volume(triangles: np.ndarray) -> Tuple[float, np.ndarray]
 # 4. 3D Unstructured Mesh Generation Inside Folded Airbag (from fvmesh.F)
 # =============================================================================
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\fvmesh.F: FVMESH1 (lines 45-500)
+# Ported from $OR_SRC/engine/source/airbag/fvmesh.F: FVMESH1 (lines 45-500)
 def generate_fvm_airbag_mesh(
     surface_triangles: np.ndarray,
     grid_res: Tuple[int, int, int] = (2, 2, 2),
@@ -457,7 +457,7 @@ def generate_fvm_airbag_mesh(
 # 5. Dynamic Grid Rezoning (from fvrezone.F)
 # =============================================================================
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\fvrezone.F: FVREZONE1 (lines 131-793)
+# Ported from $OR_SRC/engine/source/airbag/fvrezone.F: FVREZONE1 (lines 131-793)
 def rezone_airbag_mesh(
     old_polyhedra: List[FvmPolyhedron],
     new_polyhedra: List[FvmPolyhedron],

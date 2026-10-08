@@ -31,7 +31,7 @@ def compute_eddy_viscosity(k: np.ndarray,
                            c_mu: float = DEFAULT_CMU) -> np.ndarray:
     """Compute turbulent eddy viscosity mu_t.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\turbulence\\akturb.F
+    Ported from $OR_SRC/engine/source/ale/turbulence/akturb.F
     lines 109-111:
       RK = GBUF%RK(I)   ! rho * k
       RE = GBUF%RE(I)   ! rho * eps
@@ -58,7 +58,7 @@ def compute_eddy_viscosity(k: np.ndarray,
 def compute_turbulent_pressure(k: np.ndarray, rho: np.ndarray) -> np.ndarray:
     """Compute isotropic turbulent pressure P_turb = 2/3 * rho * k.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\turbulence\\aturbn.F
+    Ported from $OR_SRC/engine/source/ale/turbulence/aturbn.F
     line 64:
       Pturb(I) = TWO * RK(I) / (VNEW(I) * THREE)
 
@@ -89,7 +89,7 @@ def update_turbulence_sources(k: np.ndarray,
                               off: float = 1.0) -> Tuple[np.ndarray, np.ndarray, float]:
     """Advance turbulent kinetic energy k and dissipation eps with production and destruction.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\turbulence\\aturbn.F
+    Ported from $OR_SRC/engine/source/ale/turbulence/aturbn.F
     lines 60-98:
       XFAC = TMU(I) / VIS(I)
       Pturb(I) = 2/3 * RK(I) / VNEW(I)
@@ -182,7 +182,7 @@ def diffuse_turbulence_fields(phi_field: np.ndarray,
                               dt: float) -> np.ndarray:
     """Diffuse a turbulent scalar field (k or eps) using harmonic finite-volume diffusion.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\ale\\turbulence\\akturb.F
+    Ported from $OR_SRC/engine/source/ale/turbulence/akturb.F
     lines 111-122, aeturb.F lines 109-120, and engine/source/ale/ale3d/adiff3.F:
       Harmonic face interpolation of diffusivity:
         AA_face_k = (alpha_e * alpha_nbr) / max(1e-20, alpha_e + alpha_nbr)

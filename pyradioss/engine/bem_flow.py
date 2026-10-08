@@ -188,7 +188,7 @@ def compute_triangle_normals_and_areas(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute normal vectors, element areas, and nodal tributary areas.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\incpflow.F lines 240-278.
+    Ported from $OR_SRC/engine/source/fluid/incpflow.F lines 240-278.
 
     Parameters
     ----------
@@ -244,7 +244,7 @@ def trgrad(
 ) -> np.ndarray:
     """Compute surface gradient of potential on a 3D triangle panel.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\incpflow.F lines 1224-1304.
+    Ported from $OR_SRC/engine/source/fluid/incpflow.F lines 1224-1304.
 
     Parameters
     ----------
@@ -307,7 +307,7 @@ def int_h_tg(
 ) -> np.ndarray:
     """Numerical integration of double-layer potential kernel over triangle.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\bemsolv.F lines 312-431.
+    Ported from $OR_SRC/engine/source/fluid/bemsolv.F lines 312-431.
 
     Parameters
     ----------
@@ -388,7 +388,7 @@ def int_g_tg(
 ) -> float:
     """Numerical integration of single-layer potential kernel over triangle.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\bemsolv.F lines 438-578.
+    Ported from $OR_SRC/engine/source/fluid/bemsolv.F lines 438-578.
 
     Parameters
     ----------
@@ -455,7 +455,7 @@ def solid_angle_triangle(
 ) -> float:
     """Compute solid angle subtended by a triangle at query point xq.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\incpflow.F lines 607-655.
+    Ported from $OR_SRC/engine/source/fluid/incpflow.F lines 607-655.
 
     Returns
     -------
@@ -507,7 +507,7 @@ def assemble_bem_system(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Assemble BEM influence matrices HBEM and GBEM for potential flow.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\bemsolv.F lines 68-180.
+    Ported from $OR_SRC/engine/source/fluid/bemsolv.F lines 68-180.
 
     Parameters
     ----------
@@ -601,7 +601,7 @@ def solve_bem_system(
 ) -> np.ndarray:
     """Solve BEM linear system H * Phi = G * Q - Phi_inf for boundary potential.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\bemsolv.F lines 185-214.
+    Ported from $OR_SRC/engine/source/fluid/bemsolv.F lines 185-214.
 
     Parameters
     ----------
@@ -652,7 +652,7 @@ def compute_surface_velocities(
 ) -> np.ndarray:
     """Compute surface velocities by combining tangential gradient and normal flux.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\incpflow.F lines 513-561.
+    Ported from $OR_SRC/engine/source/fluid/incpflow.F lines 513-561.
 
     Returns
     -------
@@ -709,7 +709,7 @@ def evaluate_field_points(
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Evaluate velocity potential and velocity at arbitrary query points.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\incpflow.F lines 674-752.
+    Ported from $OR_SRC/engine/source/fluid/incpflow.F lines 674-752.
 
     Parameters
     ----------
@@ -844,7 +844,7 @@ def compute_unsteady_bernoulli_pressure(
 ) -> np.ndarray:
     """Compute unsteady Bernoulli pressure P = PA - rho * dPhi/dt - 0.5 * rho * |u|^2.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\incpflow.F lines 1108-1132.
+    Ported from $OR_SRC/engine/source/fluid/incpflow.F lines 1108-1132.
 
     Parameters
     ----------
@@ -901,7 +901,7 @@ def compute_boundary_forces_and_work(
 ) -> Tuple[np.ndarray, float]:
     """Compute consistent structural boundary forces and work ledger accumulation.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\incpflow.F lines 1137-1166.
+    Ported from $OR_SRC/engine/source/fluid/incpflow.F lines 1137-1166.
 
     Parameters
     ----------
@@ -1024,7 +1024,7 @@ class BemIncompressibleFlow:
     ) -> Tuple[np.ndarray, np.ndarray, float]:
         """Execute one time step of BEM incompressible flow solver.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\fluid\\incpflow.F
+        Ported from $OR_SRC/engine/source/fluid/incpflow.F
 
         Parameters
         ----------

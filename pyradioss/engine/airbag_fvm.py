@@ -1042,7 +1042,7 @@ def apply_injector_jetting_forces(
 # 7. Shock-Capturing Upwind Flux Limiter (from fv_up_switch.F)
 # =============================================================================
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\fv_up_switch.F: lines 905-1008
+# Ported from $OR_SRC/engine/source/airbag/fv_up_switch.F: lines 905-1008
 def compute_upwind_face_flux(
     rho1: float,
     re1: float,
@@ -1150,7 +1150,7 @@ def compute_upwind_face_flux(
 # 8. Artificial Gas Bulk Viscosity & CFL Time Step (from fv_up_switch.F)
 # =============================================================================
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\fv_up_switch.F: lines 1208-1220, 1255-1262
+# Ported from $OR_SRC/engine/source/airbag/fv_up_switch.F: lines 1208-1220, 1255-1262
 def compute_gas_viscosity_and_cfl(
     volume: float,
     mass: float,
@@ -1229,7 +1229,7 @@ def compute_gas_viscosity_and_cfl(
 # 9. Membrane Anti-Hourglass Viscosity for Fabric Shells (from mhvis3.F)
 # =============================================================================
 
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\airbag\mhvis3.F: lines 109-364
+# Ported from $OR_SRC/engine/source/airbag/mhvis3.F: lines 109-364
 def compute_membrane_hourglass_viscosity(
     nodes_v: np.ndarray,
     thk0: float,
