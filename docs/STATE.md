@@ -3,11 +3,13 @@
 *The onboarding document. Read this + AGENTS.md before any work; everything
 else (PORTING_GUIDE.md 535 KB, VALIDATION.md 233 KB) is grep-only reference.*
 *Read §Licensing first — it states the licence this repository is under.*
-*Last updated: 2026-10-07 (licence decision recorded and applied:
-AGPL-3.0-or-later; before that: 2026-10-04, the licence gate made visible in
-the onboarding doc; fix wave 3 before that: §Baseline restated as commands +
-dated measurements, no bare suite counts; before that: 2026-10-03
-post-migration re-baseline, 2026-08-02 handover preparation after M41).*
+*Last updated: 2026-10-08 (Task P1.10: §Program status added, §Baseline pointed
+at the regression ledger, the three pre-migration figures retired; 2026-10-07:
+the licence decision recorded and applied, AGPL-3.0-or-later; before that:
+2026-10-04, the licence gate made visible in the onboarding doc; fix wave 3
+before that: §Baseline restated as commands + dated measurements, no bare suite
+counts; before that: 2026-10-03 post-migration re-baseline, 2026-08-02 handover
+preparation after M41).*
 
 ## Licensing — DECIDED 2026-10-07: AGPL-3.0-or-later
 
@@ -40,6 +42,33 @@ post-migration re-baseline, 2026-08-02 handover preparation after M41).*
   reads all three artefacts and asserts they agree; it is no longer an
   `xfail(strict=True)`, so a future relicensing that misses one of them turns
   it red.
+
+## Program status
+
+**The current phase is Phase 1 (Foundation)** — `plan/02_phase1_foundation.md`.
+The plan of record is **`plan/README.md`**: the 18-phase index (§3), the
+dependency graph and the wave map (§4), the conventions that replaced
+milestone numbering (§6), and the levers for re-ordering or cutting (§7). Phase
+files are numbered `NN_phaseN_*.md`; tasks are `P<phase>.<task>`; program-era
+milestones are **M700+** and are unrelated to either number.
+
+- **Phase 0 (Oracle + licensing)** — `plan/01_phase0_oracle_and_licensing.md` —
+  is complete and its exit gate passes, and its licensing sub-task (Task P0.0)
+  is now decided too: see §Licensing above.
+- **Phase 1** is structural work — the platform-neutral `AGENTS.md`, the
+  escape-sequence sweep, the upstream census, the monolith splits, the
+  regression ledger and this documentation contract. Its tasks are landing
+  task by task; `UPDATES.md` records each one.
+- **Phases 2–17 are unblocked and unstarted.** The licence decision satisfied
+  the entry criterion every later phase named, but their tasks are unexecuted:
+  no phase number may be renumbered, and no later phase may be written up as
+  finished because a file for it exists.
+- **What changed, and when** — `UPDATES.md`, newest entry first; it is the
+  changelog of record for this program, and each entry is a dated measurement of
+  the tree it was recorded on.
+
+This section is a pointer, not a second copy of the plan: when it disagrees
+with `plan/README.md`, the plan wins and this section is corrected.
 
 ## What this is
 
@@ -89,6 +118,21 @@ never a bare "the suite has N tests":
   in the section heading is reported), and holds **this** section to the
   stricter form — every figure here binds on its OWN line, because a bare
   number in the onboarding document is exactly where one used to hide.
+
+**The recorded result is the ledger, not this file.**
+`tools/validation_data/baseline.json` is the fast-tier baseline Task P1.8
+records: the node-id-exact result of the tree it was recorded on, plus the
+environment key that result belongs to. Re-measure it against this tree with
+`.venv/bin/python -m tools.regression_ledger --check tools/validation_data/baseline.json`,
+which turns "no new failures" into a measurement. It is the one place a current
+figure belongs: `UPDATES.md` is a dated record per entry, so a count written
+here would be a second, faster-rotting copy. The three historical fast-tier /
+full-suite figures this section used to carry — measured on the pre-migration
+Windows interpreter, against a tree this repository no longer has — are
+**withdrawn, not re-dated**; the commands in the table below are how to measure
+this tree.
+
+`14649 passed, 17 skipped, 1 failed, 20 deselected, 26 xfailed` — measured 2026-10-04 by the ledger, on the tree at commit `f5c339f`, under its recorded `environment_key` (`PYRADIOSS_BACKEND=numpy`, CPython 3.12.3, `OR_SRC`/`OR_ROOT`/hm_cfg present). The one recorded failure is `tests/test_p0_no_stale_machine_paths.py::test_a_documented_windows_fallback_is_not_a_false_claim`; the ledger stores the failing node id, so `--check` names it again rather than counting. Those figures are the ledger's, for its tree: quote the file or re-run the command, never this line as if it described today.
 
 The fast tier is not one environment, and the three are not interchangeable:
 `pyradioss/paths.py` resolves `$OR_ROOT` unaided, so the oracle tests neither
@@ -162,21 +206,17 @@ Do not treat "the oracle-configured run is green" as a permanent fact; re-run it
   re-checked against the installed binaries by
   `tests/test_p0_oracle_provenance.py` (passing in the gate run above).
 - Any red on the fast tier is a regression you introduced, not baseline noise.
-- **Previous machine (Windows, Python 3.14.2 / numpy 2.4.6, pre-migration) —
-  history, not this box.** Its fast tier measured `11182 passed / 4 skipped /
-  0 failed` (2026-09-12) and then `13030 passed / 4 skipped / 13 failed`
-  (2026-09-21), the 13 attributed to "pre-existing M614 failures
-  (test_m6/m12/m14/numpy_compat)"; the full suite measured `9893 passed /
-  5 skipped / 0 failed` (2026-09-11) — three figures from a machine and a tree
-  this repository no longer has, kept because they are what the M614 claim was
-  made against. **That 13-failure claim does not reproduce here** —
-  `tests/test_m6_engine.py tests/test_m6_eos_thermal.py
+- **The "13 pre-existing M614 failures" claim from handover does not reproduce
+  here.** `tests/test_m6_engine.py tests/test_m6_eos_thermal.py
   tests/test_m6_fixes_wave2.py tests/test_m12_implconstr.py
   tests/test_m14_implgen.py tests/test_numpy_compat.py` measures
   **74 passed, 1 skipped** (re-measured 2026-10-03 under
   `PYRADIOSS_BACKEND=numpy`, exit 0; the one skip is `test_numpy_compat.py:109`,
   "legacy spelling already removed (NumPy >= 2.0)"). It was a property of that
   interpreter/numpy pair, not a standing exemption: do not carry it forward.
+  The figures the claim was originally made against belonged to the
+  pre-migration Windows box and are withdrawn above; re-measure, do not quote
+  them.
 
 ## Multiphysics Engine (M_SPH, M_ALE, M_FSI, M_MONVOL — 2026-09-21)
 

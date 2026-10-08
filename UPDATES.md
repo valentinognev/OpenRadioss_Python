@@ -13,6 +13,51 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.11.0 - Task P1.10: the documentation contract - one measured baseline, a program-status pointer, and a changelog in order (2026-10-08)
+
+The first program-era task that changes no code at all, and the first to find
+that two of its own preconditions were false: the changelog existed and was not
+in the order the contract requires, and the three "stale" figures were not gone
+from `docs/STATE.md` - they were still there, wearing a date and the label
+"history, not this box".
+
+- **New `docs/STATE.md` §Program status**, placed after §Licensing so an agent
+  meets it while still reading the preamble: the current phase is **Phase 1
+  (Foundation)**, file `plan/02_phase1_foundation.md`, and the phase index, the
+  dependency graph and the re-ordering levers live in `plan/README.md`. Phase 0
+  is complete with its exit gate passing, Phase 1's structural work is in
+  progress, and phases 2-17 are unblocked by §1.10.0 but unstarted: no later
+  phase is called finished, and no phase is renumbered.
+- **§Baseline now names the ledger it follows**:
+  `tools/validation_data/baseline.json` (the Task P1.8 regression ledger) is the
+  recorded fast-tier result — node-id-exact, with the environment key it belongs
+  to — and `python -m tools.regression_ledger --check tools/validation_data/baseline.json`
+  is how "no new failures" becomes a measurement. The one measured line §Baseline
+  quotes (`14649 passed, 17 skipped, 1 failed, 20 deselected, 26 xfailed`, measured
+  2026-10-04 at commit `f5c339f`) is bound to that record on its own line, so it
+  reads as the ledger's figure for the ledger's tree and not as today's suite.
+- **The three pre-migration fast-tier / full-suite figures are deleted**, not
+  re-dated: they were measured on a Windows interpreter and a tree this
+  repository no longer has, and the "13 pre-existing M614 failures" they were
+  kept to justify **does not reproduce here** - that finding survives, bound to
+  the command that measures those six modules, and is the only part of the old
+  bullet worth carrying forward.
+- **`UPDATES.md` was not newest-first**: §1.4.0 sat above §1.5.0. The blocks are
+  swapped and no entry text was touched - the entries stay dated measurements of
+  the trees they were recorded on, which is what this file is for.
+- **New `tests/test_p1_documentation_contract.py`** holds the contract: the
+  changelog descends, §Program status exists and points at `plan/README.md`, the
+  phase number and phase file agree with that index's own table (so the check
+  survives the next phase starting), no phase after the current one is declared
+  complete, §Baseline points at the ledger, and the retired figures stay out of
+  `docs/STATE.md`. The phase is parsed from the index, not hardcoded.
+- **`README.md`, one sentence.** It pointed at `docs/STATE.md` for "the roadmap";
+  the roadmap of record is `plan/README.md`, with `UPDATES.md` as the changelog.
+
+No physics, no module and no test count moved: `plan/02_phase1_foundation.md`
+Task P1.10's gate is "full suite byte-identical to the pre-split baseline",
+which this task satisfies by touching no code path.
+
 ## 1.10.0 - The licence decision is made: this repository is AGPL-3.0-or-later (2026-10-07)
 
 The gate documented since Phase 0 is down. The maintainer recorded the
@@ -483,60 +528,6 @@ closed; two of them were my own overstatement.
   `tools/compare_t01.py` already has). Phase 0's exit gate does not require it;
   every phase after this one does.
 
-## 1.4.0 - P0.11: parity produces evidence without `th_to_csv` (2026-10-03)
-
-Phase 0 exists so later phases can produce differential parity evidence against
-the real Fortran solver. They could not: the oracle ran, wrote its binary `T01`,
-and the harness stopped at `FORTRAN-FAIL(th2csv-missing)` because upstream's
-converter is unobtainable here (`$OR_SRC/tools/th_to_csv/README.md:1-7` points
-at the separate `OpenRadioss/Tools` repository, unreachable from this machine —
-the same class of blockage as the extlib releases).
-
-- **New** `tools/validate_vs_fortran.py` comparison route: when `th_to_csv` is
-  absent, the **Fortran binary T01 is read by `tools.compare_t01.read_t01`**
-  (landed in `c679734` precisely so the converter becomes optional) and scored
-  against the port's own T01 CSV with the same 5 % tolerance
-  `parity_m41.json` records. `run_fortran` now hands the T01 path on instead of
-  discarding it, and every row records its `comparison_route`.
-  **First real evidence on this box:** `examples/tensile_bar` →
-  `MATCH`, `max_rel_rms = 0.00246`, 11 of 30 channels compared and **5** of
-  them signal-carrying (EFW, IE, MASS, part IE, XMOM) — corrected by the
-  1.5.1 entry below, which fixes the count this entry first stated as 11.
-- **Unchanged** the CSV path: it still runs whenever a converter exists,
-  including its `final_dev` / `scale` / `significant` row shape. The new route
-  is additive and is only reached when there is no Fortran CSV.
-- **Honest degradation, both ways.** A missing/unreadable T01 is
-  `FORTRAN-FAIL(t01-unreadable)` with the reader's own error quoted and **no**
-  `max_rel_rms`; nothing comparable is the pre-existing "no overlapping
-  channels" failure, never a `MATCH`. `--tol` can tighten the reader route but
-  not loosen it past `parity_m41.json`'s own tolerance, so a new sweep stays
-  comparable with every old one.
-- **No raw-byte comparison anywhere.** The T01 header carries `ctime()`
-  (`hist1.F:210-234` via `timer_c.c:30-40`), so two runs of one deck differ in
-  those 24 bytes and nowhere else; a test rewrites the stamp and asserts every
-  number is unchanged.
-- **New** an `evidence` block on every parity row: the evidence channel
-  (`T01 (binary results table)`), whether
-  `tools/validation_data/oracle_provenance.json` admits it, why, and which
-  **inadmissible** features the deck asks for (`/H3D`,
-  `/ALE/STRUCTURED_MESH`, `/CHECKSUM_REPORT` — the H3D family is the engine's,
-  `freform.F:2680,2696`). A channel the record does not list is *not* claimed.
-- **New** `tests/test_p0_parity_t01_path.py` — 15 tests, no oracle needed (the
-  committed golden T01 of the P0.5 reference run is real Fortran output): the
-  reader route is taken without the converter, the CSV route is untouched with
-  it, unreadable input fails loudly, a known offset gives the expected
-  per-channel verdict and number, no verdict can be `MATCH` without significant
-  channels, the run stamp cannot move a verdict, and every class the harness can
-  emit is a recorded class or a subtag of one.
-- **Known limitation surfaced by the end-to-end run** (not this task's file):
-  `tools.compare_t01.read_t01` refuses a deck whose T01 carries more than four
-  per-step records — e.g. `rd_e/.../BATOZ/Sf_0.6/ROLLING`, measured at six
-  records per step — because the shared walk `parse_t01` fixes the stride at
-  four. The harness reports it as `FORTRAN-FAIL(t01-unreadable)` with the
-  reason, and generalising the stride belongs in
-  `tools/oracle/oracle_selftest.py`. (This entry first blamed a five-record
-  block and the hierarchy's `NSUBS`; both were wrong — see 1.5.1.)
-
 ## 1.5.0 - P0.7: the optional backends are installable, and the box says which are (2026-10-03)
 
 `numba` and `mpi4py` were recorded as missing in `plan/00_ORCHESTRATION.md`
@@ -598,6 +589,60 @@ deliberately NOT, and the lock says so in a form a test enforces.
   decorator), so it is NOT an availability probe — `HAS_NUMBA` built on it
   never skips. The honest probe is `accel._load_numba_module`, which imports
   numba itself; a test now pins both halves.
+
+## 1.4.0 - P0.11: parity produces evidence without `th_to_csv` (2026-10-03)
+
+Phase 0 exists so later phases can produce differential parity evidence against
+the real Fortran solver. They could not: the oracle ran, wrote its binary `T01`,
+and the harness stopped at `FORTRAN-FAIL(th2csv-missing)` because upstream's
+converter is unobtainable here (`$OR_SRC/tools/th_to_csv/README.md:1-7` points
+at the separate `OpenRadioss/Tools` repository, unreachable from this machine —
+the same class of blockage as the extlib releases).
+
+- **New** `tools/validate_vs_fortran.py` comparison route: when `th_to_csv` is
+  absent, the **Fortran binary T01 is read by `tools.compare_t01.read_t01`**
+  (landed in `c679734` precisely so the converter becomes optional) and scored
+  against the port's own T01 CSV with the same 5 % tolerance
+  `parity_m41.json` records. `run_fortran` now hands the T01 path on instead of
+  discarding it, and every row records its `comparison_route`.
+  **First real evidence on this box:** `examples/tensile_bar` →
+  `MATCH`, `max_rel_rms = 0.00246`, 11 of 30 channels compared and **5** of
+  them signal-carrying (EFW, IE, MASS, part IE, XMOM) — corrected by the
+  1.5.1 entry below, which fixes the count this entry first stated as 11.
+- **Unchanged** the CSV path: it still runs whenever a converter exists,
+  including its `final_dev` / `scale` / `significant` row shape. The new route
+  is additive and is only reached when there is no Fortran CSV.
+- **Honest degradation, both ways.** A missing/unreadable T01 is
+  `FORTRAN-FAIL(t01-unreadable)` with the reader's own error quoted and **no**
+  `max_rel_rms`; nothing comparable is the pre-existing "no overlapping
+  channels" failure, never a `MATCH`. `--tol` can tighten the reader route but
+  not loosen it past `parity_m41.json`'s own tolerance, so a new sweep stays
+  comparable with every old one.
+- **No raw-byte comparison anywhere.** The T01 header carries `ctime()`
+  (`hist1.F:210-234` via `timer_c.c:30-40`), so two runs of one deck differ in
+  those 24 bytes and nowhere else; a test rewrites the stamp and asserts every
+  number is unchanged.
+- **New** an `evidence` block on every parity row: the evidence channel
+  (`T01 (binary results table)`), whether
+  `tools/validation_data/oracle_provenance.json` admits it, why, and which
+  **inadmissible** features the deck asks for (`/H3D`,
+  `/ALE/STRUCTURED_MESH`, `/CHECKSUM_REPORT` — the H3D family is the engine's,
+  `freform.F:2680,2696`). A channel the record does not list is *not* claimed.
+- **New** `tests/test_p0_parity_t01_path.py` — 15 tests, no oracle needed (the
+  committed golden T01 of the P0.5 reference run is real Fortran output): the
+  reader route is taken without the converter, the CSV route is untouched with
+  it, unreadable input fails loudly, a known offset gives the expected
+  per-channel verdict and number, no verdict can be `MATCH` without significant
+  channels, the run stamp cannot move a verdict, and every class the harness can
+  emit is a recorded class or a subtag of one.
+- **Known limitation surfaced by the end-to-end run** (not this task's file):
+  `tools.compare_t01.read_t01` refuses a deck whose T01 carries more than four
+  per-step records — e.g. `rd_e/.../BATOZ/Sf_0.6/ROLLING`, measured at six
+  records per step — because the shared walk `parse_t01` fixes the stride at
+  four. The harness reports it as `FORTRAN-FAIL(t01-unreadable)` with the
+  reason, and generalising the stride belongs in
+  `tools/oracle/oracle_selftest.py`. (This entry first blamed a five-record
+  block and the hierarchy's `NSUBS`; both were wrong — see 1.5.1.)
 
 ## 1.3.2 - P0.9 fix round 2: the h3d claim, corrected; PATH on Windows; RPATH read from the ELF (2026-10-03)
 
