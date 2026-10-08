@@ -12,7 +12,15 @@ requires-python = ">=3.9"
 dependencies = ["numpy>=1.22"]
 
 [project.optional-dependencies]
-test = ["pytest>=7", "pytest-xdist>=3", "scipy>=1.8"]
+# `test` is what CI installs (`pip install -e ".[test]"` in
+# .github/workflows/ci.yml and parity.yml), so anything the suite needs to
+# ASSERT must live here -- a test whose dependency CI does not install runs
+# vacuously. `pyyaml` is here for tests/test_p1_ci_linux.py, which has to
+# reject what a YAML parser rejects; without a real parser that file's
+# "these workflows are valid YAML" test degrades to a one-rule lint that
+# accepts an unterminated quoted scalar. Its exact pin belongs in
+# requirements-lock.txt (not this file's to record) alongside the others.
+test = ["pytest>=7", "pytest-xdist>=3", "scipy>=1.8", "pyyaml>=6.0"]
 # the optional M7 accelerated backend (pyradioss/accel): the base install
 # stays NumPy-only; select with PYRADIOSS_BACKEND=numba or -backend numba
 # P0.7 (2026-10-03): the floor stays 0.59 (the M7-era minimum, unchanged on

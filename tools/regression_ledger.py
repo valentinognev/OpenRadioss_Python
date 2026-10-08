@@ -44,8 +44,10 @@ not.
 The decision procedure, in the order it is applied (``compare``):
 
 * ``fixed`` = (was failing, is not failing now) AND the id is **still
-  collected**.  Existence is read from the *current* run's collected set, so
-  it is evidence, not a guess.
+  collected**.  Existence is read from the current run's collected set -- the
+  set of ids this run recorded for :attr:`Ledger.examined_files`, which is
+  the union of *both* runs' failing files (see "Why the record keeps a
+  restricted selected set"), so it is evidence, not a guess.
 * everything else that was failing and is not failing now is **gone**, split
   into *renamed* and *deleted*;
 * a gone id is a **rename partner** of a now-failing id when they share a
@@ -66,26 +68,49 @@ The one cost, named on purpose
 ------------------------------
 "Delete the failing test, add a new failing test in the same file" is
 indistinguishable from a rename **in the results** -- nothing was measured,
-so nothing can decide it.  The ledger calls it a rename and prints the pair
-by name in every report; ``--strict-renames`` turns that pair into a gate
-failure for reviewers who want the stricter reading.  Pinned by
-``test_the_documented_cost_of_a_delete_plus_add_in_one_file``.
+so nothing can decide it.  The ledger pairs them, prints the pair by name in
+every report, and then **refuses the pair**: a gate whose whole job is "no
+silent progress claims" must not let the one case it cannot decide through
+quietly.  A rename is therefore fatal unless the reader asks for the
+permissive reading with ``--allow-renames``, and the remedy is the same as
+for a deletion -- ``--record --force``, a deliberate two-command act whose
+commit message is where the rename gets justified.  The cost of that ruling
+is named in the report: an ordinary rename of a *failing* test now costs an
+11-minute recording.  Pinned by
+``test_the_documented_cost_of_a_delete_plus_add_in_one_file`` and
+``test_a_rename_is_fatal_unless_it_is_allowed``.
 
 Why the record keeps a *restricted* selected set
 -----------------------------------------------
 Resolving (1) and (3) needs to know whether an id was still collected, which
 the collected node-id set answers exactly.  Recording all ~14,600 of them
-would put 1.3 MB of churn in a committed file for no gain, and there is a
-sharper claim: **every id whose existence the diff ever asks about is a
-failure of the baseline.**  A fixed/deleted id was failing in the baseline,
-so its file carries a baseline failure; a rename partner lives in that same
-file.  So the record keeps the collected ids of the files that carry at
-least one recorded failure/error -- for a green tree that is the empty
-list -- and is exact for every case the decision procedure can reach.
-:attr:`Ledger.selected_in_failed_files` is where that lives.
+would put about a megabyte of churn in a committed file for no gain, and
+there is a sharper claim: **every id whose existence the diff can ask about
+is a failure of one of the two runs being compared.**  A fixed or deleted id
+was failing in the baseline, so its file carries a baseline failure; a rename
+partner lives in that same file.  So each record keeps the collected ids of
+the files named in :attr:`Ledger.examined_files`, which is always the union
+of *both* runs' failing files: :func:`collect` is handed the other run's
+files as ``examined_files``, and ``--record`` takes them from ``--against``
+(default: the committed ``tools/validation_data/baseline.json``, so CI's
+one-run-then-compare shape needs no flag).
 
-What the record does NOT cover: a deleted **passing** test is invisible.
-This is a ledger of failures, and a coverage question is a different tool.
+Widening on the current run only is the defect this tool shipped first, and
+it was fatal to the common case: existence read from the *current* run's
+failing files cannot answer for a file whose last red test just went green,
+so the id was absent, ``fixed`` came out empty and the id fell into
+``unknown`` -- the Phase 1 exit gate exited 1 on a tree with **zero**
+failures against a record with one, and called the improvement a deletion.
+The union costs the size of the files a recorded failure lives in: a red test
+in a 4000-test file records that file's 4000 ids.  ``--check --results``
+prints, by name, any baseline-failing file whose ids the record it was handed
+does not carry, so an unanswerable question is announced instead of being
+answered wrongly.
+
+What the record does NOT cover: a deleted **passing** test is invisible, and
+so is a rename of one (they are the same hole: neither id is in either
+``bad`` set, and ``--strict-renames``-style teeth cannot reach them).  This
+is a ledger of failures, and a coverage question is a different tool.
 
 The environment
 ---------------
@@ -98,7 +123,11 @@ anything, so :func:`environment` measures the axes that move the counts
 ``$OR_SRC`` / ``$OR_ROOT`` / the CFG tree resolve) and the record stores the
 result as an :func:`environment_key` string.  :func:`compare` refuses to
 produce a verdict across a mismatch: ``main --check`` exits **2**, names
-both keys and every differing field, and prints no delta at all.  With
+both keys and every differing field, and prints no delta at all.  The
+refusal is a **pre-flight**: the child's environment is fully determined by
+:func:`child_command` without executing anything, so ``--check`` compares the
+keys *before* the suite runs (measured: 0.24 s against the committed record)
+rather than spending an 11-minute fast tier to decline afterwards.  With
 ``--allow-environment-drift`` the comparison is *advisory*: new failures
 stay fatal (a test failing on ``ubuntu-latest`` is real), while fixes and
 deletions stop being fatal (an oracle test that skips because ``$OR_SRC`` is
@@ -108,7 +137,7 @@ oracle is not configured.
 Usage
 -----
     # record the baseline (this runs the fast tier; ~13 min here)
-    python tools/regression_ledger.py --record \
+    python tools/regression_ledger.py --record \\
         tools/validation_data/baseline.json
 
     # the gate: exit 0 clean, 1 a new failure, 2 another environment
@@ -121,7 +150,9 @@ Usage
 ``--check`` writes nothing at all: it reads the baseline and prints.  Only
 ``--record`` writes, and it refuses to overwrite an existing record without
 ``--force`` -- a committed record must never be rewritten by accident
-(Phase 0's rule).
+(Phase 0's rule).  That refusal is the **first** thing either mode does: it
+costs a second, and asking after an 11-minute run whether the answer may be
+saved is the expensive order of the two questions.
 
 The collection itself
 ---------------------
@@ -219,12 +250,17 @@ class Ledger:
     *which* tests it counted and a wrong count is a finding waiting to
     happen.  ``selected`` is the number of collected tests, and the four
     counts partition it exactly (asserted by
-    ``test_the_recorded_classification_counts_every_collected_test``).
+    ``test_collect_partitions_every_collected_test_and_sees_the_xfails``).
 
-    ``selected_in_failed_files`` is the collected node ids of the files that
-    carry at least one recorded failure/error -- the whole of the existence
-    evidence :func:`compare` needs, and nothing more; see the module
-    docstring for why the restriction is exact.
+    ``selected_in_failed_files`` is the collected node ids of the files in
+    ``examined_files`` -- the whole of the existence evidence
+    :func:`compare` needs, and nothing more; see the module docstring for
+    why the union of the two runs' failing files is exact.  ``examined_files``
+    is recorded so a comparison can say *out loud* when the record it was
+    handed carries no evidence for a file the other run is red in, instead of
+    answering "did this id go green or was it deleted" with a guess.  A
+    record written before this field existed derives it from
+    ``selected_in_failed_files``, which is what those records meant.
     """
 
     passed: int = 0
@@ -236,6 +272,7 @@ class Ledger:
     deselected: int = 0
     selected: int = 0
     selected_in_failed_files: tuple = ()
+    examined_files: tuple = ()
     environment: Mapping[str, object] = field(default_factory=dict)
     environment_key: str = ""
     command: str = ""
@@ -247,9 +284,25 @@ class Ledger:
 
         The rename/deletion question does not care which of the two a node
         is in -- it asks about the id -- so the discrimination runs on this
-        set and the result is split again at the end.
+        set and the result is split again at the end.  Deduplicated in first-
+        seen order: ``classify()`` cannot put one id in both lists, but a
+        hand-written record can, and an id processed twice would be reported
+        twice.
         """
-        return tuple(self.failed) + tuple(self.errors)
+        return tuple(dict.fromkeys(
+            tuple(self.failed) + tuple(self.errors)))
+
+    @property
+    def examined(self) -> frozenset:
+        """The files whose collected ids this record actually carries.
+
+        Falls back to deriving them from ``selected_in_failed_files`` for a
+        record that predates the field.
+        """
+        if self.examined_files:
+            return frozenset(self.examined_files)
+        return frozenset(node.split("::", 1)[0]
+                         for node in self.selected_in_failed_files)
 
 
 @dataclass(frozen=True)
@@ -525,7 +578,8 @@ def classify(collected: Sequence[str], deselected: Sequence[str],
 
 def collect(pytest_args: Sequence[str] = (), *,
             timeout: float = DEFAULT_TIMEOUT,
-            backend: str | None = "numpy") -> Ledger:
+            backend: str | None = "numpy",
+            examined_files: Sequence[str] = ()) -> Ledger:
     """Run the suite in a subprocess and return its :class:`Ledger`.
 
     ``pytest_args`` defaults to the project's own gate selection
@@ -535,6 +589,16 @@ def collect(pytest_args: Sequence[str] = (), *,
     checkout is untouched -- that is the property Phase 0 lost three rounds
     to, and it is why the plugin is generated into a temp dir rather than
     committed under ``tools/``.
+
+    ``examined_files`` is the *other* run's failing files: this run records
+    the collected ids of those files as well as of its own, because
+    "was failing in the baseline and is not failing now" is only a **fix**
+    if the id is still collected, and an id in a file that just went green is
+    absent from this run's failing files.  Reading existence from the failing
+    files alone is the bug this signature exists to prevent: it makes the
+    most common event there is -- fix the last red test in a file -- read as a
+    deletion.  :func:`main` passes the baseline's bad files for ``--check``
+    and the record's future counterpart's for ``--record``.
     """
     argv, env = child_command(pytest_args, backend=backend)
     with tempfile.TemporaryDirectory(prefix="pyradioss-ledger-") as work:
@@ -559,10 +623,17 @@ def collect(pytest_args: Sequence[str] = (), *,
                       {node: phases for node, phases in payload["reports"]})
     env_record = environment(
         {"env": {var: env.get(var, "<unset>") for var in _ENV_VARS}})
-    bad_files = {node.split("::", 1)[0]
-                 for node in parsed["failed"] + parsed["errors"]}
+    # The union, and it is the whole point: a file the *other* run is red in
+    # is examined even when this run is green there.  What is recorded is the
+    # files that actually *contributed* ids -- a record that claims to have
+    # examined a file it collected nothing from would answer "did this id go
+    # green" with a silence that reads like evidence.
     keep = tuple(sorted(node for node in parsed["selected"]
-                        if node.split("::", 1)[0] in bad_files))
+                        if node.split("::", 1)[0]
+                        in {node.split("::", 1)[0] for node in
+                            parsed["failed"] + parsed["errors"]}
+                        | {str(name) for name in examined_files}))
+    examined = tuple(sorted({node.split("::", 1)[0] for node in keep}))
     counts = parsed["counts"]
     return Ledger(
         passed=counts["passed"],
@@ -574,6 +645,7 @@ def collect(pytest_args: Sequence[str] = (), *,
         deselected=parsed["deselected"],
         selected=len(parsed["selected"]),
         selected_in_failed_files=keep,
+        examined_files=tuple(examined),
         environment=env_record,
         environment_key=environment_key(env_record),
         command=_render_command(argv),
@@ -653,6 +725,23 @@ def pair_renames(gone: Sequence[str], fresh: Sequence[str]) -> dict:
     return pairs
 
 
+def _unexamined(base: Ledger, now: Ledger) -> tuple:
+    """Baseline-failing files whose collected ids ``now`` does not carry.
+
+    A non-empty answer means the existence question cannot be answered for
+    the ids in those files, so :func:`compare` puts them in ``unknown``
+    (fatal).  That is the safe direction -- it refuses rather than guesses --
+    but on its own it reads as a claim about the code, so :func:`main` prints
+    the files and the remedy.  The ordinary case is a record written by
+    ``--record`` against a different baseline, or one written before this
+    rule existed.
+    """
+    if not base.bad:
+        return ()
+    bad_files = {node.split("::", 1)[0] for node in base.bad}
+    return tuple(sorted(bad_files - set(now.examined)))
+
+
 def compare(base: Ledger, now: Ledger) -> Delta:
     """Classify the difference between two records.
 
@@ -664,6 +753,13 @@ def compare(base: Ledger, now: Ledger) -> Delta:
     3. a now-failing id that the baseline also collected is a regression
        outright, never a rename partner;
     4. the leftovers are new failures.
+
+    Step 1 reads existence from ``now.selected_in_failed_files`` -- the
+    collected ids of :attr:`Ledger.examined_files`, which
+    :func:`collect` fills from the union of both runs' failing files.  If the
+    id's file was never examined by this run, the id is not in that set and
+    it falls to step 2, i.e. to ``unknown``: unanswerable is reported as
+    unanswerable, never as a fix.
     """
     base_bad = set(base.bad)
     now_bad = set(now.bad)
@@ -708,6 +804,11 @@ def compare(base: Ledger, now: Ledger) -> Delta:
 # ---------------------------------------------------------------------------
 
 def to_dict(led: Ledger) -> dict:
+    # A hand-built Ledger (a test, a reader's experiment) may not carry the
+    # field; the record states the same thing either way, so derive it rather
+    # than write an empty list that contradicts the ids below it.
+    examined = led.examined_files or tuple(sorted(
+        {node.split("::", 1)[0] for node in led.selected_in_failed_files}))
     return {
         "schema": SCHEMA,
         "recorded": led.recorded,
@@ -725,6 +826,7 @@ def to_dict(led: Ledger) -> dict:
             "deselected": led.deselected,
             "selected": led.selected,
             "selected_in_failed_files": list(led.selected_in_failed_files),
+            "examined_files": list(examined),
         },
     }
 
@@ -780,6 +882,7 @@ def load(path) -> Ledger:
     missing = {"passed", "failed", "errors", "skipped", "xfailed"} - set(body)
     if missing:
         raise ValueError(f"{path}: ledger is missing {sorted(missing)}")
+    selected_in_failed_files = tuple(body.get("selected_in_failed_files", ()))
     led = Ledger(
         passed=int(body.get("passed", 0)),
         failed=tuple(body.get("failed", ())),
@@ -789,8 +892,14 @@ def load(path) -> Ledger:
         xpassed=int(body.get("xpassed", 0)),
         deselected=int(body.get("deselected", 0)),
         selected=int(body.get("selected", 0)),
-        selected_in_failed_files=tuple(
-            body.get("selected_in_failed_files", ())),
+        selected_in_failed_files=selected_in_failed_files,
+        # Absent in a record written before the field existed; those records
+        # mean exactly "the ids of the files that carried a failure", which is
+        # what Ledger.examined derives.  The schema is deliberately NOT
+        # bumped: the committed baseline predates the field, and a bump would
+        # make the Phase 1 exit gate exit 3 (unreadable) on a record that is
+        # perfectly readable.
+        examined_files=tuple(body.get("examined_files", ())),
         environment=payload.get("environment") or {},
         environment_key=payload.get("environment_key") or "",
         command=payload.get("command") or "",
@@ -803,25 +912,31 @@ def load(path) -> Ledger:
 # main(): the gate
 # ---------------------------------------------------------------------------
 
-def _verdict(delta: Delta, strict_renames: bool) -> tuple:
+def _verdict(delta: Delta, allow_renames: bool) -> tuple:
     """``(exit_code, lines)`` for a comparison that is known to be
     environment-compatible (or whose drift the caller accepted).
 
     Always fatal: a new failure, a new error, and a baseline failure that
     stopped appearing with no explanation -- a deletion, which the plan calls
     "a deliberate act that needs its own ledger entry", so the gate refuses it
-    until somebody re-records on purpose.  A *resolved rename* is **not**
-    fatal, because the plan requires a rename not to read as a regression;
-    it is named in every report, and ``--strict-renames`` makes it fatal for
-    reviewers who would rather re-record explicitly.  Under an accepted
-    environment drift only a new failure or error is fatal and the rest is
-    not even printed as a finding: an absent ``$OR_SRC`` turns the oracle
-    tests into *skips*, so a fix, a deletion and a rename are all artefacts of
-    the environment rather than evidence about the code.
+    until somebody re-records on purpose.  A *resolved rename* is fatal too,
+    **by default** (Finding 6 of the P1.8 review): the plan requires a rename
+    not to read as a regression, which this satisfies by resolving the pair
+    into ``renames`` with ``unknown == ()`` -- not by waving it through.  The
+    one thing that cannot be told apart from a rename by measurement is
+    "delete the red test, add a different red test in the same file", so the
+    default reading is the one that makes somebody look.  ``--allow-renames``
+    takes the permissive reading explicitly; it is deliberately not the
+    default, and deliberately *not* the name of the old ``--strict-renames``
+    flag -- a flag whose absence has teeth is the safer shape.  Under an
+    accepted environment drift only a new failure or error is fatal and the
+    rest is not even printed as a finding: an absent ``$OR_SRC`` turns the
+    oracle tests into *skips*, so a fix, a deletion and a rename are all
+    artefacts of the environment rather than evidence about the code.
     """
     lines: list = []
     fatal = list(delta.regressions) + list(delta.unknown)
-    if strict_renames:
+    if not allow_renames:
         fatal += [old for old, _new in delta.renames]
     if delta.advisory:
         fatal = list(delta.regressions)
@@ -888,9 +1003,24 @@ def _build_parser() -> argparse.ArgumentParser:
                         help="compare across environments and treat only new "
                              "failures as fatal (what CI without the oracle "
                              "needs)")
+    parser.add_argument("--allow-renames", action="store_true",
+                        help="do not fail on a resolved rename pair; the "
+                             "DEFAULT is fatal, because 'delete the red "
+                             "test, add a red test in the same file' is "
+                             "indistinguishable from a rename and must be "
+                             "looked at (Finding 6 of the P1.8 review). "
+                             "Suppressed anyway under --allow-environment-drift")
     parser.add_argument("--strict-renames", action="store_true",
-                        help="treat a rename as a failure too, for reviewers "
-                             "who want a deletion re-recorded explicitly")
+                        help="accepted and ignored: a rename is fatal unless "
+                             "--allow-renames is passed.  Kept so an old "
+                             "command line from the pre-fix tool still runs")
+    parser.add_argument("--against", metavar="PATH",
+                        help="the record this --record will be compared "
+                             "against, so the new record carries the "
+                             "collected ids of the files that one is red in "
+                             "(default: the committed "
+                             "tools/validation_data/baseline.json; needed "
+                             "only when that is not the file under test)")
     parser.add_argument("--force", action="store_true",
                         help="let --record overwrite an existing record")
     parser.add_argument("paths", nargs="*",
@@ -916,35 +1046,68 @@ def _split_argv(argv) -> tuple:
     return argv, []
 
 
-def main(argv=None) -> int:
-    """``--record PATH`` / ``--check PATH``; exit 1 on any new failure.
+def _preflight_environment(base: Ledger, pytest_args: Sequence[str],
+                           backend: str | None) -> tuple:
+    """``(key, diff)`` for the run that *would* happen, without running it.
 
-    Exit codes: 0 clean, 1 a regression (or an unresolved record),
-    2 the two runs are not comparable, 3 the tool could not produce a
-    comparison.  ``--check`` opens the baseline **read-only** and prints;
-    the only branch that writes anything is ``--record``, and it needs
-    ``--force`` before it will replace an existing record.
+    The child's environment is fully determined by :func:`child_command` and
+    this process, so the environment comparison the gate refuses on is
+    decidable in under a second -- measured 0.24 s against the committed
+    baseline, whose key it reproduces exactly.  Finding 4 of the P1.8 review
+    is that the refusal came *after* the 11-minute run: an expensive way to
+    say "wrong box".
     """
-    own, extra = _split_argv(argv)
-    args = _build_parser().parse_args(own)
-    pytest_args = list(args.paths) + list(extra)
-    backend = None if args.backend == "inherit" else args.backend
+    _argv, env = child_command(pytest_args, backend=backend)
+    now = environment(
+        {"env": {var: env.get(var, "<unset>") for var in _ENV_VARS}})
+    key = environment_key(now)
+    if not base.environment_key or key == base.environment_key:
+        return key, ()
+    return key, environment_diff(base.environment, now)
 
-    try:
-        if args.check:
-            baseline = load(args.check)
-            print(f"baseline : {args.check}")
-            print(f"recorded : {baseline.recorded or '<undated>'} "
-                  f"@ {baseline.command or '<no command recorded>'}")
-            print(f"            {baseline.passed} passed, "
-                  f"{len(baseline.failed)} failed, {len(baseline.errors)} "
-                  f"errors, {baseline.skipped} skipped, "
-                  f"{baseline.xfailed} xfailed, "
-                  f"{baseline.deselected} deselected")
-    except ValueError as exc:
-        print(f"ledger: {exc}")
+
+def _examined_for(base: Ledger) -> tuple:
+    """The other run's failing files -- the union half of the existence rule."""
+    return tuple(sorted({node.split("::", 1)[0] for node in base.bad}))
+
+
+def _run_record(args, pytest_args, backend) -> int:
+    """``--record``: refuse to overwrite, then run, then write.
+
+    The order is the point (Finding 5 of the P1.8 review): "may I replace this
+    file?" costs a second and must be asked *first*, because asking it after
+    an 11-minute run makes a mistyped command the most expensive keystroke in
+    the tool.
+    """
+    target = Path(args.record)
+    if target.exists() and not args.force:
+        print(f"ledger: {target} already exists; a committed record is "
+              "never rewritten silently -- pass --force to replace it, "
+              "and say so in the commit")
         return EXIT_ERROR
 
+    # The record this one will be compared against decides which files' ids it
+    # must carry: a fix can only be *seen* for a file whose collected ids the
+    # new record knows.  Default: the committed baseline, so `--record` in CI
+    # produces a record `--check --results` can actually use.
+    counterpart = None
+    if args.against:
+        try:
+            counterpart = load(args.against)
+        except ValueError as exc:
+            print(f"ledger: {exc}")
+            return EXIT_ERROR
+    elif BASELINE_PATH.is_file() and args.record != str(BASELINE_PATH):
+        try:
+            counterpart = load(BASELINE_PATH)
+        except ValueError:
+            counterpart = None
+
+    # A supplied --results record IS the run to record.  Before this helper
+    # existed, main() loaded args.results for --record as well as --check,
+    # so recording from another run never re-ran anything; that branch is
+    # restored here rather than re-invented, and the overwrite refusal above
+    # still comes first so a mistyped --record costs a second either way.
     if args.results:
         try:
             now = load(args.results)
@@ -953,8 +1116,102 @@ def main(argv=None) -> int:
             return EXIT_ERROR
     else:
         try:
-            now = collect(pytest_args, timeout=args.timeout,
-                          backend=backend)
+            now = collect(pytest_args, timeout=args.timeout, backend=backend,
+                          examined_files=_examined_for(counterpart)
+                          if counterpart is not None else ())
+        except subprocess.TimeoutExpired:
+            print(f"ledger: the suite did not finish within "
+                  f"{args.timeout:g}s")
+            return EXIT_ERROR
+        except (RuntimeError, OSError) as exc:
+            print(f"ledger: {exc}")
+            return EXIT_ERROR
+
+    print(f"now      : {now.passed} passed, {len(now.failed)} failed, "
+          f"{len(now.errors)} errors, {now.skipped} skipped, "
+          f"{now.xfailed} xfailed, {now.xpassed} xpassed, "
+          f"{now.deselected} deselected")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(to_dict(now), indent=2, sort_keys=True) + "\n",
+                      encoding="utf-8")
+    print(f"recorded : {target}")
+    print(f"examined : {len(now.examined_files)} file(s) whose collected ids "
+          f"this record carries, so a later --check can tell a fix from a "
+          f"deletion in them")
+    print(f"RESULT: RECORDED -- {now.passed} passed, "
+          f"{len(now.failed)} failed, {len(now.errors)} errors, "
+          f"{now.skipped} skipped, {now.xfailed} xfailed, "
+          f"{now.deselected} deselected")
+    print(f"env      : {now.environment_key}")
+    return EXIT_OK
+
+
+def _vanished_passes(base: Ledger, now: Ledger) -> tuple:
+    """Passing ids this record saw collected that are not collected now.
+
+    Only over files both runs examined, because only there does the record
+    have the before-picture.  A deleted or renamed **passing** test is
+    invisible to a failures-ledger -- its id is in neither ``bad`` set -- and
+    Finding 6 of the P1.8 review is right that no rename flag can reach it.
+    So it is *reported*, not judged: a failures-ledger has no standing to say
+    a passing test should not have been removed (the plan never forbade it),
+    but a reader of the gate should not have to notice the hole themselves.
+    """
+    if not base.examined & now.examined:
+        return ()
+    gone = set(base.selected_in_failed_files) - set(
+        now.selected_in_failed_files)
+    return tuple(sorted(gone - set(base.bad) - set(now.bad)))
+
+
+def _run_check(args, pytest_args, backend) -> int:
+    """``--check``: read the record, pre-flight the box, run, compare, print."""
+    try:
+        baseline = load(args.check)
+    except ValueError as exc:
+        print(f"ledger: {exc}")
+        return EXIT_ERROR
+    print(f"baseline : {args.check}")
+    print(f"recorded : {baseline.recorded or '<undated>'} "
+          f"@ {baseline.command or '<no command recorded>'}")
+    print(f"            {baseline.passed} passed, "
+          f"{len(baseline.failed)} failed, {len(baseline.errors)} "
+          f"errors, {baseline.skipped} skipped, "
+          f"{baseline.xfailed} xfailed, "
+          f"{baseline.deselected} deselected")
+
+    if args.results:
+        try:
+            now = load(args.results)
+        except ValueError as exc:
+            print(f"ledger: {exc}")
+            return EXIT_ERROR
+        missing = _unexamined(baseline, now)
+        if missing:
+            print(f"warning  : {args.results} carries no collected ids for "
+                  f"{len(missing)} file(s) the baseline is red in, so an id "
+                  f"in them cannot be told apart from a deletion and is "
+                  f"reported as unresolved: {', '.join(missing)}.  Record "
+                  f"that run against this baseline (--record ... --against "
+                  f"{args.check}) or drop --results to compare a live run")
+    else:
+        if not args.allow_environment_drift:
+            key, diff = _preflight_environment(baseline, pytest_args, backend)
+            if diff:
+                print(f"env      : baseline {baseline.environment_key}")
+                print(f"            now      {key}")
+                for line in diff:
+                    print(f"            differs: {line}")
+                print("RESULT: ENVIRONMENT -- refused before running the "
+                      "suite: the child's environment is fully determined "
+                      "before it starts, so this costs a second and not an "
+                      "11-minute fast tier.  Compare in the environment the "
+                      "record was made in, re-record, or pass "
+                      "--allow-environment-drift to compare anyway.")
+                return EXIT_ENVIRONMENT
+        try:
+            now = collect(pytest_args, timeout=args.timeout, backend=backend,
+                          examined_files=_examined_for(baseline))
         except subprocess.TimeoutExpired:
             print(f"ledger: the suite did not finish within {args.timeout:g}s")
             return EXIT_ERROR
@@ -966,25 +1223,6 @@ def main(argv=None) -> int:
           f"{len(now.errors)} errors, {now.skipped} skipped, "
           f"{now.xfailed} xfailed, {now.xpassed} xpassed, "
           f"{now.deselected} deselected")
-
-    if args.record:
-        target = Path(args.record)
-        if target.exists() and not args.force:
-            print(f"ledger: {target} already exists; a committed record is "
-                  "never rewritten silently -- pass --force to replace it, "
-                  "and say so in the commit")
-            return EXIT_ERROR
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(to_dict(now), indent=2,
-                                     sort_keys=True) + "\n",
-                          encoding="utf-8")
-        print(f"recorded : {target}")
-        print(f"RESULT: RECORDED -- {now.passed} passed, "
-              f"{len(now.failed)} failed, {len(now.errors)} errors, "
-              f"{now.skipped} skipped, {now.xfailed} xfailed, "
-              f"{now.deselected} deselected")
-        print(f"env      : {now.environment_key}")
-        return EXIT_OK
 
     delta = compare(baseline, now)
     if delta.environment_changed:
@@ -1005,10 +1243,43 @@ def main(argv=None) -> int:
               "the oracle tests SKIP).")
         delta = replace(delta, advisory=True)
 
-    code, lines = _verdict(delta, args.strict_renames)
+    vanished = _vanished_passes(baseline, now)
+    if vanished:
+        print(f"passing ids ({len(vanished)}) -- collected when the record "
+              f"was made, in a file this run also examined, and no longer "
+              f"collected: a renamed or deleted PASSING test.  A ledger of "
+              f"failures cannot judge that, so it is reported and not fatal; "
+              f"if one of these was meant to stay, that is a coverage "
+              f"question, not this gate's")
+        print("\n".join("  " + node for node in vanished))
+
+    code, lines = _verdict(delta, args.allow_renames)
     for line in lines:
         print(line)
     return code
+
+
+def main(argv=None) -> int:
+    """``--record PATH`` / ``--check PATH``; exit 1 on any new failure.
+
+    Exit codes: 0 clean, 1 a regression (or an unresolved record, or a rename
+    unless ``--allow-renames``), 2 the two runs are not comparable, 3 the tool
+    could not produce a comparison.  ``--check`` opens the baseline
+    **read-only** and prints; the only branch that writes anything is
+    ``--record``, and it needs ``--force`` before it will replace an existing
+    record -- which it asks for *before* running anything.
+
+    Both modes refuse the cheap, unanswerable questions first (is this record
+    readable, may I overwrite it, is this the right box) and only then spend
+    the fast tier.
+    """
+    own, extra = _split_argv(argv)
+    args = _build_parser().parse_args(own)
+    pytest_args = list(args.paths) + list(extra)
+    backend = None if args.backend == "inherit" else args.backend
+    if args.record:
+        return _run_record(args, pytest_args, backend)
+    return _run_check(args, pytest_args, backend)
 
 
 if __name__ == "__main__":

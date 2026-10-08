@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import platform
+import time
 from pathlib import Path
 
 import pytest
@@ -42,14 +43,19 @@ from tools.regression_ledger import (
 REPO = Path(__file__).resolve().parents[1]
 
 
-def _ledger(failed=(), errors=(), selected=(), **kw):
-    """A recorded ledger.  ``selected`` is the collected set of the files that
-    carry a recorded failure -- the only part of the collection the record
-    keeps, and the whole of the existence evidence ``compare`` needs (see the
-    module docstring of ``tools/regression_ledger.py``)."""
+def _ledger(failed=(), errors=(), selected=(), examined=(), **kw):
+    """A recorded ledger.  ``selected`` is the collected set of the examined
+    files -- the only part of the collection the record keeps, and the whole
+    of the existence evidence ``compare`` needs (see the module docstring of
+    ``tools/regression_ledger.py``).  ``examined`` defaults to the files those
+    ids come from, which is what a real ``collect()`` records; pass it
+    explicitly only to build a record that claims less than it carries."""
     kw.setdefault("passed", 3)
     return Ledger(failed=tuple(failed), errors=tuple(errors),
-                  selected_in_failed_files=tuple(selected), **kw)
+                  selected_in_failed_files=tuple(selected),
+                  examined_files=tuple(examined) if examined else tuple(
+                      sorted({node.split("::", 1)[0] for node in selected})),
+                  **kw)
 
 
 # ---------------------------------------------------------------------------
@@ -104,13 +110,129 @@ def test_a_rename_cannot_masquerade_as_a_fix():
     assert compare(base, now).fixed == ()
 
 
-def test_a_genuine_fix_is_still_a_fix():
-    base = _ledger(failed=["tests/test_a.py::test_red"],
-                   selected=["tests/test_a.py::test_red"])
-    now = _ledger(failed=[], selected=["tests/test_a.py::test_red"])
-    d = compare(base, now)
-    assert d.fixed == ("tests/test_a.py::test_red",)
-    assert d.unknown == ()
+_RED_MODULE = '''\
+"""A module with exactly one red test, written to a temporary directory by
+the test below -- never into the checkout, so no run of the suite ever sees
+it and no run of the suite is slowed by it."""
+
+
+def test_red():
+    assert False, "the fix this test is about: same id, green next run"
+
+
+def test_bystander():
+    assert True
+'''
+
+_GREEN_MODULE = _RED_MODULE.replace(
+    'assert False, "the fix this test is about: same id, green next run"',
+    'assert True, "the fix this test is about: same id, green next run"')
+
+#: the file pytest's node ids are relative to when it is handed this path
+_PROBE_MODULE = "test_p1_ledger_fix.py"
+
+
+def _probe_module(tmp_path, source=_RED_MODULE):
+    module = tmp_path / _PROBE_MODULE
+    module.write_text(source, encoding="utf-8")
+    return module
+
+
+def test_a_genuine_fix_is_still_a_fix(tmp_path, capsys):
+    """The reviewer's scenario, run for real: **Finding 2 of the P1.8 review.**
+
+    The first draft of this test hand-fed ``now`` a
+    ``selected_in_failed_files`` holding the green test's own id -- a value
+    ``collect()`` cannot emit, because a file with no failure is not among
+    the failing files at all.  It passed while the production path was wrong:
+    on a real run, fixing a file's last red test produced ``unknown`` and the
+    Phase 1 exit gate exited 1 on a tree with *zero* failures.  A test whose
+    fixture is unreachable from the production path certifies nothing, so this
+    version runs the suite twice through ``main`` itself: once to record a
+    red baseline, once to check a green tree against it.
+    """
+    module = _probe_module(tmp_path)
+    baseline = tmp_path / "baseline.json"
+
+    assert main(["--record", str(baseline), "--", str(module)]) == 0
+    recorded = load(baseline)
+    assert recorded.failed, "the probe module must be red, or nothing is proved"
+    node = recorded.failed[0]
+    assert node == f"{_PROBE_MODULE}::test_red", node
+
+    # the fix: the same node id, green, in a file that now carries no failure
+    module.write_text(_GREEN_MODULE, encoding="utf-8")
+
+    rc = main(["--check", str(baseline), "--", str(module)])
+    out = capsys.readouterr().out
+    assert rc == 0, out
+    assert f"fixed (1)\n  {node}" in out, out
+    assert "\nunresolved (" not in out, out
+    assert "REGRESSION" not in out, out
+
+
+def test_collect_examines_the_files_the_other_run_is_red_in(tmp_path):
+    """The mechanism behind the fix above, at the level it lives.
+
+    A green run contributes no failing file of its own, so without the
+    ``examined_files`` hand-off its record carries no ids at all and "still
+    collected" is unanswerable.  The set is the union of both runs' bad files,
+    and what is recorded is the files that actually contributed ids -- an
+    examined file with nothing collected from it would make a silence look
+    like evidence.
+    """
+    from tools import regression_ledger as rl
+    module = _probe_module(tmp_path, _GREEN_MODULE)
+
+    blind = rl.collect([str(module)], timeout=600)
+    assert blind.failed == ()
+    assert blind.selected_in_failed_files == ()
+    assert blind.examined_files == ()
+
+    widened = rl.collect([str(module)], timeout=600,
+                         examined_files=[_PROBE_MODULE])
+    assert f"{_PROBE_MODULE}::test_red" in widened.selected_in_failed_files
+    assert f"{_PROBE_MODULE}::test_bystander" in widened.selected_in_failed_files
+    assert widened.examined_files == (_PROBE_MODULE,)
+
+
+def test_check_hands_the_baselines_failing_files_to_the_run(tmp_path, capsys,
+                                                            monkeypatch):
+    """``main`` -- not the test -- derives the union: the files the baseline
+    is red in are what the current run must report ids for."""
+    from tools import regression_ledger as rl
+    base = _record(tmp_path, "baseline.json",
+                   _ledger(failed=["tests/test_a.py::red"],
+                           selected=["tests/test_a.py::red",
+                                     "tests/test_a.py::other"],
+                           environment_key="k"))
+    live = rl.environment()
+
+    def _fake(*_a, **kw):
+        # what a real collect returns once the fix is in place
+        return rl.Ledger(passed=2, selected_in_failed_files=(
+            "tests/test_a.py::other", "tests/test_a.py::red"),
+            examined_files=("tests/test_a.py",),
+            environment=live, environment_key="k")
+
+    seen = []
+
+    def _spy(*a, **kw):
+        seen.append(kw["examined_files"])
+        return _fake(*a, **kw)
+
+    monkeypatch.setattr(rl, "collect", _spy)
+
+    # --allow-environment-drift: this test is about the examined_files
+    # hand-off, not the environment gate.  Its baseline carries the
+    # placeholder key "k", so _preflight_environment correctly refuses
+    # before collect ever runs; the flag is what lets this test reach the
+    # assertion it exists for.  The refusal itself is asserted by
+    # test_the_environment_mismatch_is_refused_before_the_suite_runs.
+    assert main(["--check", str(base), "--allow-environment-drift"]) == 0
+    assert seen == [("tests/test_a.py",)], seen
+    out = capsys.readouterr().out
+    assert "fixed (1)" in out and "tests/test_a.py::red" in out, out
 
 
 def test_a_deleted_failure_is_unresolved_never_a_fix():
@@ -351,6 +473,8 @@ def test_an_identical_environment_is_not_a_drift():
 # ---------------------------------------------------------------------------
 
 def _write_record(path: Path, led: Ledger, **extra) -> Path:
+    examined = led.examined_files or tuple(sorted(
+        {node.split("::", 1)[0] for node in led.selected_in_failed_files}))
     payload = {
         "schema": "pyradioss-regression-ledger/1",
         "recorded": "2026-10-04T12:00:00+00:00",
@@ -367,6 +491,7 @@ def _write_record(path: Path, led: Ledger, **extra) -> Path:
             "deselected": led.deselected,
             "selected": led.selected,
             "selected_in_failed_files": list(led.selected_in_failed_files),
+            "examined_files": list(examined),
         },
     }
     payload.update(extra)
@@ -376,6 +501,16 @@ def _write_record(path: Path, led: Ledger, **extra) -> Path:
 
 def _record(tmp_path, name, led, **extra):
     return _write_record(tmp_path / name, led, **extra)
+
+
+def _pre_field_record(path: Path, led: Ledger) -> Path:
+    """The record shape written *before* ``examined_files`` existed: the ids
+    are there, the statement of which files they cover is not."""
+    _write_record(path, led)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    del payload["ledger"]["examined_files"]
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return path
 
 
 def test_check_exits_1_and_names_a_planted_new_failure(tmp_path, capsys):
@@ -467,20 +602,171 @@ def test_an_accepted_drift_does_not_turn_the_oracle_skips_into_deletions(
     assert "RESULT: OK" in verdict
 
 
-def test_strict_renames_makes_a_rename_fatal(tmp_path, capsys):
+def test_a_rename_is_fatal_unless_it_is_allowed(tmp_path, capsys):
+    """**Finding 6 of the P1.8 review**: the teeth must be the default.
+
+    ``--strict-renames`` existed and was used *nowhere* -- not in
+    ``plan/02_phase1_foundation.md``'s exit gate, not in
+    ``.github/workflows/ci.yml`` -- so the default reading of the one case the
+    ledger provably cannot decide was the permissive one.  A rename is fatal
+    now, and ``--allow-renames`` is the explicit opt-out.  No CI edit is
+    needed for this: CI passes ``--allow-environment-drift``, under which
+    nothing but a new failure is fatal at all.
+    """
     base = _record(tmp_path, "baseline.json",
                    _ledger(failed=["tests/test_a.py::old"],
                            selected=["tests/test_a.py::old"]))
     now = _record(tmp_path, "now.json",
                   _ledger(failed=["tests/test_a.py::new"],
                           selected=["tests/test_a.py::new"]))
-    assert main(["--check", str(base), "--results", str(now)]) == 0
-    rc = main(["--check", str(base), "--results", str(now),
-               "--strict-renames"])
-    assert rc == 1
+    assert main(["--check", str(base), "--results", str(now)]) == 1
     out = capsys.readouterr().out
-    assert "tests/test_a.py::old" in out
-    assert "tests/test_a.py::new" in out
+    assert "renamed (1)" in out, out
+    assert "tests/test_a.py::old" in out and "tests/test_a.py::new" in out, out
+    # the permissive reading is still one flag away, and is named as the
+    # exception rather than being the state of the gate
+    assert main(["--check", str(base), "--results", str(now),
+                 "--allow-renames"]) == 0
+    # the old flag name still runs -- an old command line must not break --
+    # and does not quietly weaken the default
+    assert main(["--check", str(base), "--results", str(now),
+                 "--strict-renames"]) == 1
+
+
+def test_a_renamed_passing_test_is_reported_though_it_cannot_be_judged(
+        tmp_path, capsys):
+    """Finding 6, second half: a rename of a PASSING test is invisible to a
+    failures-ledger -- its id is in neither ``bad`` set, so no rename flag can
+    reach it.  The record does carry the before-picture for every file it
+    examined, so it is *reported*: named, not fatal.  A ledger of failures has
+    no standing to forbid removing a passing test, but the reader of a gate
+    should not have to find the hole by hand."""
+    base = _record(tmp_path, "baseline.json",
+                   _ledger(failed=["tests/test_a.py::red"],
+                           selected=["tests/test_a.py::red",
+                                     "tests/test_a.py::was_green"]))
+    now = _record(tmp_path, "now.json",
+                  _ledger(failed=[],
+                          selected=["tests/test_a.py::red"]))
+    rc = main(["--check", str(base), "--results", str(now)])
+    out = capsys.readouterr().out
+    assert rc == 0, out
+    assert "passing ids (1)" in out, out
+    assert "tests/test_a.py::was_green" in out, out
+
+
+def test_the_environment_mismatch_is_refused_before_the_suite_runs(
+        tmp_path, capsys, monkeypatch):
+    """**Finding 4 of the P1.8 review.**  The child's environment is fully
+    determined by ``child_command()`` without executing anything, so the
+    refusal is available for free -- it used to arrive *after* an 11-minute
+    fast tier, which is the most expensive way to say "wrong box"."""
+    from tools import regression_ledger as rl
+    base = _record(tmp_path, "baseline.json",
+                   _ledger(environment={"python": "3.10.0"},
+                           environment_key="linux/py3.10.0/oracle=present"))
+    monkeypatch.setattr(
+        rl, "collect",
+        lambda *a, **k: pytest.fail("the suite must not run on a "
+                                    "mismatched box"))
+
+    started = time.perf_counter()
+    rc = main(["--check", str(base)])
+    elapsed = time.perf_counter() - started
+
+    assert rc == 2
+    assert elapsed < 5.0, f"{elapsed:.1f}s -- the refusal has to be the cheap one"
+    out = capsys.readouterr().out
+    assert "ENVIRONMENT" in out and "before running the suite" in out, out
+    assert "new failure" not in out, out
+
+
+def test_record_refuses_to_overwrite_before_running_the_suite(tmp_path, capsys,
+                                                             monkeypatch):
+    """**Finding 5 of the P1.8 review.**  "May I replace this file?" costs a
+    second; it used to be asked *after* an 11-minute run, which made a
+    mistyped command the most expensive keystroke in the tool."""
+    from tools import regression_ledger as rl
+    target = _record(tmp_path, "baseline.json", _ledger())
+    before = target.read_bytes()
+    monkeypatch.setattr(
+        rl, "collect",
+        lambda *a, **k: pytest.fail("the suite must not run to refuse an "
+                                    "overwrite"))
+
+    assert main(["--record", str(target)]) == 3
+    assert "--force" in capsys.readouterr().out
+    assert target.read_bytes() == before
+
+
+def test_a_record_carries_the_ids_of_the_record_it_will_be_checked_against(
+        tmp_path, monkeypatch):
+    """``--record --against BASE``: the new record must be able to answer
+    "still collected?" for the ids BASE is red in, or the comparison it exists
+    to serve degrades into the Critical it replaced.  The default is the
+    committed ``tools/validation_data/baseline.json``, which is what makes
+    CI's one-run-then-compare shape work with no extra flag."""
+    from tools import regression_ledger as rl
+    base = _record(tmp_path, "baseline.json",
+                   _ledger(failed=["tests/test_z.py::red"],
+                           selected=["tests/test_z.py::red", "tests/test_z.py::g"],
+                           environment_key="k"))
+    target = tmp_path / "fresh.json"
+
+    seen = []
+
+    def _spy(*_a, **kw):
+        seen.append(kw["examined_files"])
+        return rl.Ledger(
+            passed=3, failed=("tests/test_y.py::t",),
+            selected_in_failed_files=("tests/test_y.py::t",
+                                      "tests/test_z.py::red",
+                                      "tests/test_z.py::g"),
+            examined_files=("tests/test_y.py", "tests/test_z.py"),
+            environment_key="k")
+
+    monkeypatch.setattr(rl, "collect", _spy)
+
+    assert main(["--record", str(target), "--against", str(base)]) == 0
+    assert seen == [("tests/test_z.py",)], seen
+    back = load(target)
+    assert "tests/test_z.py::g" in back.selected_in_failed_files
+    assert "tests/test_z.py" in back.examined_files
+
+
+def test_check_names_the_file_whose_ids_the_current_record_lacks(tmp_path,
+                                                                capsys):
+    """A record written against a *different* baseline cannot answer "did this
+    id go green?" for a file it never looked at.  The verdict is then
+    "unresolved", which is fatal and correct -- but on its own it reads as a
+    claim about the code, so the file and the remedy are named."""
+    base = _record(tmp_path, "baseline.json",
+                   _ledger(failed=["tests/test_a.py::red"],
+                           selected=["tests/test_a.py::red"]))
+    # a record from before the field existed: ids, but no statement of which
+    # files they were examined for
+    now = _pre_field_record(tmp_path / "now.json", _ledger(failed=[]))
+    rc = main(["--check", str(base), "--results", str(now)])
+    out = capsys.readouterr().out
+    assert rc == 1, out
+    assert "carries no collected ids for 1 file(s)" in out, out
+    assert "tests/test_a.py" in out, out
+    assert "--against" in out, out
+    assert "unresolved" in out and "tests/test_a.py::red" in out, out
+
+
+def test_a_record_written_before_the_field_was_derived_still_loads(tmp_path):
+    """No schema bump: the committed baseline predates ``examined_files`` and
+    meant exactly "the ids of the files that carried a failure".  A bump would
+    make the Phase 1 exit gate exit 3 (unreadable) on a readable record."""
+    led = load(BASELINE_PATH)
+    assert led.examined, "the committed record must still say what it examined"
+    assert set(led.examined) == {node.split("::", 1)[0]
+                                 for node in led.selected_in_failed_files}
+    # and it still compares against itself without inventing a difference
+    same = compare(led, led)
+    assert (same.new_failures, same.fixed, same.unknown, same.renames) == (
+        (), (), (), ())
 
 
 def test_a_deleted_failure_fails_the_gate(tmp_path, capsys):

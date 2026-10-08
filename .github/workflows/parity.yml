@@ -34,6 +34,30 @@
 #   OR_HM_CFG      path to an hm_cfg_files tree  (optional; fetched if unset)
 #   PARITY_RUNNER  a runner label, if the oracle lives on a self-hosted
 #                  machine rather than on ubuntu-latest (optional)
+#
+# THE PATHS MUST EXIST ON THE RUNNER THAT EXECUTES THE JOB.  Configuration is
+# not availability: OR_STARTER is very often a path from the maintainer's own
+# machine, which a hosted runner does not have.  That state is a RED job, on
+# purpose (see the preflight step for the ruling and the trade-off): the
+# documented way to open this gate must not land on a green check that verified
+# nothing.  Set PARITY_RUNNER to a self-hosted label with the oracle installed
+# and the same variables become correct as they stand.
+#
+# Two states, two different colours, and the difference is the whole design:
+#
+#   variables UNSET      the job is SKIPPED and the companion
+#                        `parity-not-configured` job prints why. There is no
+#                        oracle to be angry at, so nothing is red.
+#   variables SET, but
+#   the paths are not
+#   executable HERE      the job FAILS, with ::error naming the paths. The
+#                        maintainer asked for a comparison and the runner
+#                        cannot make one; that is a broken configuration, not
+#                        an absent one.
+#
+# So a GREEN `parity vs the Fortran oracle` means exactly one thing: the two
+# solvers ran, at least one example was actually COMPARED, and every row's class
+# was MATCH or PORT-ONLY. There is no third green state.
 # ---------------------------------------------------------------------------
 
 name: parity
@@ -54,7 +78,10 @@ concurrency:
 
 jobs:
   parity:
-    name: parity vs the Fortran oracle
+    # The runner label is in the check name on purpose: a maintainer scanning
+    # the checks list can see whether parity ran on a self-hosted box that has
+    # the oracle or on a hosted one, without opening the log.
+    name: parity vs the Fortran oracle (${{ vars.PARITY_RUNNER || 'ubuntu-latest' }})
     # Configured or not, this is the whole gate: with the variables unset the
     # expression is false, no runner is assigned, and the job below explains
     # it. `vars` and not `secrets` because `secrets` does not resolve in a
@@ -79,16 +106,36 @@ jobs:
       - name: Install package + test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e . scipy pytest
+          # The `test` EXTRA, for the same reason as ci.yml: pyyaml has to be
+          # present for tests/test_p1_ci_linux.py's YAML check to be a real
+          # parse. (The parity sweep itself needs only numpy + scipy.)
+          python -m pip install -e ".[test]"
 
-      - name: Resolve the oracle, or say plainly that we stop here
+      - name: Resolve the oracle, or fail saying why
         id: oracle
         shell: bash
         # Configuration is not availability: OR_STARTER may well be a path
-        # from the maintainer's machine, and a job that turned red on every
-        # pull request because of that would train everyone to ignore it.
-        # pyradioss.paths fails loudly on purpose (that is right for a tool);
-        # here the loudness is a notice and an honest stop.
+        # from the maintainer's machine. THE RULING is that this state is a
+        # RED job, not a green skip, and the trade-off is deliberate.
+        #
+        # The case for skipping (and it was the previous behaviour here): a
+        # misconfigured optional resource should not turn every pull request
+        # red, or people learn to ignore the check. That is real.
+        #
+        # The case for failing, which won: the project's own rule is that an
+        # unknown or missing resource is LOUD and never silently degrading, and
+        # a skip here is not loud -- a job whose `if:` is false is never
+        # assigned a runner, so the only evidence would be one line buried in
+        # the log of a check whose name in the UI is `parity vs the Fortran
+        # oracle`. That is a green tick asserting a comparison nobody made, on
+        # the exact state a maintainer reaches by following the instructions at
+        # the top of this file. "Loud" and "never mistakable for verification"
+        # both point the same way here, and the escape hatch is the honest one:
+        # set PARITY_RUNNER to a box that HAS the oracle, or fix the paths.
+        #
+        # resolved=false is still written, so the substantive steps below skip
+        # and the artifact upload (if: always()) still runs; the job's result is
+        # failure because this step exits non-zero.
         env:
           OR_STARTER: ${{ vars.OR_STARTER }}
           OR_ENGINE: ${{ vars.OR_ENGINE }}
@@ -102,9 +149,9 @@ jobs:
             fi
           done
           if [ -n "$missing" ]; then
-            echo "::notice title=parity skipped::configured but not available here:$missing. Nothing was run, no comparison was made, and this job claims no parity."
             echo "resolved=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error title=parity oracle unresolvable::configured but not available on this runner:$missing. NOTHING WAS RUN, NO COMPARISON WAS MADE, and this job therefore verifies no parity -- which is why it is red rather than green. Fix the repository variables so the paths exist on the runner, or set PARITY_RUNNER to a self-hosted label whose machine has the oracle installed. Leaving the variables UNSET is the supported way to have no parity at all: the job is then skipped and the parity-not-configured job explains it."
+            exit 1
           fi
           echo "resolved=true" >> "$GITHUB_OUTPUT"
           echo "starter: $OR_STARTER"
@@ -128,11 +175,34 @@ jobs:
       - name: Parity sweep against the Fortran oracle
         if: steps.oracle.outputs.resolved == 'true'
         # AGENTS.md: a missing oracle must fail loudly, not skip quietly.
+        #
+        # OR_STARTER/OR_ENGINE are exported HERE as well as in the preflight.
+        # They are `vars` in this workflow, and `vars.X` is a context
+        # expression, not an exported variable: the preflight's `env:` block
+        # applies to the preflight step only. Without them in this step's own
+        # `env:`, the sweep runs with no oracle in its environment,
+        # validate_vs_fortran.parity() hits its refusal
+        # (validate_vs_fortran.py:1938-1945 -- "parity needs the reference
+        # (Fortran) solvers; starter, engine did not resolve") and returns 2,
+        # so the gate could never succeed even when correctly configured.
+        #
+        # OR_ROOT is deliberately NOT exported: paths.or_starter() would then
+        # also resolve $OR_ROOT/bin/... (pyradioss/paths.py:578-599), and a tree
+        # that carries extlib/h3d is exactly what the harness must refuse to let
+        # the solver reach (FORTRAN-FAIL(h3d-writer-in-rpath)). The two explicit
+        # paths are the whole oracle this job needs.
         env:
           PYRADIOSS_ORACLE_REQUIRED: "1"
           VALRUNS_DIR: ${{ runner.temp }}/parity
+          OR_STARTER: ${{ vars.OR_STARTER }}
+          OR_ENGINE: ${{ vars.OR_ENGINE }}
         run: |
           echo "::notice title=parity::the sweep's own exit code is 0 whenever it COMPLETED, whatever the channels said (validate_vs_fortran.py:2163) -- the next step reads the rows back, so this step exiting 0 is not a parity verdict"
+          # The harness's REAL interface, read from its own argparse
+          # (validate_vs_fortran.py:2246-2274): a `parity` SUBCOMMAND with
+          # --only/--tol/--timeout/--budget/--shim/--workdir. There is no
+          # --mode, no --cases and no --out.
+          #
           # `-m tools.validate_vs_fortran`, NOT `tools/validate_vs_fortran.py`:
           # running the file by path puts tools/ on sys.path instead of the
           # repository root, and the harness's own binary-T01 route does
@@ -142,12 +212,58 @@ jobs:
           # named 'tools' the moment that route is reached.
           python -m tools.validate_vs_fortran parity --workdir "$VALRUNS_DIR" --tol 0.05
 
-      - name: "Read the rows back: a deviation is a failure"
+      - name: "Read the rows back: only a real comparison is a pass"
         if: steps.oracle.outputs.resolved == 'true'
-        # The mechanical half of the parity verdict. PORT-ONLY(...) is NOT
-        # fatal: those classes are the harness's own vocabulary for a deck the
-        # Fortran chain cannot be asked about (a port-only /IMPL card, an
-        # old-dialect deck), not a disagreement between two solvers.
+        # THE MECHANICAL HALF OF THE PARITY VERDICT, and it is an ALLOWLIST,
+        # not a list of things to fail on. The harness's own class vocabulary
+        # (tools/validate_vs_fortran.py, every `row["class"] = ...`):
+        #
+        #   MATCH                              both solvers ran, every compared
+        #                                       channel within --tol. NOT fatal.
+        #   PORT-ONLY(implicit|dialect|
+        #   starter-reject)                    the Fortran chain cannot be asked
+        #                                       about this deck (a port /IMPL
+        #                                       card, an old-dialect deck). Not a
+        #                                       disagreement between two solvers.
+        #                                       NOT fatal.
+        #   DEVIATION                          both ran, a channel above --tol.
+        #                                       FATAL.
+        #   PYRADIOSS-FAIL                     the port failed on its own deck.
+        #                                       FATAL.
+        #   FORTRAN-FAIL, and FORTRAN-FAIL(<subtag>) for the additive subtags
+        #                                       engine-fail/th2csv-fail (bare),
+        #                                       th2csv-missing, oracle-unavailable,
+        #                                       h3d-writer-in-workdir,
+        #                                       h3d-writer-in-rpath, and
+        #                                       t01-unreadable. FATAL.
+        #   NO-CHANNELS                        NOTHING COMPARABLE. FATAL, and this
+        #                                       is the one that matters: the
+        #                                       harness's own source calls a MATCH
+        #                                       "derived from nothing comparable
+        #                                       ... the worst thing this file
+        #                                       could print" (:2041-2047), and
+        #                                       "the two solvers stop producing
+        #                                       comparable channels" is the LAW4
+        #                                       cfg failure this milestone exists
+        #                                       to catch (docs/OPEN_BUGS.md item 6).
+        #                                       It is reachable with a correctly
+        #                                       configured oracle and no
+        #                                       misconfiguration at all.
+        #   SKIPPED-SLOW                       the port side hit --timeout or the
+        #                                       global --budget, so nothing was
+        #                                       compared on that row. FATAL.
+        #
+        # Anything else -- including a row with no `class` at all, and including
+        # a class this workflow has never heard of -- is FATAL by default. An
+        # allowlist fails closed: a new class the harness learns to emit must be
+        # looked at before it can turn a parity job green.
+        #
+        # Two table-level assertions on top of the per-row one, because a table
+        # can be non-empty and still compare nothing:
+        #   * an empty table fails (`parity()` returns 0 for a sweep with no
+        #     examples to run);
+        #   * a table with ZERO MATCH rows fails, even if every row is
+        #     PORT-ONLY. That is "compared nothing" wearing a different hat.
         env:
           PARITY_JSON: ${{ runner.temp }}/parity/parity_results.json
         run: |
@@ -155,7 +271,7 @@ jobs:
           # block scalar depends on the block's base indentation being stripped
           # exactly, which makes the script break silently-but-confusingly the
           # first time somebody re-indents the step; this form cannot.
-          python -c "import json,sys;rows=json.load(open('$PARITY_JSON'));print('\n'.join('%-34s %-26s %s' % (r.get('example'), r.get('class'), r.get('max_rel_rms','-')) for r in rows));bad=[r for r in rows if r.get('class') in ('DEVIATION','PYRADIOSS-FAIL') or str(r.get('class')).startswith('FORTRAN-FAIL')];print('\n'.join('::error title=parity::%s is %s' % (r.get('example'), r.get('class')) for r in bad));sys.exit(1 if bad or not rows else 0)"
+          python -c "import json,sys;rows=json.load(open('$PARITY_JSON'));cls=lambda r:str(r.get('class'));ok=lambda c:c=='MATCH' or c.startswith('PORT-ONLY');print('\n'.join('%-34s %-26s %s' % (r.get('example'), r.get('class'), r.get('max_rel_rms','-')) for r in rows));bad=[r for r in rows if not ok(cls(r))];matched=[r for r in rows if cls(r)=='MATCH'];print('\n'.join('::error title=parity::%s is %s' % (r.get('example'), cls(r)) for r in bad));print('compared %d of %d example(s); %d row(s) carry a class other than MATCH/PORT-ONLY' % (len(matched), len(rows), len(bad)));sys.exit(1 if bad or not rows or not matched else 0)"
 
       - name: Upload the parity table
         if: always()
@@ -187,4 +303,4 @@ jobs:
           if [ -z "$OR_ENGINE" ]; then
             echo "::notice::parity job skipped — OR_ENGINE not configured"
           fi
-          echo "::notice title=why::the Fortran oracle is a licensed upstream build: its two solvers, the extlib/hm_reader library and (deliberately) no reachable extlib/h3d writer. A hosted runner has none of them, so no parity comparison was made and none is claimed. This notice is the whole output of the parity gate when it is unconfigured -- it is not a pass. Set the repository variables OR_STARTER and OR_ENGINE (paths) to open it; see .github/workflows/parity.yml."
+          echo "::notice title=why::the Fortran oracle is a licensed upstream build: its two solvers, the extlib/hm_reader library and (deliberately) no reachable extlib/h3d writer. A hosted runner has none of them, so no parity comparison was made and none is claimed. This notice is the whole output of the parity gate when it is UNCONFIGURED -- it is not a pass. Leaving the variables unset is the supported way to have no parity: set the repository variables OR_STARTER and OR_ENGINE (paths that exist ON THE RUNNER, or set PARITY_RUNNER to a self-hosted box that has them) and the parity job runs. A CONFIGURED-BUT-UNRESOLVABLE oracle is the other state, and it is deliberately RED, not skipped -- see the preflight step in the parity job."

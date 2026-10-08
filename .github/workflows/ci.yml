@@ -93,9 +93,13 @@ jobs:
       - name: Install package + test dependencies
         run: |
           python -m pip install --upgrade pip
-          # -e . brings in the base dependency (numpy only); scipy is needed
-          # by the implicit-solver (M8+) tests, pytest-xdist for -n auto.
-          python -m pip install -e . scipy pytest pytest-xdist
+          # The `test` EXTRA, not a hand-written list: it is pyproject.toml's
+          # declaration of what the suite needs to assert (pytest, pytest-xdist
+          # for -n auto, scipy for the implicit solver, pyyaml so
+          # tests/test_p1_ci_linux.py can parse these workflows with a real
+          # parser). Pinning the list here instead is how a gate goes vacuous in
+          # CI: the test still exists, its dependency does not.
+          python -m pip install -e ".[test]"
 
       - name: Install numba (accel backend, 3.10 leg only)
         # Exercise the optional numba-accelerated backend on exactly one
@@ -125,14 +129,28 @@ jobs:
         uses: actions/cache@v4
         with:
           path: or_cfg/hm_cfg_files/config/CFG
-          key: hm-cfg-files-v1
+          # Per-run key + a prefix to fall back on, so the tree is REFRESHED
+          # instead of frozen: under a constant key the first run to populate
+          # the cache wins forever, and a schema change upstream would be
+          # invisible to the /MAT-/PROP readers for the life of the repository.
+          # github.run_id makes every run a primary-key miss that saves under a
+          # new key; restore-keys hands it the most recent one, so the clone
+          # below only happens when nothing usable was restored.
+          key: hm-cfg-files-v1-${{ github.run_id }}
+          restore-keys: |
+            hm-cfg-files-v1-
 
       - name: Fetch OpenRadioss hm_cfg_files (sparse)
-        if: steps.cfg-cache.outputs.cache-hit != 'true'
+        # NOT `cache-hit != 'true'`: that output is 'false' even when the
+        # restore-keys prefix matched, so it would clone on every single run and
+        # the cache would cost time and save nothing. Ask the filesystem
+        # instead -- fetch exactly when the schema tree is not already here.
         run: |
-          git clone --depth 1 --filter=blob:none --sparse \
-            https://github.com/OpenRadioss/OpenRadioss.git or_cfg
-          git -C or_cfg sparse-checkout set hm_cfg_files/config/CFG
+          if [ ! -d or_cfg/hm_cfg_files/config/CFG ]; then
+            git clone --depth 1 --filter=blob:none --sparse \
+              https://github.com/OpenRadioss/OpenRadioss.git or_cfg
+            git -C or_cfg sparse-checkout set hm_cfg_files/config/CFG
+          fi
 
       - name: Point pyradioss at the cfg tree
         run: echo "PYRADIOSS_HM_CFG=$GITHUB_WORKSPACE/or_cfg/hm_cfg_files" >> "$GITHUB_ENV"
@@ -194,21 +212,35 @@ jobs:
       - name: Install package + test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e . scipy pytest
+          python -m pip install -e ".[test]"
 
       - name: Cache OpenRadioss hm_cfg_files
         id: cfg-cache
         uses: actions/cache@v4
         with:
           path: or_cfg/hm_cfg_files/config/CFG
-          key: hm-cfg-files-v1
+          # Per-run key + a prefix to fall back on, so the tree is REFRESHED
+          # instead of frozen: under a constant key the first run to populate
+          # the cache wins forever, and a schema change upstream would be
+          # invisible to the /MAT-/PROP readers for the life of the repository.
+          # github.run_id makes every run a primary-key miss that saves under a
+          # new key; restore-keys hands it the most recent one, so the clone
+          # below only happens when nothing usable was restored.
+          key: hm-cfg-files-v1-${{ github.run_id }}
+          restore-keys: |
+            hm-cfg-files-v1-
 
       - name: Fetch OpenRadioss hm_cfg_files (sparse)
-        if: steps.cfg-cache.outputs.cache-hit != 'true'
+        # NOT `cache-hit != 'true'`: that output is 'false' even when the
+        # restore-keys prefix matched, so it would clone on every single run and
+        # the cache would cost time and save nothing. Ask the filesystem
+        # instead -- fetch exactly when the schema tree is not already here.
         run: |
-          git clone --depth 1 --filter=blob:none --sparse \
-            https://github.com/OpenRadioss/OpenRadioss.git or_cfg
-          git -C or_cfg sparse-checkout set hm_cfg_files/config/CFG
+          if [ ! -d or_cfg/hm_cfg_files/config/CFG ]; then
+            git clone --depth 1 --filter=blob:none --sparse \
+              https://github.com/OpenRadioss/OpenRadioss.git or_cfg
+            git -C or_cfg sparse-checkout set hm_cfg_files/config/CFG
+          fi
 
       - name: Point pyradioss at the cfg tree
         run: echo "PYRADIOSS_HM_CFG=$GITHUB_WORKSPACE/or_cfg/hm_cfg_files" >> "$GITHUB_ENV"
@@ -298,21 +330,35 @@ jobs:
       - name: Install package + all optional dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e . scipy numba pytest pytest-xdist
+          python -m pip install -e ".[test]" numba
 
       - name: Cache OpenRadioss hm_cfg_files
         id: cfg-cache
         uses: actions/cache@v4
         with:
           path: or_cfg/hm_cfg_files/config/CFG
-          key: hm-cfg-files-v1
+          # Per-run key + a prefix to fall back on, so the tree is REFRESHED
+          # instead of frozen: under a constant key the first run to populate
+          # the cache wins forever, and a schema change upstream would be
+          # invisible to the /MAT-/PROP readers for the life of the repository.
+          # github.run_id makes every run a primary-key miss that saves under a
+          # new key; restore-keys hands it the most recent one, so the clone
+          # below only happens when nothing usable was restored.
+          key: hm-cfg-files-v1-${{ github.run_id }}
+          restore-keys: |
+            hm-cfg-files-v1-
 
       - name: Fetch OpenRadioss hm_cfg_files (sparse)
-        if: steps.cfg-cache.outputs.cache-hit != 'true'
+        # NOT `cache-hit != 'true'`: that output is 'false' even when the
+        # restore-keys prefix matched, so it would clone on every single run and
+        # the cache would cost time and save nothing. Ask the filesystem
+        # instead -- fetch exactly when the schema tree is not already here.
         run: |
-          git clone --depth 1 --filter=blob:none --sparse \
-            https://github.com/OpenRadioss/OpenRadioss.git or_cfg
-          git -C or_cfg sparse-checkout set hm_cfg_files/config/CFG
+          if [ ! -d or_cfg/hm_cfg_files/config/CFG ]; then
+            git clone --depth 1 --filter=blob:none --sparse \
+              https://github.com/OpenRadioss/OpenRadioss.git or_cfg
+            git -C or_cfg sparse-checkout set hm_cfg_files/config/CFG
+          fi
 
       - name: Point pyradioss at the cfg tree
         run: echo "PYRADIOSS_HM_CFG=$GITHUB_WORKSPACE/or_cfg/hm_cfg_files" >> "$GITHUB_ENV"

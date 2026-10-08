@@ -403,9 +403,22 @@ HISTORY_MARKERS = (
 #: the same treatment, and the link-target exemption
 #: (:func:`_in_uri_target`) applies to both, which is what keeps the 33
 #: permalinks in ``docs/BUG_REPORT_2026-09-05.md`` out of the report.
+#:
+#: The third alternative is the Windows **venv** layout, and it is the one that
+#: needs no drive letter: ``.venv/Scripts/python.exe`` is the interpreter line of
+#: the agent contract spelled with a forward slash, it names the Windows venv on
+#: a Linux box, and it walked straight through this rule for the whole life of
+#: that contract because every other alternative here requires ``[A-Za-z]:``.
+#: It is keyed on the ``Scripts`` segment rather than on the separator, because
+#: ``.venv/bin/python`` and ``.venv/Scripts/python.exe`` are indistinguishable
+#: otherwise — and
+#: :func:`test_a_windows_path_asserted_about_this_box_is_not_a_claim` pins both
+#: directions, so a rule that reached the segment by accident and flagged the
+#: contract's own POSIX paths would fail there.
 WINDOWS_PATH = re.compile(
     r"(?<![\w.$~-])(?<!\\)"
     r"((?:[A-Za-z]:[\\/][A-Za-z0-9._+@$~-]+"
+    r"|(?:[A-Za-z0-9._+@$~-]+[/\\])?Scripts[/\\][A-Za-z0-9._+@$~-]+"
     r"|\\\\[A-Za-z0-9._+@$~-]+[\\/][A-Za-z0-9._+@$~%()-]*)"
     r"(?:[\\/][A-Za-z0-9._+@$~%-]*)*)"
 )
@@ -709,6 +722,25 @@ def _stale_windows_paths_in(lines: list[str]) -> list[tuple[int, str]]:
     another time) or :data:`FOREIGN_MACHINE_MARKERS` (a supported second
     platform) — and reported when it does not.  Both directions are pinned by
     :func:`test_a_windows_path_asserted_about_this_box_is_not_a_claim`.
+
+    **RECORDED LIMIT — this detects the UNFRAMED, not the FALSE.**  A framing
+    rule cannot tell a label from a decoy, and every construction of the form
+    "``<history marker>``: … ``C:\\OpenRadioss\\hm_cfg_files`` … (use it)"
+    is EXEMPT even when the operative instruction is false.  Three were built
+    and all three are exempt: rescued by ``pre-migration`` with "it still
+    resolves there, so export PYRADIOSS_HM_CFG to it"; rescued by
+    ``compatibility target`` with "for the compatibility target box, run: set
+    PYRADIOSS_HM_CFG=C:\\OpenRadioss\\hm_cfg_files …" — an instruction to point
+    THIS box at a Windows tree, the exact anti-pattern ``AGENTS.md`` forbids;
+    and rescued by the bare word ``history``.  This is accepted, not fixed:
+    tightening it means a marker in the same sentence stops being a label, and
+    that sentence shape is exactly how ``README.md:170``'s legitimate Windows
+    compatibility fallback is written.  The rule does get one direction right —
+    a marker sentence ABOVE a claim does not rescue it, because
+    :func:`_label_window` is the claim line plus :data:`LABEL_WINDOW_LINES`
+    below — and laundering takes a deliberate word that does no labelling work.
+    The lists are therefore NOT to be narrowed for this reason; see the task
+    P1.0 fix-round-1 report, which carries the measurements.
     """
     return [(index, path) for index, path, window in _windows_path_claims(lines)
             if not (_marked_history(window)
@@ -2128,6 +2160,16 @@ def test_a_windows_path_asserted_about_this_box_is_not_a_claim(tmp_path):
          ["C:\\OpenRadioss_old"]),
         # a target that never closes is not a link: a claim
         ("[a](C:/OpenRadioss and prose", ["C:/OpenRadioss"]),
+        # the WINDOWS venv layout, which is the shape that needs no drive letter
+        # (fix round 1): the agent contract's own interpreter line, re-spelled
+        ("run the suite with .venv/Scripts/python.exe -m pytest",
+         [".venv/Scripts/python.exe"]),
+        # ... in both separator styles, and with the parent left out
+        ("`.venv\\Scripts\\pip.exe`", [".venv\\Scripts\\pip.exe"]),
+        ("use Scripts/python.exe here", ["Scripts/python.exe"]),
+        # and the POSIX spelling of the same command is NOT a defect
+        ("run the suite with .venv/bin/python -m pytest", []),
+        ("tests/data/rd_decks and examples/tensile_bar", []),
     ):
         got = [claim[1] for claim in _windows_path_claims([line])]
         assert got == expected, (

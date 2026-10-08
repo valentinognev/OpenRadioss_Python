@@ -33,16 +33,22 @@ port is an AGPL-covered derivative work: `plan/00_ORCHESTRATION.md`
 ## Environment (do not deviate)
 
 - **Interpreter: `$PYTHON`** — never a bare `python`/`pip`, never a path
-  hardcoded to one platform. Resolve it in your shell, from the repo root:
-  `export PYTHON="$PWD/.venv/bin/python"`. The interpreter's own version is the
-  `python` pin in `requirements-lock.txt` §[B]; do not repeat it in prose.
+  hardcoded to one platform. Resolve it from the repo root
+  (`export PYTHON="$PWD/.venv/bin/python"`) and put it where it survives the
+  tool you drive: your shell profile is the durable answer; without one,
+  repeat the `export` at the head of **every** call that uses it (§Terminal
+  rules — an export from an earlier call is not inherited). The interpreter's
+  own version is the `python` pin in `requirements-lock.txt` §[B]; do not
+  repeat it in prose.
 - Every dependency is **already installed**. Do NOT create a venv, do NOT
   `pip install`. Pins live in `requirements-lock.txt` §[B] (this Linux `.venv`),
   and every one of them is asserted against the importable module on every run
   by `tests/test_p0_optional_deps.py`.
-- The other variables — `$OR_SRC`, `$OR_ROOT`, `$OR_BUILD`, `$OR_STARTER`,
-  `$OR_ENGINE`, `$PYRADIOSS_HM_CFG`, `$PYRADIOSS_RD_DECKS`,
-  `$PYRADIOSS_BACKEND` — are defined in §4.1; read it before setting one.
+- The other variables — `$OR_SRC`, `$OR_ROOT`, `$OR_STARTER`, `$OR_ENGINE`,
+  `$PYRADIOSS_HM_CFG`, `$PYRADIOSS_RD_DECKS`, `$PYRADIOSS_BACKEND` — are
+  defined in §4.1; read it before setting one. `$OR_BUILD` is the one exception,
+  and §4.1 does not define it: its home is `tools/oracle/oracle_env.sh`, which
+  hard-fails (`:?`) unless it is exported.
   `$PYRADIOSS_HM_CFG` (the CFG card-schema tree the `/MAT`–`/PROP` readers
   parse) and `$PYRADIOSS_RD_DECKS` (a fuller deck corpus than the vendored
   `tests/data/rd_decks`) both resolve unaided on a dev box: set them only to
@@ -82,9 +88,9 @@ port is an AGPL-covered derivative work: `plan/00_ORCHESTRATION.md`
   message-subsystem one; that script's header explains why, and it is right.
 - **A numerics change requires a parity run against that oracle.** The targeted
   tests are necessary and not sufficient for anything touching element, material,
-  contact or dt code: run `tools/validate_vs_fortran.py --mode parity` and quote
-  the numbers in the commit. See §Domain rules and the `validation-compare`
-  skill.
+  contact or dt code: run `tools/validate_vs_fortran.py parity` (the full
+  invocation is in §Commands) and quote the numbers in the commit. See §Domain
+  rules and the `validation-compare` skill.
 - `PYRADIOSS_ORACLE_REQUIRED=1` (what the phase gates set) makes a *missing*
   oracle fail instead of skipping. Do not silently skip an absent oracle.
 - The oracle's tree must stay pristine: `git -C "$OR_SRC" status --porcelain`
@@ -99,8 +105,10 @@ Written as `$PYTHON …`; resolve `$PYTHON` first (§Environment).
   `$PYTHON -m pytest -q -m "not slow"`
 - Full suite (adds the `slow` tests) — final gate only, not for iteration:
   `$PYTHON -m pytest -q`
-- Parity evidence — required for any numerics change:
-  `$PYTHON tools/validate_vs_fortran.py --mode parity --cases <list> --out tools/validation_data/parity_p<N>.json`
+- Parity evidence — required for any numerics change. `parity` is a
+  **subcommand**, `--only` takes comma-separated `examples/` names, and the
+  rows land in `<workdir>/parity_results.json`:
+  `$PYTHON tools/validate_vs_fortran.py parity --only <names>`
 - Run the port on an example (from `examples/tensile_bar`):
   `$PYTHON -m pyradioss.starter -i TENSILE_0000.rad`, then
   `$PYTHON -m pyradioss.engine -i TENSILE_0001.rad`
@@ -119,7 +127,9 @@ Written as `$PYTHON …`; resolve `$PYTHON` first (§Environment).
   ask the user instead.
 - One call, one environment: do not rely on a variable exported in an earlier
   call. Anything the Fortran solver needs comes from
-  `source tools/oracle/oracle_env.sh` **in the same call** that runs the oracle.
+  `source tools/oracle/oracle_env.sh` **in the same call** that runs the oracle;
+  the same is true of `$PYTHON` unless your shell profile already resolves it
+  (§Environment).
 
 ## Project
 
