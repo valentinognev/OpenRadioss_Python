@@ -27,7 +27,7 @@ The same physical file must be read by TWO readers:
   line — including whitespace-only lines, which it takes as *blank cards*
   (all fields default);
 * the **pyradioss port** reader (``deck_reader.py`` +
-  ``starter_keywords.py``) whitespace-tokenizes each line and *skips*
+  ``input/keywords/``) whitespace-tokenizes each line and *skips*
   blank lines entirely.
 
 Those two facts are the whole trick.  A field the port must not see is
@@ -143,7 +143,7 @@ import os
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .deck_reader import Card, KeywordBlock, parse_fortran_float
-from .starter_keywords import split_imposed_card
+from .keywords import split_imposed_card
 
 # ============================================================================
 # Field-formatting primitives — M37: EXTRACTED to card_layouts.py, the ONE

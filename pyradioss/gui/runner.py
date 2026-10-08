@@ -282,7 +282,7 @@ def build_deck_summary(deck_path: str) -> Dict[str, object]:
     buf = io.StringIO()
     try:
         from ..input.deck_reader import read_deck
-        from ..input.starter_keywords import parse_starter_deck
+        from ..input.keywords import parse_starter_deck
         from ..model.model import Model
         from ..common.messages import MessageLog
 

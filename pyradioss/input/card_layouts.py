@@ -8,7 +8,7 @@ This module is the ONE table both sides of the input layer use:
   :func:`blank` / :data:`BLANK_CARD` from here (M37 extraction refactor —
   they lived in deck_writer during M36), and every emitter cites the same
   cfg CARD definition that its layout below encodes;
-* the **reader** (``starter_keywords.py``) cuts real fixed-format cards
+* the **reader** (``input/keywords/``) cuts real fixed-format cards
   with :func:`split_fixed` at the column widths of :data:`LAYOUTS`.
 
 Every entry in :data:`LAYOUTS` was taken from the authoritative

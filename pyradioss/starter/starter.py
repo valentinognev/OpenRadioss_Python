@@ -19,7 +19,7 @@ import numpy as np
 from .. import banner
 from ..common.messages import MessageLog, StarterError
 from ..input.deck_reader import read_deck
-from ..input.starter_keywords import parse_starter_deck
+from ..input.keywords import parse_starter_deck
 from ..model.model import Model
 from .checks import check_model
 from ..input.units import apply_unit_conversions

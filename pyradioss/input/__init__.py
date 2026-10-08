@@ -8,7 +8,7 @@ routine that pulls typed fields out of the reader and fills the model
 arrays. We split the job the same way:
 
     deck_reader.py       lexing: file -> list of KeywordBlock (also #include)
-    starter_keywords.py  /NODE, /BRICK, /MAT/..., ...  -> Model
+    keywords/            /NODE, /BRICK, /MAT/..., ...  -> Model
     engine_keywords.py   /RUN, /DT, /TFILE, /ANIM, ... -> EngineControls
 """
 
