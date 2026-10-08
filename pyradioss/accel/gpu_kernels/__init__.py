@@ -173,9 +173,9 @@ def _get_xp(*arrays):
 
 def hexa_pre(xe, ve, sig, dt, off, lc_scale):
     """Mirror of solid_hexa8._pre on GPU via CuPy.
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\srcoor3.F
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\sdefo3.F
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\srota3.F
+    # Ported from $OR_SRC/engine/source/elements/solid/srcoor3.F
+    # Ported from $OR_SRC/engine/source/elements/solid/sdefo3.F
+    # Ported from $OR_SRC/engine/source/elements/solid/srota3.F
     """
     xp = _get_xp(xe)
     is_np = isinstance(xe, np.ndarray) if hasattr(np, "ndarray") else False
@@ -294,10 +294,10 @@ def hexa_pre(xe, ve, sig, dt, off, lc_scale):
 def hexa_post(xe, ve, dndx, vol, lc, rho, trD, deps, sig, sig_old,
               qa, qb, c, hcoef, alive, qvw_pend, dt, dtfac):
     """Mirror of solid_hexa8._post on GPU via CuPy.
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\sbulk3.F
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\sfint3.F
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\shour3.F
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\sdlen3.F
+    # Ported from $OR_SRC/engine/source/elements/solid/sbulk3.F
+    # Ported from $OR_SRC/engine/source/elements/solid/sfint3.F
+    # Ported from $OR_SRC/engine/source/elements/solid/shour3.F
+    # Ported from $OR_SRC/engine/source/elements/solid/sdlen3.F
     """
     xp = _get_xp(xe)
     is_np = isinstance(xe, np.ndarray) if hasattr(np, "ndarray") else False
@@ -383,7 +383,7 @@ def hexa_post(xe, ve, dndx, vol, lc, rho, trD, deps, sig, sig_old,
 
 def hexa_hgphys(xe, ve, dndx, vol, c, mask, mass, vol0, q, dt):
     """Mirror of solid_hexa8._phys_hourglass_law70 on GPU via CuPy.
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\shour3.F
+    # Ported from $OR_SRC/engine/source/elements/solid/shour3.F
     """
     xp = _get_xp(xe)
     is_np = isinstance(xe, np.ndarray) if hasattr(np, "ndarray") else False
@@ -441,8 +441,8 @@ def hexa_hgphys(xe, ve, dndx, vol, c, mask, mass, vol0, q, dt):
 
 def shell_pre(xe, ve, vre, off):
     """Mirror of shell_bt4._pre on GPU via CuPy.
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\shell\\ccoor3.F
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\shell\\cdefo3.F
+    # Ported from $OR_SRC/engine/source/elements/shell/ccoor3.F
+    # Ported from $OR_SRC/engine/source/elements/shell/cdefo3.F
     """
     xp = _get_xp(xe)
     is_np = isinstance(xe, np.ndarray) if hasattr(np, "ndarray") else False
@@ -552,8 +552,8 @@ def shell_pre(xe, ve, vre, off):
 def shell_post(E, area, B1, B2, gam, V, Nres, Mres, qres, Q,
                k_m, k_w, hqm, hqb, hqr, dt):
     """Mirror of shell_bt4._post on GPU via CuPy.
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\shell\\czforc3.F
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\shell\\chvis3.F
+    # Ported from $OR_SRC/engine/source/elements/shell/czforc3.F
+    # Ported from $OR_SRC/engine/source/elements/shell/chvis3.F
     """
     xp = _get_xp(area)
     is_np = isinstance(area, np.ndarray) if hasattr(np, "ndarray") else False
@@ -641,7 +641,7 @@ def shell_post(E, area, B1, B2, gam, V, Nres, Mres, qres, Q,
 
 def _tri_closest(px, py, pz, ax, ay, az, bx, by, bz, cx, cy, cz):
     """Closest point of point P to triangle ABC (Ericson algorithm).
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\inter\\i7dst3.F
+    # Ported from $OR_SRC/engine/source/inter/i7dst3.F
     """
     xp = _get_xp(px, ax)
     abx = bx - ax; aby = by - ay; abz = bz - az
@@ -733,7 +733,7 @@ def _tri_closest(px, py, pz, ax, ay, az, bx, by, bz, cx, cy, cz):
 
 def t7_narrow(x, ni, seg):
     """Closest point of each candidate node on its quad segment.
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\inter\\i7dst3.F
+    # Ported from $OR_SRC/engine/source/inter/i7dst3.F
     """
     xp = _get_xp(x, ni, seg)
     is_np = isinstance(x, np.ndarray) if hasattr(np, "ndarray") else False
@@ -805,7 +805,7 @@ t24_narrow = t7_narrow
 
 def scatter3(target, idx, values):
     """Accumulate (m, 3) values into target (N, 3) at rows idx (m,).
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\parallel\\asspar.F
+    # Ported from $OR_SRC/engine/source/parallel/asspar.F
     """
     if len(target) == 0 or len(idx) == 0:
         return
@@ -825,7 +825,7 @@ def scatter3(target, idx, values):
 
 def scatter3_colored(target, idx, values, color_indices, color_offsets, npe):
     """Node-colored force accumulation on GPU.
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\parallel\\asspar.F
+    # Ported from $OR_SRC/engine/source/parallel/asspar.F
     """
     scatter3(target, idx, values)
 
@@ -836,7 +836,7 @@ def scatter3_colored(target, idx, values, color_indices, color_offsets, npe):
 
 def law70_tab2d(xg, rates, Y, x, r):
     """Bilinear (strain, rate) lookup with end-slope extrapolation.
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\law70\\sigeps70.F
+    # Ported from $OR_SRC/engine/source/materials/law70/sigeps70.F
     """
     xp = _get_xp(xg, rates, Y, x, r)
     is_np = isinstance(x, np.ndarray) if hasattr(np, "ndarray") else False
@@ -875,7 +875,7 @@ def law70_tab2d(xg, rates, Y, x, r):
 
 def law70_enorm(v):
     """Tensor norm of a Voigt strain (0.5 on engineering shears).
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\law70\\sigeps70.F
+    # Ported from $OR_SRC/engine/source/materials/law70/sigeps70.F
     """
     xp = _get_xp(v)
     is_np = isinstance(v, np.ndarray) if hasattr(np, "ndarray") else False
@@ -887,7 +887,7 @@ def law70_enorm(v):
 
 def law70_snorm(v):
     """Frobenius norm of a Voigt stress (2.0 on shears).
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\law70\\sigeps70.F
+    # Ported from $OR_SRC/engine/source/materials/law70/sigeps70.F
     """
     xp = _get_xp(v)
     is_np = isinstance(v, np.ndarray) if hasattr(np, "ndarray") else False
@@ -899,7 +899,7 @@ def law70_snorm(v):
 
 def law70_elastic_stress(aa1, aa2, g, e):
     """C(E):eps for per-element moduli (Voigt, engineering shear).
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\law70\\sigeps70.F
+    # Ported from $OR_SRC/engine/source/materials/law70/sigeps70.F
     """
     xp = _get_xp(aa1, aa2, g, e)
     is_np = isinstance(e, np.ndarray) if hasattr(np, "ndarray") else False
@@ -932,8 +932,8 @@ def law70_elastic_stress(aa1, aa2, g, e):
 
 def tetra10_pre(xe, ve, sig, dt, off):
     """Mirror of solid_tetra10._pre on GPU via CuPy.
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\tetra10\\t10coor.F
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\tetra10\\t10defo.F
+    # Ported from $OR_SRC/engine/source/elements/solid/tetra10/t10coor.F
+    # Ported from $OR_SRC/engine/source/elements/solid/tetra10/t10defo.F
     """
     xp = _get_xp(xe)
     is_np = isinstance(xe, np.ndarray) if hasattr(np, "ndarray") else False
@@ -1045,8 +1045,8 @@ def tetra10_pre(xe, ve, sig, dt, off):
 def tetra10_post(xe, dndx, vol, vol_tot, lc, rho, trD, deps, sig, sig_old,
                  qa, qb, c, alive, qvw_pend, dt, dtfac):
     """Mirror of solid_tetra10._post on GPU via CuPy.
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\tetra10\\t10fint.F
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\tetra10\\t10dlen.F
+    # Ported from $OR_SRC/engine/source/elements/solid/tetra10/t10fint.F
+    # Ported from $OR_SRC/engine/source/elements/solid/tetra10/t10dlen.F
     """
     xp = _get_xp(xe)
     is_np = isinstance(xe, np.ndarray) if hasattr(np, "ndarray") else False
