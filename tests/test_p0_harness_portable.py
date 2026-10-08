@@ -153,6 +153,13 @@ DELIBERATE_WINDOWS_LITERALS = {
         "LS-PrePost ships no Linux build, so its install paths can only be "
         "Windows; find_lsprepost() honours $LSPP_EXE before this list and the "
         "function returns None when neither exists",
+    "normalize_citations.py":
+        "this tool's subject IS the Windows reference path: rewrite() matches "
+        "C:\\OpenRadioss\\source\\OpenRadioss-latest-<date> and "
+        "C:\\OpenRadioss\\hm_cfg_files so the docstrings can stop naming them. "
+        "Those literals are the pattern, never a default resolved at runtime — "
+        "the tool emits the literal $OR_SRC text on purpose (see its module "
+        "docstring), so there is no environment value here to resolve through",
 }
 
 #: Non-Python sources and recorded data, deliberately outside the sweep.
@@ -331,6 +338,8 @@ def test_no_tools_python_source_keeps_a_windows_oracle_or_toolchain_default():
     """
     offenders = []
     for src in sorted(TOOLS.rglob("*.py")):
+        if src.name in DELIBERATE_WINDOWS_LITERALS:
+            continue                      # excused, with its reason recorded
         text = src.read_text(encoding="utf-8", errors="replace")
         for pattern in WINDOWS_ORACLE_LITERALS:
             if re.search(pattern, text, re.I):
