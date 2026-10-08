@@ -1,16 +1,16 @@
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\inixfem.F
+# Ported from $OR_SRC/engine/source/elements/xfem/inixfem.F
 # Subroutine: INIXFEM (lines 39-209)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\enrichc_ini.F
+# Ported from $OR_SRC/engine/source/elements/xfem/enrichc_ini.F
 # Subroutine: ENRICHC_INI (lines 36-576)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\crklayer4n_adv.F
+# Ported from $OR_SRC/engine/source/elements/xfem/crklayer4n_adv.F
 # Subroutine: CRKLAYER4N_ADV (lines 36-700), LSINT4 (lines 711-733)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\crklayer4n_ini.F
+# Ported from $OR_SRC/engine/source/elements/xfem/crklayer4n_ini.F
 # Subroutine: CRKLAYER4N_INI (lines 36-577)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\upenr_crk.F
+# Ported from $OR_SRC/engine/source/elements/xfem/upenr_crk.F
 # Subroutine: UPENR_CRK (lines 30-91)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\xfem_crk_dir.F
+# Ported from $OR_SRC/engine/source/elements/xfem/xfem_crk_dir.F
 # Subroutine: XFEM_CRK_DIR (lines 29-106)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\common_source\fail\newman_raju.F90
+# Ported from $OR_SRC/common_source/fail/newman_raju.F90
 # Subroutine: NEWMAN_RAJU (lines 51-102)
 """XFEM (Extended Finite Element Method) Crack Tracking and Enrichment DOFs.
 
@@ -52,7 +52,7 @@ def lsint4(y1: float, z1: float, y2: float, z2: float, y: float, z: float) -> fl
     """Perpendicular signed distance from point (y, z) to line through (y1, z1)->(y2, z2).
 
     Ported from OpenRadioss subroutine LSINT4:
-      ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\xfem\\crklayer4n_adv.F``
+      ``$OR_SRC/engine/source/elements/xfem/crklayer4n_adv.F``
       lines 711-733:
         AREA = ((Y2*Z - Y*Z2) - (Y1*Z - Y*Z1) + (Y1*Z2 - Z1*Y2))
         AB   = (Y2 - Y1)**2 + (Z2 - Z1)**2
@@ -128,7 +128,7 @@ def compute_crack_direction(
     """Calculate maximum principal stress, tensile direction, and crack propagation vector.
 
     Ported from OpenRadioss subroutine XFEM_CRK_DIR:
-      ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\xfem\\xfem_crk_dir.F``
+      ``$OR_SRC/engine/source/elements/xfem/xfem_crk_dir.F``
       lines 62-103:
         CC  = (TENS(1) + TENS(2)) * HALF
         BB  = (TENS(1) - TENS(2)) * HALF
@@ -213,8 +213,8 @@ def compute_mode_i_sif(
     """Compute Mode I Stress Intensity Factor K_I and geometry correction factor Y.
 
     Upstream references:
-      - ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\fail\\newman_raju.F90``
-      - ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\alter\\fail_brokmann.F``
+      - ``$OR_SRC/common_source/fail/newman_raju.F90``
+      - ``$OR_SRC/engine/source/materials/fail/alter/fail_brokmann.F``
 
     Formulas:
       K_I = Y * sigma * sqrt(pi * a)
@@ -777,7 +777,7 @@ class EnrichmentDOFManager:
         """Synchronize enriched DOFs between adjacent elements sharing a cut edge.
 
         Ported from OpenRadioss subroutine UPENR_CRK:
-          ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\xfem\\upenr_crk.F``
+          ``$OR_SRC/engine/source/elements/xfem/upenr_crk.F``
           lines 56-86.
         Ensures displacement continuity along crack faces between neighboring cut elements.
         """

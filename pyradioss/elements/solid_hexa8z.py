@@ -2,12 +2,12 @@
 8-node corotational hexahedral solid element with assumed strain formulation.
 
 Fortran source citations:
-- s8zforc3:  C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide8z\\s8zforc3.F
-- s8zdefo3:  C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide8z\\s8zdefo3.F
-- s8zderi3:  C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide8z\\s8zderi3.F
-- s8zfint3:  C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide8z\\s8zfint3.F
-- srepiso3:  C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide\\srepiso3.F
-- sortho3:   C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide\\sortho3.F
+- s8zforc3:  $OR_SRC/engine/source/elements/solid/solide8z/s8zforc3.F
+- s8zdefo3:  $OR_SRC/engine/source/elements/solid/solide8z/s8zdefo3.F
+- s8zderi3:  $OR_SRC/engine/source/elements/solid/solide8z/s8zderi3.F
+- s8zfint3:  $OR_SRC/engine/source/elements/solid/solide8z/s8zfint3.F
+- srepiso3:  $OR_SRC/engine/source/elements/solid/solide/srepiso3.F
+- sortho3:   $OR_SRC/engine/source/elements/solid/solide/sortho3.F
 
 Theory notes (Belytschko & Bindeman 1993, Flanagan & Belytschko 1981):
 * Corotational / Convected Frame:
@@ -73,8 +73,8 @@ def _corotational_frame(xe: np.ndarray) -> np.ndarray:
     """Compute orthonormal corotational frame R = [e1, e2, e3] for each element.
 
     Ported from:
-    - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide\\srepiso3.F
-    - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide\\sortho3.F
+    - $OR_SRC/engine/source/elements/solid/solide/srepiso3.F
+    - $OR_SRC/engine/source/elements/solid/solide/sortho3.F
 
     xe : (n, 8, 3) global nodal coordinates.
     Returns: R of shape (n, 3, 3) where columns are orthonormal unit vectors [e1, e2, e3].
@@ -129,7 +129,7 @@ def _corotational_frame(xe: np.ndarray) -> np.ndarray:
 def _geometry(xe: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Centroid Jacobian, volume and shape function gradients.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide8z\\s8zderi3.F
+    Ported from $OR_SRC/engine/source/elements/solid/solide8z/s8zderi3.F
 
     xe : (n, 8, 3) nodal coordinates.
     Returns (dndx (n, 8, 3), vol (n,)).
@@ -171,7 +171,7 @@ def _char_length(xe: np.ndarray, vol: np.ndarray) -> np.ndarray:
 def init_group(group, model, log) -> tuple[np.ndarray, np.ndarray, None]:
     """Initialize element buffer and lumped masses for corotational hexa group.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\elements\\solid\\sinit3.F
+    Ported from $OR_SRC/starter/source/elements/solid/sinit3.F
     """
     n = group.n
     if n == 0 or len(group.conn) == 0:
@@ -236,10 +236,10 @@ def forces(group, x: np.ndarray, v: np.ndarray, vr: np.ndarray, dt: float,
     """Evaluate corotational 8-node solid element internal forces and update state.
 
     Ported from:
-    - s8zforc3: C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide8z\\s8zforc3.F
-    - s8zdefo3: C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide8z\\s8zdefo3.F
-    - s8zderi3: C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide8z\\s8zderi3.F
-    - s8zfint3: C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\solid\\solide8z\\s8zfint3.F
+    - s8zforc3: $OR_SRC/engine/source/elements/solid/solide8z/s8zforc3.F
+    - s8zdefo3: $OR_SRC/engine/source/elements/solid/solide8z/s8zdefo3.F
+    - s8zderi3: $OR_SRC/engine/source/elements/solid/solide8z/s8zderi3.F
+    - s8zfint3: $OR_SRC/engine/source/elements/solid/solide8z/s8zfint3.F
 
     Parameters
     ----------

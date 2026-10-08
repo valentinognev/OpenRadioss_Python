@@ -1,8 +1,8 @@
 # pyradioss/elements/spring_pretensioner.py
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\spring\ruser32.F
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\spring\ruser32ke3.F
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\spring\ruser32mat3.F
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\properties\spring\hm_read_prop32.F
+# Ported from $OR_SRC/engine/source/elements/spring/ruser32.F
+# Ported from $OR_SRC/engine/source/elements/spring/ruser32ke3.F
+# Ported from $OR_SRC/engine/source/elements/spring/ruser32mat3.F
+# Ported from $OR_SRC/starter/source/properties/spring/hm_read_prop32.F
 """
 2-Node Pretensioner Spring Element (/SPRING + /PROP/SPR_PRE or /PROP/TYPE32).
 
@@ -68,7 +68,7 @@ def _safe_param(params: dict, key: str, default: float = 0.0) -> float:
 def init_pretensioner_type32(group, model, log, idx32: np.ndarray, massn: Optional[np.ndarray] = None, inertn: Optional[np.ndarray] = None) -> None:
     """Initialize state buffers for TYPE32 pretensioner spring elements.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\properties\\spring\\hm_read_prop32.F
+    Ported from $OR_SRC/starter/source/properties/spring/hm_read_prop32.F
     and engine/source/elements/spring/ruser32.F.
 
     Args:
@@ -130,7 +130,7 @@ def init_pretensioner_type32(group, model, log, idx32: np.ndarray, massn: Option
 def forces_pretensioner_type32(group, x: np.ndarray, v: Optional[np.ndarray], dt: Optional[float], fint: Optional[np.ndarray], idx: np.ndarray) -> np.ndarray:
     """Compute axial forces for TYPE32 pretensioner spring elements.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\spring\\ruser32.F.
+    Ported from $OR_SRC/engine/source/elements/spring/ruser32.F.
 
     Args:
         group: ElementGroup containing the springs.
@@ -325,7 +325,7 @@ def forces_pretensioner_type32(group, x: np.ndarray, v: Optional[np.ndarray], dt
 def implicit_stiffness_type32(group, x: np.ndarray, idx: np.ndarray, ikgeo: int = 1) -> Tuple[np.ndarray, np.ndarray]:
     """Assemble 6x6 element tangent stiffness for TYPE32 pretensioner spring elements.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\spring\\ruser32ke3.F
+    Ported from $OR_SRC/engine/source/elements/spring/ruser32ke3.F
     and ruser32mat3.F.
 
     Args:

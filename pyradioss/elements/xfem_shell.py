@@ -1,14 +1,14 @@
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\cforc3_crk.F
+# Ported from $OR_SRC/engine/source/elements/xfem/cforc3_crk.F
 # Subroutine: CFORC3_CRK (lines 66-641)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\czforc3_crk.F
+# Ported from $OR_SRC/engine/source/elements/xfem/czforc3_crk.F
 # Subroutine: CZFORC3_CRK (lines 65-645)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\c3forc3_crk.F
+# Ported from $OR_SRC/engine/source/elements/xfem/c3forc3_crk.F
 # Subroutine: C3FORC3_CRK (lines 68-597)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\ccoor3_crk.F
+# Ported from $OR_SRC/engine/source/elements/xfem/ccoor3_crk.F
 # Subroutine: CCOOR3_CRK (lines 31-183)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\xfemfsky.F
+# Ported from $OR_SRC/engine/source/elements/xfem/xfemfsky.F
 # Subroutine: CUPDT3_CRK (lines 31-263), CUPDTN3_CRK (lines 272-380)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\elements\xfem\crk_velocity.F
+# Ported from $OR_SRC/engine/source/elements/xfem/crk_velocity.F
 # Subroutine: CRK_VELOCITY (lines 30-127)
 """XFEM (Extended Finite Element Method) Enriched Shell Element Force Integration.
 
@@ -114,10 +114,10 @@ def gather_phantom_kinematics(
     """Gather nodal coordinates and velocities for one phantom element component.
 
     Ported from OpenRadioss subroutine CCOOR3_CRK:
-      ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\xfem\\ccoor3_crk.F``
+      ``$OR_SRC/engine/source/elements/xfem/ccoor3_crk.F``
       lines 78-134.
     And CRK_VELOCITY:
-      ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\xfem\\crk_velocity.F``
+      ``$OR_SRC/engine/source/elements/xfem/crk_velocity.F``
       lines 70-120.
 
     Parameters
@@ -183,7 +183,7 @@ def scatter_phantom_forces(
     """Scatter area-scaled phantom element forces and moments into standard and enriched arrays.
 
     Ported from OpenRadioss subroutine CUPDT3_CRK:
-      ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\xfem\\xfemfsky.F``
+      ``$OR_SRC/engine/source/elements/xfem/xfemfsky.F``
       lines 123-260:
         AREAP = CRKLVSET(ILEV)%AREA(ELCRK)
         CRKSKY%FSKY(1..3) = -F(1..3) * AREAP
@@ -404,9 +404,9 @@ def xfem_shell_quad4_forces(
     """Calculate internal forces, moments, and energy for a standard or XFEM-cracked shell.
 
     Ported from OpenRadioss subroutines:
-      - ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\xfem\\cforc3_crk.F``
-      - ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\xfem\\ccoor3_crk.F``
-      - ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\xfem\\xfemfsky.F``
+      - ``$OR_SRC/engine/source/elements/xfem/cforc3_crk.F``
+      - ``$OR_SRC/engine/source/elements/xfem/ccoor3_crk.F``
+      - ``$OR_SRC/engine/source/elements/xfem/xfemfsky.F``
 
     If the element is uncut:
       Standard Belytschko-Tsay 4-node shell evaluation.
@@ -691,7 +691,7 @@ def integrate_xfem_step(
     """Advance mesh and enriched phantom DOFs by one explicit time step.
 
     Ported from OpenRadioss subroutine CRK_VELOCITY:
-      ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\xfem\\crk_velocity.F``
+      ``$OR_SRC/engine/source/elements/xfem/crk_velocity.F``
       lines 74-100:
         CRKAVX%V  = CRKAVX%V + DT12 * A
         CRKAVX%VR = CRKAVX%VR + DT12 * AR
