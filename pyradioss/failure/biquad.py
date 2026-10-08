@@ -186,7 +186,7 @@ def shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=None, eps_tot=None):
 def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=None, **kwargs):
     """Bi-quadratic failure step for standard beams (TYPE 3).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\biquad\\fail_biquad_b.F
+    # Ported from $OR_SRC/engine/source/materials/fail/biquad/fail_biquad_b.F
     Subroutine: FAIL_BIQUAD_B
     """
     if np.ndim(svm) == 2:
@@ -211,7 +211,7 @@ def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=No
 def integrated_beam_step(fail, sig, d_epsp, deps, dt, dama, length=None, tstar=None, ip=0, npg=1, **kwargs):
     """Bi-quadratic failure step for integrated beam integration point (TYPE 18).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\biquad\\fail_biquad_ib.F
+    # Ported from $OR_SRC/engine/source/materials/fail/biquad/fail_biquad_ib.F
     Subroutine: FAIL_BIQUAD_IB
     """
     sig_arr = np.asarray(sig, dtype=float)

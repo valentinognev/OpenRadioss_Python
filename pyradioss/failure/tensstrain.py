@@ -90,7 +90,7 @@ def shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=None, eps_tot=None):
 def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=None, strains=None, epsd=None, **kwargs):
     """Tensile strain failure step for standard beams (TYPE 3).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\tensstrain\\fail_tensstrain_b.F
+    # Ported from $OR_SRC/engine/source/materials/fail/tensstrain/fail_tensstrain_b.F
     Subroutine: FAIL_TENSSTRAIN_B
     """
     p = fail.params
@@ -114,7 +114,7 @@ def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=No
 def integrated_beam_step(fail, sig, d_epsp, deps, dt, dama, length=None, tstar=None, epsd=None, ip=0, npg=1, **kwargs):
     """Tensile strain failure step for integrated beam integration point (TYPE 18).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\tensstrain\\fail_tensstrain_ib.F
+    # Ported from $OR_SRC/engine/source/materials/fail/tensstrain/fail_tensstrain_ib.F
     Subroutine: FAIL_TENSSTRAIN_IB
     """
     p = fail.params

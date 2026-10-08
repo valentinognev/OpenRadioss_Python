@@ -1,10 +1,10 @@
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\initial_conditions\inicrack\hm_read_inicrack.F
+# $OR_SRC/starter/source/initial_conditions/inicrack/hm_read_inicrack.F
 # Function: HM_READ_INICRACK (lines 40-138)
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\fail\windshield_alter\brokmann_crack_init.F90
+# $OR_SRC/starter/source/materials/fail/windshield_alter/brokmann_crack_init.F90
 # Subroutine: BROKMANN_CRACK_INIT (lines 48-374)
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\fail\alter\fail_brokmann.F
+# $OR_SRC/engine/source/materials/fail/alter/fail_brokmann.F
 # Subroutine: FAIL_BROKMANN (lines 35-188)
-# C:\OpenRadioss\source\OpenRadioss-latest-20260520\common_source\fail\newman_raju.F90
+# $OR_SRC/common_source/fail/newman_raju.F90
 # Subroutine: NEWMAN_RAJU (lines 51-102)
 """Initial crack definition (/INICRACK) for fracture mechanics and failure models.
 

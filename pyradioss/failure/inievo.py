@@ -2,13 +2,13 @@
 
 Ported from OpenRadioss Fortran source:
 - Solids:
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\inievo\\fail_inievo_s.F`
+  `$OR_SRC/engine/source/materials/fail/inievo/fail_inievo_s.F`
   Subroutine: `FAIL_INIEVO_S`
 - Shells:
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\inievo\\fail_inievo_c.F`
+  `$OR_SRC/engine/source/materials/fail/inievo/fail_inievo_c.F`
   Subroutine: `FAIL_INIEVO_C`
 - Starter Card Reader:
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\materials\\fail\\inievo\\hm_read_fail_inievo.F`
+  `$OR_SRC/starter/source/materials/fail/inievo/hm_read_fail_inievo.F`
   Subroutine: `HM_READ_FAIL_INIEVO`
 
 Failure model index: IRUPT = 42.
@@ -225,7 +225,7 @@ def shell_step(
 def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=None, **kwargs):
     """INIEVO failure step for standard beams (TYPE 3).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\inievo\\fail_inievo_b.F90
+    # Ported from $OR_SRC/engine/source/materials/fail/inievo/fail_inievo_b.F90
     Subroutine: FAIL_INIEVO_B
     """
     p = fail.params
@@ -274,7 +274,7 @@ def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=No
 def integrated_beam_step(fail, sig, d_epsp, deps, dt, dama, length=None, tstar=None, ip=0, npg=1, **kwargs):
     """INIEVO failure step for integrated beam integration point (TYPE 18).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\inievo\\fail_inievo_ib.F90
+    # Ported from $OR_SRC/engine/source/materials/fail/inievo/fail_inievo_ib.F90
     Subroutine: FAIL_INIEVO_IB
     """
     sig_arr = np.asarray(sig, dtype=float)

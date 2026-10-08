@@ -73,7 +73,7 @@ def shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=None, eps_tot=None):
 def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=None, eps_xx=None, **kwargs):
     """Visual failure indicator step for standard beams (TYPE 3); returns all False (no deletion).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\visual\\fail_visual_b.F90
+    # Ported from $OR_SRC/engine/source/materials/fail/visual/fail_visual_b.F90
     Subroutine: FAIL_VISUAL_B
     """
     p = fail.params
@@ -90,7 +90,7 @@ def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=No
 def integrated_beam_step(fail, sig, d_epsp, deps, dt, dama, length=None, tstar=None, eps_xx=None, ip=0, npg=1, **kwargs):
     """Visual failure indicator step for integrated beam (TYPE 18); returns all False (no deletion).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\visual\\fail_visual_ib.F90
+    # Ported from $OR_SRC/engine/source/materials/fail/visual/fail_visual_ib.F90
     Subroutine: FAIL_VISUAL_IB
     """
     p = fail.params

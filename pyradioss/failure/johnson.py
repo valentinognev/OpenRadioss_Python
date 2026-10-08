@@ -154,7 +154,7 @@ def shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=None, eps_tot=None):
 def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=None, epsd=None, **kwargs):
     """Johnson-Cook failure step for standard beams (TYPE 3).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\johnson_cook\\fail_johnson_b.F
+    # Ported from $OR_SRC/engine/source/materials/fail/johnson_cook/fail_johnson_b.F
     Subroutine: FAIL_JOHNSON_B
     """
     p = fail.params
@@ -186,7 +186,7 @@ def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=No
 def integrated_beam_step(fail, sig, d_epsp, deps, dt, dama, length=None, tstar=None, epsd=None, ip=0, npg=1, **kwargs):
     """Johnson-Cook failure step for integrated beam integration point (TYPE 18).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\johnson_cook\\fail_johnson_ib.F
+    # Ported from $OR_SRC/engine/source/materials/fail/johnson_cook/fail_johnson_ib.F
     Subroutine: FAIL_JOHNSON_IB
     """
     p = fail.params
@@ -226,7 +226,7 @@ def integrated_beam_step(fail, sig, d_epsp, deps, dt, dama, length=None, tstar=N
 def xfem_step(fail, sig, d_epsp, deps, dt, dama, elcrkini, tstar=None, eps_tot=None, dadv=1.0, is_phantom=False):
     """Johnson-Cook failure step with XFEM crack tracking.
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\johnson_cook\\fail_johnson_xfem.F
+    # Ported from $OR_SRC/engine/source/materials/fail/johnson_cook/fail_johnson_xfem.F
     Subroutine: FAIL_JOHNSON_XFEM
     """
     shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=tstar, eps_tot=eps_tot)

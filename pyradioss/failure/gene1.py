@@ -94,7 +94,7 @@ def shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=None, eps_tot=None):
 def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, tstar=None, **kwargs):
     """Gene1 failure step for standard beams (TYPE 3).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\gene1\\fail_gene1_b.F90
+    # Ported from $OR_SRC/engine/source/materials/fail/gene1/fail_gene1_b.F90
     Subroutine: FAIL_GENE1_B
     """
     p = fail.params
@@ -115,7 +115,7 @@ def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, tstar=None, **kwargs)
 def integrated_beam_step(fail, sig, d_epsp, deps, dt, dama, tstar=None, ip=0, npg=1, **kwargs):
     """Gene1 failure step for integrated beam integration point (TYPE 18).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\gene1\\fail_gene1_ib.F90
+    # Ported from $OR_SRC/engine/source/materials/fail/gene1/fail_gene1_ib.F90
     Subroutine: FAIL_GENE1_IB
     """
     p = fail.params

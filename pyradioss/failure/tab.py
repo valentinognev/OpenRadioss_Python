@@ -2,13 +2,13 @@
 
 Ported from OpenRadioss Fortran source:
 - Solids:
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\tabulated\\fail_tab_old_s.F`
+  `$OR_SRC/engine/source/materials/fail/tabulated/fail_tab_old_s.F`
   Subroutine: `FAIL_TAB_OLD_S`
 - Shells:
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\tabulated\\fail_tab_old_c.F`
+  `$OR_SRC/engine/source/materials/fail/tabulated/fail_tab_old_c.F`
   Subroutine: `FAIL_TAB_OLD_C`
 - Starter card reader:
-  `C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\materials\\fail\\tabulated\\hm_read_fail_tab_old.F`
+  `$OR_SRC/starter/source/materials/fail/tabulated/hm_read_fail_tab_old.F`
   Subroutine: `HM_READ_FAIL_TAB_OLD`
 
 Failure model index: IRUPT = 37.

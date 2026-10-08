@@ -1,11 +1,11 @@
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\fail\failwave\update_failwave.F
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\fail\failwave\set_failwave_nod3.F
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\fail\failwave\set_failwave_nod4.F
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\fail\failwave\upd_failwave_sh3n.F
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\fail\failwave\upd_failwave_sh4n.F
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\fail\failwave\seg_intersect.F
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\common_source\modules\failwave_mod.F
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\materials\fail\failwave_init.F
+# Ported from $OR_SRC/engine/source/materials/fail/failwave/update_failwave.F
+# Ported from $OR_SRC/engine/source/materials/fail/failwave/set_failwave_nod3.F
+# Ported from $OR_SRC/engine/source/materials/fail/failwave/set_failwave_nod4.F
+# Ported from $OR_SRC/engine/source/materials/fail/failwave/upd_failwave_sh3n.F
+# Ported from $OR_SRC/engine/source/materials/fail/failwave/upd_failwave_sh4n.F
+# Ported from $OR_SRC/engine/source/materials/fail/failwave/seg_intersect.F
+# Ported from $OR_SRC/common_source/modules/failwave_mod.F
+# Ported from $OR_SRC/starter/source/materials/fail/failwave_init.F
 """
 Failure wave propagation (/FAILWAVE).
 
@@ -33,7 +33,7 @@ def seg_intersect(
 ) -> tuple[bool, float, float]:
     """Calculate intersection of two 2D line segments (x1,y1)-(x2,y2) and (x3,y3)-(x4,y4).
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\failwave\\seg_intersect.F
+    Ported from $OR_SRC/engine/source/materials/fail/failwave/seg_intersect.F
     Subroutine: SEG_INTERSECT
 
     Parameters
@@ -162,7 +162,7 @@ class Failwave:
     def update(self) -> None:
         """Commit pending stacked failure wave info to active nodal table.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\failwave\\update_failwave.F
+        Ported from $OR_SRC/engine/source/materials/fail/failwave/update_failwave.F
         Subroutine: UPDATE_FAILWAVE
         """
         self.maxlev[:] = self.maxlev_stack[:]
@@ -186,7 +186,7 @@ class Failwave:
     ) -> None:
         """Set failure wave on 3-node triangular shell elements.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\failwave\\set_failwave_nod3.F
+        Ported from $OR_SRC/engine/source/materials/fail/failwave/set_failwave_nod3.F
         Subroutine: SET_FAILWAVE_NOD3
 
         Parameters
@@ -331,7 +331,7 @@ class Failwave:
     ) -> None:
         """Set failure wave on 4-node quad shell elements.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\failwave\\set_failwave_nod4.F
+        Ported from $OR_SRC/engine/source/materials/fail/failwave/set_failwave_nod4.F
         Subroutine: SET_FAILWAVE_NOD4
         """
         fwave_el = np.asarray(fwave_el, dtype=int)
@@ -474,7 +474,7 @@ class Failwave:
     ) -> None:
         """Update failure flag on triangular shell elements from neighbor wave data.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\failwave\\upd_failwave_sh3n.F
+        Ported from $OR_SRC/engine/source/materials/fail/failwave/upd_failwave_sh3n.F
         Subroutine: SET_FAILWAVE_SH3N
         """
         fwave_el_arr = np.asarray(fwave_el, dtype=int)
@@ -539,7 +539,7 @@ class Failwave:
     ) -> None:
         """Update failure flag on quad shell elements from neighbor wave data.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\failwave\\upd_failwave_sh4n.F
+        Ported from $OR_SRC/engine/source/materials/fail/failwave/upd_failwave_sh4n.F
         Subroutine: SET_FAILWAVE_SH4N
         """
         fwave_el_arr = np.asarray(fwave_el, dtype=int)

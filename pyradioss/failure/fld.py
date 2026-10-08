@@ -122,7 +122,7 @@ def shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=None, eps_tot=None):
 def thick_shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=None, eps_tot=None, pla=None):
     """Thick shell Forming Limit Diagram failure step.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\fld\\fail_fld_tsh.F
+    Ported from $OR_SRC/engine/source/materials/fail/fld/fail_fld_tsh.F
     Subroutine: FAIL_FLD_TSH
     """
     p = fail.params
@@ -214,7 +214,7 @@ def thick_shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=None, eps_tot=None
 def xfem_step(fail, sig, d_epsp, deps, dt, dama, elcrkini, tstar=None, eps_tot=None, dadv=1.0, is_phantom=False):
     """Forming Limit Diagram failure step with XFEM crack tracking.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\fld\\fail_fld_xfem.F
+    Ported from $OR_SRC/engine/source/materials/fail/fld/fail_fld_xfem.F
     Subroutine: FAIL_FLD_XFEM
     """
     shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=tstar, eps_tot=eps_tot)

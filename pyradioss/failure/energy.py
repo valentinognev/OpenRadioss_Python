@@ -96,7 +96,7 @@ def shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=None, eps_tot=None):
 def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=None, forces=None, moments=None, strains=None, curvatures=None, area=None, epsd=None, **kwargs):
     """Specific energy failure step for standard beams (TYPE 3).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\energy\\fail_energy_b.F
+    # Ported from $OR_SRC/engine/source/materials/fail/energy/fail_energy_b.F
     Subroutine: FAIL_ENERGY_B
     """
     p = fail.params
@@ -136,7 +136,7 @@ def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=No
 def integrated_beam_step(fail, sig, d_epsp, deps, dt, dama, length=None, tstar=None, epsd=None, ip=0, npg=1, **kwargs):
     """Specific energy failure step for integrated beam integration point (TYPE 18).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\energy\\fail_energy_ib.F
+    # Ported from $OR_SRC/engine/source/materials/fail/energy/fail_energy_ib.F
     Subroutine: FAIL_ENERGY_IB
     """
     p = fail.params

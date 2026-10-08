@@ -102,7 +102,7 @@ def shell_step(fail, sig, d_epsp, deps, dt, dama, tstar=None, eps_tot=None):
 def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=None, **kwargs):
     """Tab2 failure step for standard beams (TYPE 3).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\tabulated\\fail_tab2_b.F90
+    # Ported from $OR_SRC/engine/source/materials/fail/tabulated/fail_tab2_b.F90
     Subroutine: FAIL_TAB2_B
     """
     p = fail.params
@@ -127,7 +127,7 @@ def beam_step(fail, svm, pressure, d_epsp, deps, dt, dama, length=None, tstar=No
 def integrated_beam_step(fail, sig, d_epsp, deps, dt, dama, length=None, tstar=None, ip=0, npg=1, **kwargs):
     """Tab2 failure step for integrated beam integration point (TYPE 18).
 
-    # Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\fail\\tabulated\\fail_tab2_ib.F90
+    # Ported from $OR_SRC/engine/source/materials/fail/tabulated/fail_tab2_ib.F90
     Subroutine: FAIL_TAB2_IB
     """
     return beam_step(fail, sig, None, d_epsp, deps, dt, dama, length=length, tstar=tstar, **kwargs)
