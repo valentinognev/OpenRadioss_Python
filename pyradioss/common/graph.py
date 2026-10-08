@@ -2,10 +2,10 @@
 Graph data structures, connected components, and cycle detection.
 
 Fortran / C++ source citations:
-- Graph.hpp:      C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\graphs\\Graph.hpp
-- Graph.cpp:      C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\graphs\\Graph.cpp
-- Graph_api.cpp:  C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\graphs\\Graph_api.cpp
-- dsgraph_mod.F:  C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\share\\modules\\dsgraph_mod.F
+- Graph.hpp:      $OR_SRC/common_source/tools/graphs/Graph.hpp
+- Graph.cpp:      $OR_SRC/common_source/tools/graphs/Graph.cpp
+- Graph_api.cpp:  $OR_SRC/common_source/tools/graphs/Graph_api.cpp
+- dsgraph_mod.F:  $OR_SRC/engine/share/modules/dsgraph_mod.F
 
 Theory notes:
 - Used in OpenRadioss for surface decomposition, contact search partitioning,
@@ -24,7 +24,7 @@ import numpy as np
 class Graph:
     """Undirected graph for connectivity and cycle decomposition.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\graphs\\Graph.cpp
+    Ported from $OR_SRC/common_source/tools/graphs/Graph.cpp
 
     Parameters
     ----------

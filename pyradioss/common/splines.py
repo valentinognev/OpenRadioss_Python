@@ -2,10 +2,10 @@
 Catmull-Rom spline interpolation, knot calculation, arc length, and point projection.
 
 Fortran source citations:
-- cr_spline_interpol: C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\interpolation\\cr_spline_interpol.F
-- cr_spline_knots:    C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\interpolation\\cr_spline_knots.F
-- cr_spline_length:   C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\interpolation\\cr_spline_length.F
-- cr_spline_point_proj: C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\interpolation\\cr_spline_point_proj.F
+- cr_spline_interpol: $OR_SRC/common_source/tools/interpolation/cr_spline_interpol.F
+- cr_spline_knots:    $OR_SRC/common_source/tools/interpolation/cr_spline_knots.F
+- cr_spline_length:   $OR_SRC/common_source/tools/interpolation/cr_spline_length.F
+- cr_spline_point_proj: $OR_SRC/common_source/tools/interpolation/cr_spline_point_proj.F
 
 Theory notes:
 - Barry and Goldman's pyramidal formulation for Catmull-Rom splines.
@@ -27,7 +27,7 @@ import numpy as np
 def cr_spline_knots(pts: np.ndarray, alpha: float = 0.5) -> np.ndarray:
     """Compute knots for 4-point Catmull-Rom spline.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\interpolation\\cr_spline_knots.F
+    Ported from $OR_SRC/common_source/tools/interpolation/cr_spline_knots.F
 
     Parameters
     ----------
@@ -60,7 +60,7 @@ def cr_spline_interpol(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Evaluate Catmull-Rom spline position and derivatives on segment [P1, P2].
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\interpolation\\cr_spline_interpol.F
+    Ported from $OR_SRC/common_source/tools/interpolation/cr_spline_interpol.F
 
     Parameters
     ----------
@@ -123,7 +123,7 @@ def cr_spline_interpol(
 def cr_spline_length(pts: np.ndarray, alpha: float = 0.5, t: float = 1.0, niter: int = 20) -> float:
     """Compute Catmull-Rom spline arc length using Simpson's rule.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\interpolation\\cr_spline_length.F
+    Ported from $OR_SRC/common_source/tools/interpolation/cr_spline_length.F
 
     Parameters
     ----------
@@ -174,7 +174,7 @@ def cr_spline_point_proj(
 ) -> tuple[np.ndarray, float, float]:
     """Project 3D point Z onto Catmull-Rom spline segment [P1, P2].
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\interpolation\\cr_spline_point_proj.F
+    Ported from $OR_SRC/common_source/tools/interpolation/cr_spline_point_proj.F
 
     Parameters
     ----------

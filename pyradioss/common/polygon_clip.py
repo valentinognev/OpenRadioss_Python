@@ -2,8 +2,8 @@
 Weiler-Atherton 2D polygon clipping algorithm and polygon utilities.
 
 Fortran source citations:
-- polygon_mod:          C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\clipping\\polygon_mod.F90
-- polygon_clipping_mod: C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\clipping\\polygon_clipping_mod.F90
+- polygon_mod:          $OR_SRC/common_source/tools/clipping/polygon_mod.F90
+- polygon_clipping_mod: $OR_SRC/common_source/tools/clipping/polygon_clipping_mod.F90
 
 Theory notes:
 - The Weiler-Atherton algorithm clips a subject polygon ("ClippedPolygon") against a
@@ -94,7 +94,7 @@ def intersect_pt(
 ) -> tuple[PolygonPoint | None, float, float]:
     """Compute intersection between segment [P1, P2] and [Q1, Q2].
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\clipping\\polygon_clipping_mod.F90 (intersectPt)
+    Ported from $OR_SRC/common_source/tools/clipping/polygon_clipping_mod.F90 (intersectPt)
 
     Parameters
     ----------
@@ -139,7 +139,7 @@ def intersect_pt(
 def polygon_set_clockwise(poly: Polygon) -> None:
     """Set polygon orientation to counter-clockwise and compute area.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\clipping\\polygon_clipping_mod.F90 (polygon_SetClockWise)
+    Ported from $OR_SRC/common_source/tools/clipping/polygon_clipping_mod.F90 (polygon_SetClockWise)
     """
     n = len(poly.points)
     if n < 3:
@@ -165,7 +165,7 @@ def polygon_set_clockwise(poly: Polygon) -> None:
 def polygon_is_point_inside(poly: Polygon, pt: PolygonPoint) -> bool:
     """Ray-casting point-in-polygon test.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\clipping\\polygon_clipping_mod.F90 (polygon_is_point_inside)
+    Ported from $OR_SRC/common_source/tools/clipping/polygon_clipping_mod.F90 (polygon_is_point_inside)
     """
     pts = poly.points
     npt = len(pts)
@@ -199,7 +199,7 @@ def clipping_weiler_atherton(
 ) -> list[Polygon]:
     """Clip subject polygon against clipping polygon using the Weiler-Atherton algorithm.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\clipping\\polygon_clipping_mod.F90 (Clipping_Weiler_Atherton)
+    Ported from $OR_SRC/common_source/tools/clipping/polygon_clipping_mod.F90 (Clipping_Weiler_Atherton)
 
     Parameters
     ----------
