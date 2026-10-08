@@ -3,8 +3,8 @@
 Upstream OpenRadioss Fortran References:
 ----------------------------------------
 - /PROP/TYPE11 (SH_SANDW, SANDWICH):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\properties\\shell\\hm_read_prop11.F``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\hm_cfg_files\\config\\CFG\\radioss2026\\PROP\\prop_p11_sh_sandw.cfg``
+  ``$OR_SRC/starter/source/properties/shell/hm_read_prop11.F``
+  ``$OR_SRC/hm_cfg_files/config/CFG/radioss2026/PROP/prop_p11_sh_sandw.cfg``
 
 Mechanics Formulation of Sandwich Shells:
 -----------------------------------------

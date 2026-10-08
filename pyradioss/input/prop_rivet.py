@@ -2,9 +2,9 @@
 /PROP/TYPE5 & /PROP/RIVET — Fastener / Rivet Connection Property.
 
 Upstream Fortran reference:
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\properties\\rivet\\hm_read_prop05.F
+  - $OR_SRC/starter/source/properties/rivet/hm_read_prop05.F
     Subroutine HM_READ_PROP05 (lines 35-135)
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\rivet\\rivet1.F
+  - $OR_SRC/engine/source/elements/rivet/rivet1.F
     Subroutine RIVET1 (lines 28-240)
 
 Theory & Formulation

@@ -3,10 +3,10 @@
 Upstream OpenRadioss Fortran References:
 ----------------------------------------
 - /PROP/TYPE17 (SH_COMP, STACK):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\properties\\shell\\hm_read_prop17.F``
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\hm_cfg_files\\config\\CFG\\radioss2022\\PROP\\prop_p17_stack.cfg``
+  ``$OR_SRC/starter/source/properties/shell/hm_read_prop17.F``
+  ``$OR_SRC/hm_cfg_files/config/CFG/radioss2022/PROP/prop_p17_stack.cfg``
 - /PROP/TYPE19 (THERM_SHELL, SH_THERM):
-  ``C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\properties\\shell\\hm_read_prop19.F``
+  ``$OR_SRC/starter/source/properties/shell/hm_read_prop19.F``
 
 Physics & Stacking Formulations:
 --------------------------------
