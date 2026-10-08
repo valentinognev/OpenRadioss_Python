@@ -2,7 +2,7 @@
 Dynamic loader for user-defined Python subroutines and libraries.
 
 Upstream OpenRadioss C/Fortran references:
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\dyn_userlib.c (DYN_USERLIB_INIT)
+- Ported from $OR_SRC/engine/source/user_interface/dyn_userlib.c (DYN_USERLIB_INIT)
 - Environment variable RAD_USERLIB_LIBPATH used in dyn_userlib.c (lines 105-112)
 
 In OpenRadioss C, DYN_USERLIB_INIT uses `LoadLibrary` (Windows) or `dlopen` (Linux)
@@ -28,7 +28,7 @@ def load_user_library(path: Union[str, Path]) -> ModuleType:
     """Dynamically load a Python module from a file path.
 
     Ported from dynamic library loader in:
-    C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\dyn_userlib.c
+    $OR_SRC/engine/source/user_interface/dyn_userlib.c
 
     Args:
         path: Path to the .py user module file.

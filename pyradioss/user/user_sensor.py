@@ -2,9 +2,9 @@
 User-defined sensor subroutine framework (/SENSOR/USER, /SENSOR/TYPE29, TYPE30, TYPE31).
 
 Upstream OpenRadioss Fortran references:
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\tools\\sensor\\sensor_base.F (lines 232-283)
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\usensor.F
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\dyn_userlib.c (eng_user_sens, ENG_USERLIB_USER_SENS)
+- Ported from $OR_SRC/engine/source/tools/sensor/sensor_base.F (lines 232-283)
+- Ported from $OR_SRC/engine/source/user_interface/usensor.F
+- Ported from $OR_SRC/engine/source/user_interface/dyn_userlib.c (eng_user_sens, ENG_USERLIB_USER_SENS)
 
 In OpenRadioss:
 - TYP == 29: /SENSOR/USER 29
@@ -45,7 +45,7 @@ class UserSensor(ABC):
         """Evaluate custom trigger condition.
 
         Ported from:
-        C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\tools\\sensor\\sensor_base.F (lines 232-283)
+        $OR_SRC/engine/source/tools/sensor/sensor_base.F (lines 232-283)
 
         Args:
             model: Radioss Model instance providing access to nodal coordinates,
@@ -62,7 +62,7 @@ class UserSensorType29(UserSensor):
     """Stub for user sensor TYPE 29.
 
     Ported from:
-    C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\tools\\sensor\\sensor_base.F (lines 232-248)
+    $OR_SRC/engine/source/tools/sensor/sensor_base.F (lines 232-248)
     """
 
     def evaluate(self, model: Any, time: float) -> bool:
@@ -78,7 +78,7 @@ class UserSensorType30(UserSensor):
     """Stub for user sensor TYPE 30.
 
     Ported from:
-    C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\tools\\sensor\\sensor_base.F (lines 250-266)
+    $OR_SRC/engine/source/tools/sensor/sensor_base.F (lines 250-266)
     """
 
     def evaluate(self, model: Any, time: float) -> bool:
@@ -94,7 +94,7 @@ class UserSensorType31(UserSensor):
     """Stub for user sensor TYPE 31.
 
     Ported from:
-    C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\tools\\sensor\\sensor_base.F (lines 268-283)
+    $OR_SRC/engine/source/tools/sensor/sensor_base.F (lines 268-283)
     """
 
     def evaluate(self, model: Any, time: float) -> bool:

@@ -2,8 +2,8 @@
 User-defined spring subroutine framework (/PROP/USER1, /PROP/USER2, /PROP/USER3).
 
 Upstream OpenRadioss Fortran references:
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\spring\\rforc3.F (lines 917-970)
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\dyn_userlib.c (eng_userlib_ruser_)
+- Ported from $OR_SRC/engine/source/elements/spring/rforc3.F (lines 917-970)
+- Ported from $OR_SRC/engine/source/user_interface/dyn_userlib.c (eng_userlib_ruser_)
 
 In OpenRadioss:
 - IGTYP == 29: /PROP/USER1 - SPRING
@@ -74,7 +74,7 @@ class UserSpring(ABC):
         """Compute spring forces from current kinematic state.
 
         Ported from:
-        C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\spring\\rforc3.F (lines 920-962)
+        $OR_SRC/engine/source/elements/spring/rforc3.F (lines 920-962)
 
         Args:
             state: SpringState or equivalent object containing `disp`, `vel`, `length`, etc.
@@ -98,7 +98,7 @@ class UserSpringType29(UserSpring):
     """Stub for /PROP/USER1 (Spring Property Type 29).
 
     Ported from:
-    C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\spring\\rforc3.F (lines 917-935)
+    $OR_SRC/engine/source/elements/spring/rforc3.F (lines 917-935)
     """
 
     def forces(
@@ -116,7 +116,7 @@ class UserSpringType30(UserSpring):
     """Stub for /PROP/USER2 (Spring Property Type 30).
 
     Ported from:
-    C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\spring\\rforc3.F (lines 936-953)
+    $OR_SRC/engine/source/elements/spring/rforc3.F (lines 936-953)
     """
 
     def forces(
@@ -134,7 +134,7 @@ class UserSpringType31(UserSpring):
     """Stub for /PROP/USER3 (Spring Property Type 31).
 
     Ported from:
-    C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\spring\\rforc3.F (lines 954-970)
+    $OR_SRC/engine/source/elements/spring/rforc3.F (lines 954-970)
     """
 
     def forces(

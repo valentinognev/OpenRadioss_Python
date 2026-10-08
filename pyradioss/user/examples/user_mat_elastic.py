@@ -4,10 +4,10 @@ Example: Linear Elastic User-Defined Material Law for pyradioss.
 Demonstrates how to write a custom material law conforming to the `UserMaterial` ABC.
 
 Upstream OpenRadioss Fortran references:
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat001\\sigeps01.F (solid elasticity)
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat\\mat001\\sigeps01c.F (shell plane stress)
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat_share\\usermat_solid.F
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat_share\\usermat_shell.F
+- Ported from $OR_SRC/engine/source/materials/mat/mat001/sigeps01.F (solid elasticity)
+- Ported from $OR_SRC/engine/source/materials/mat/mat001/sigeps01c.F (shell plane stress)
+- Ported from $OR_SRC/engine/source/materials/mat_share/usermat_solid.F
+- Ported from $OR_SRC/engine/source/materials/mat_share/usermat_shell.F
 """
 
 from __future__ import annotations

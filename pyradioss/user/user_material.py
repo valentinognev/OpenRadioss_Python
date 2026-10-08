@@ -2,10 +2,10 @@
 User-defined material subroutine framework for pyradioss (/MAT/LAW29, /MAT/USER*, /MAT/LAW99).
 
 Upstream OpenRadioss Fortran references:
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\nolib_usermat99.F
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat_share\\usermat_solid.F
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat_share\\usermat_shell.F
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\dyn_userlib.c
+- Ported from $OR_SRC/engine/source/user_interface/nolib_usermat99.F
+- Ported from $OR_SRC/engine/source/materials/mat_share/usermat_solid.F
+- Ported from $OR_SRC/engine/source/materials/mat_share/usermat_shell.F
+- Ported from $OR_SRC/engine/source/user_interface/dyn_userlib.c
 
 In OpenRadioss, user-defined materials (LAW29 through LAW99) allow custom stress integration
 routines dynamically linked via dyn_userlib.c and called from usermat_solid.F (3D solid elements)
@@ -71,7 +71,7 @@ class UserMaterial(ABC):
         """Compute 3D stress update from strain rate / increment.
 
         Ported from:
-        C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat_share\\usermat_solid.F
+        $OR_SRC/engine/source/materials/mat_share/usermat_solid.F
 
         Args:
             state: MaterialState instance, dictionary, or object providing `sig`, `deps`,
@@ -88,7 +88,7 @@ class UserMaterial(ABC):
         """Compute plane stress update for 2D shell elements.
 
         Ported from:
-        C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat_share\\usermat_shell.F
+        $OR_SRC/engine/source/materials/mat_share/usermat_shell.F
 
         Args:
             state: MaterialState instance, dictionary, or object providing `sig`, `deps`,
@@ -104,7 +104,7 @@ class UserMaterial(ABC):
         """Compute acoustic wave speed for critical time step calculation.
 
         Ported from:
-        C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat_share\\usermat_solid.F
+        $OR_SRC/engine/source/materials/mat_share/usermat_solid.F
         (SOUNDSP calculation)
 
         Returns:
@@ -158,9 +158,9 @@ class UserMaterialLaw29(UserMaterial):
     """Stub implementation for /MAT/LAW29 (/MAT/USER_LAW29).
 
     Ported from:
-    - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\nolib_usermat99.F
-    - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat_share\\usermat_solid.F (lines 985-995)
-    - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat_share\\usermat_shell.F (lines 943-953)
+    - $OR_SRC/engine/source/user_interface/nolib_usermat99.F
+    - $OR_SRC/engine/source/materials/mat_share/usermat_solid.F (lines 985-995)
+    - $OR_SRC/engine/source/materials/mat_share/usermat_shell.F (lines 943-953)
 
     In Fortran OpenRadioss, selecting LAW29 without a dynamic user library produces:
         OPTION='/MAT/USER29 - SOLID' (or SHELL)
@@ -194,7 +194,7 @@ class UserMaterialLaw99(UserMaterial):
     """Stub implementation for /MAT/LAW99 (/MAT/USER99).
 
     Ported from:
-    - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\nolib_usermat99.F
+    - $OR_SRC/engine/source/user_interface/nolib_usermat99.F
     """
 
     def solid_update(self, state: Union[MaterialState, Any], dt: float) -> np.ndarray:

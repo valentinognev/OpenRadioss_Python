@@ -2,8 +2,8 @@
 User-defined output subroutine framework.
 
 Upstream OpenRadioss Fortran references:
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\user_output.F (USER_OUTPUT)
-- Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\dyn_userlib.c
+- Ported from $OR_SRC/engine/source/user_interface/user_output.F (USER_OUTPUT)
+- Ported from $OR_SRC/engine/source/user_interface/dyn_userlib.c
 
 In OpenRadioss, USER_OUTPUT opens and processes user-generated scratch files
 (e.g., SO<root>_<claw>.scr) and writes user output blocks into listing files.
@@ -36,7 +36,7 @@ class UserOutput(ABC):
         """Execute user output logic.
 
         Ported from:
-        C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\user_output.F
+        $OR_SRC/engine/source/user_interface/user_output.F
 
         Args:
             model: Current simulation Model instance.

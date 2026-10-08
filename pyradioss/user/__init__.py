@@ -3,20 +3,20 @@ pyradioss.user — User-Defined Subroutine Framework.
 
 Upstream OpenRadioss Fortran and C references:
 - Materials:
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\nolib_usermat99.F
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat_share\\usermat_solid.F
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\materials\\mat_share\\usermat_shell.F
+  - $OR_SRC/engine/source/user_interface/nolib_usermat99.F
+  - $OR_SRC/engine/source/materials/mat_share/usermat_solid.F
+  - $OR_SRC/engine/source/materials/mat_share/usermat_shell.F
 - Springs:
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\elements\\spring\\rforc3.F (lines 917-970)
+  - $OR_SRC/engine/source/elements/spring/rforc3.F (lines 917-970)
 - Sensors:
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\tools\\sensor\\sensor_base.F (lines 232-283)
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\usensor.F
+  - $OR_SRC/engine/source/tools/sensor/sensor_base.F (lines 232-283)
+  - $OR_SRC/engine/source/user_interface/usensor.F
 - Outputs:
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\user_output.F
+  - $OR_SRC/engine/source/user_interface/user_output.F
 - Dynamic Library Loading:
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\dyn_userlib.c
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\dyn_userlib_callback.c
-  - C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\user_interface\\user_windows.F
+  - $OR_SRC/engine/source/user_interface/dyn_userlib.c
+  - $OR_SRC/engine/source/user_interface/dyn_userlib_callback.c
+  - $OR_SRC/engine/source/user_interface/user_windows.F
 
 How to write custom routines in pyradioss
 ==========================================
