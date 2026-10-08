@@ -1,0 +1,3737 @@
+[
+ {
+  "fortran": "engine/source/elements/solid/sconnect/sbilan43.F",
+  "routine": "sbilan43",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "PARTSAV per-part booking (internal energy, KE/16, momentum/8, mass) has no implementation: a repo-wide grep for PARTSAV returns only an hourglass comment in shell_qbat.py, and solid_connect.py accumulates eint per element only.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/sconnect/sconnect_off.F",
+  "routine": "sconnect_off",
+  "port_module": "pyradioss.elements.solid_connect",
+  "port_symbol": "forces_connect_type43",
+  "status": "partial",
+  "deviation_note": "only the deactivation side is present (off/soft zeroed on failure). Absent: the per-Gauss-point OFF array, the COUNTPG accumulation with the NDEL >= ISOLID (=4) all-Gauss-points-failed test, the OFFG*FOUR_OVER_5 partial deactivation ramp and the IDEL7NOK report.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/sconnect/scoor43.F",
+  "routine": "scoor43",
+  "port_module": "pyradioss.elements.solid_connect",
+  "port_symbol": "forces_connect_type43",
+  "status": "ported",
+  "deviation_note": "same formulation: mid-surface diagonals, the CLSKEW3 IREP=0 local triad, AREA = QUARTER*DET, centring on the 8-node mean, the convected-frame velocity correction and MROT = Q(n)T Q(n+1). Not carried over: the MTN==83 skew angle SYM, the IOUTPRT part arrays and the RV special case for cs <= -1.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/sconnect/scoor431.F",
+  "routine": "scoor431",
+  "port_module": "pyradioss.elements.solid_connect",
+  "port_symbol": "_compute_local_frame_8node",
+  "status": "ported",
+  "deviation_note": "identical construction (RX/SX diagonals, E3 normalised by 1/max(EM20,|RX x SX|), the C1/C2 branch for E1, E2 = E3 x E1); the port returns it vectorised over an element array.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/sconnect/sdef43.F",
+  "routine": "sdef43",
+  "port_module": "pyradioss.elements.solid_connect",
+  "port_symbol": "forces_connect_type43",
+  "status": "ported",
+  "deviation_note": "the HH table is reproduced verbatim as _PG/_HH8 and the DZZ/DYZ/DZX interface velocity differences are computed exactly; the port adds a 4-node table and a zero-velocity fallback this file does not have.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/sconnect/sdet43.F",
+  "routine": "sdet43",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "the per-Gauss-point areas AREAP(I,1..4) = J0 +/- J2 -/+ J1 and the NEGATIVE-AREA deletion test are not implemented; solid_connect.py substitutes a uniform area_pg = area/npg for every Gauss point.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/sconnect/sfint43.F",
+  "routine": "sfint43",
+  "port_module": "pyradioss.elements.solid_connect",
+  "port_symbol": "forces_connect_type43",
+  "status": "ported",
+  "deviation_note": "same accumulation FZZ/FYZ/FZX = SIGN*AREAPG*SOFT distributed over the 8 nodes by HH; only the AREAPG argument differs (area/npg instead of SDET43's non-uniform areas, see the sdet43 row).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/sconnect/smom43.F",
+  "routine": "smom43",
+  "port_module": "pyradioss.elements.solid_connect",
+  "port_symbol": "forces_connect_type43",
+  "status": "ported",
+  "deviation_note": "reproduced line-for-line: the MXY/MYX sums, FYY = MXY/RXX and FXX = -MYX/RYY on the same node sets, the TTHICK branch and the 2x2 D1/D2/DD solve to FA/FB.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/sconnect/suser43.F",
+  "routine": "suser43",
+  "port_module": "pyradioss.elements.solid_connect",
+  "port_symbol": "forces_connect_type43",
+  "status": "partial",
+  "deviation_note": "geometry, kinematics, the DEIN/DEIT energy, the SFINT43/SMOM43/SRROTA3 calls are performed. Missing: the SELECT CASE (MTN) constitutive dispatch (pyradioss/materials/law83_spotweld.py is a real sigeps83 port but this kernel never calls it and carries its own elastic+damping update), the FAIL_CONNECT per-Gauss-point call and SOFT degradation bookkeeping, the SBILAN43 call, and STIFM/STIFR/VISCM/VISCR outputs (replaced by dt_crit = 2*sqrt(m/K)). The registered RD-E-4801 spotweld decks have never been measured: all five exit ERROR on '/INTER/TYPE7/1: Iform=2 ... is not ported' and are flagged in_envelope: false.",
+  "parity_case": "RD-E-4801_Solid_spotweld/One_solid_element_validation_law83"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solid_q1np/q1np_dump_hist_state.F90",
+  "routine": "q1np_dump_hist_state",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "debug/post-processing CSV dump of the Q1NP bulk and control-point node coordinates plus the NURBS grid info; nothing in pyradioss references Q1NP state",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solid_q1np/q1np_forc3.F90",
+  "routine": "q1np_forc3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "the force driver (Gauss loop over the NURBS parametric grid, geometry at the GP, the SMALL A3/SMALLB3 coordinate transforms, nodal force accumulation, dt update); no pyradioss module implements it and KERNELS has no Q1NP entry",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solid_q1np/q1np_nurbs_surface_eval_mod.F90",
+  "routine": "q1np_nurbs_surface_eval_mod",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "the module's public entry points sum NURBS shape values over control-point IDs at ZETA=+1 to give a surface point and its dS/dXI, dS/dETA tangents. No pyradioss code evaluates a NURBS surface; iga3d.nurbs_3d_basis_and_derivs is a volumetric 3D IGA mapping of a different family (no surface-point/tangent output, no per-element knot-span index).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/ajac3.F",
+  "routine": "ajac3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/amass3.F",
+  "routine": "amass3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE-fluid (law 77) element mass matrix assembly; no pyradioss counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/amass3f.F",
+  "routine": "amass3f",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/FVM mass matrix variant",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/amass3p.F",
+  "routine": "amass3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/Euler partitioned mass matrix",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/amass3pf.F",
+  "routine": "amass3pf",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/FVM partitioned mass matrix variant",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/amomt3.F",
+  "routine": "amomt3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/Euler momentum-transport forces for solids; no pyradioss counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/amomtn3.F",
+  "routine": "amomtn3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "per-node upwind helper of amomt3",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/boltst.F",
+  "routine": "boltst",
+  "port_module": "pyradioss.engine.bolt_preload",
+  "port_symbol": "BoltPreloadEngine.apply_preload",
+  "status": "approximate",
+  "deviation_note": "Different mechanism for the same preload quantity: BOLTST writes the prescribed initial-stress state SIG(I,1..6)=SFAC*BPRELD(I,4..9) into the solid element (with the sensor TSTART shift and gap-loss compensation); the port applies an equal-and-opposite axial force pair to two nodes / a section cut and keeps no BPRELD stress state. Parity consequence not measured - no /PRELOAD/BOLT oracle deck exists in the corpus.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/check_off_ale.F",
+  "routine": "check_off_ale",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE element deactivation check",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/csmall3.F",
+  "routine": "csmall3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/degenes8.F",
+  "routine": "degenes8",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "init_group",
+  "status": "ported",
+  "deviation_note": "IDEGE = <duplicate-node pairs>/2 transcribed exactly; also computed in pyradioss.starter.initialization._convert_degenerated_bricks",
+  "parity_case": "c19_V0700_LAW36_HEXA_18"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/deges4v.F",
+  "routine": "deges4v",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "tetra volume of a collapsed hexa (helper of the sdlen_dege chain); no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/emomt3b.F",
+  "routine": "emomt3b",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "Eulerian momentum transport / SUPG-TG upwind for solids",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/epxle3.F",
+  "routine": "epxle3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "Eulerian characteristic length read from VEUL(13) (no ALE grid in the port)",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/fcumu3.F",
+  "routine": "fcumu3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/FVM cumulative momentum force bookkeeping",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/fcumu3p.F",
+  "routine": "fcumu3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "parallel variant of fcumu3",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/fdefo3.F",
+  "routine": "fdefo3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/FVM strain rates (the 'F' mirror of sdefo3 for the ALE-fluid law 77)",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/fderi3.F",
+  "routine": "fderi3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/FVM shape-function derivatives",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/fdlen3.F",
+  "routine": "fdlen3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/FVM characteristic length",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/fe_close.F",
+  "routine": "fe_close",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "/ALE/CLOSE porous closed-volume correction hook",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/ffint3.F",
+  "routine": "ffint3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/FVM internal forces",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/fhvis3.F",
+  "routine": "fhvis3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/FVM viscous hourglass control",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/frho3.F",
+  "routine": "frho3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/FVM density update from fluxes",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/idege.F",
+  "routine": "idege",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "collapsed-quad edge detector used by sldege; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/idege8.F",
+  "routine": "idege8",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "per-face degenerate area of the sdlen_dege chain; the port scales lc instead of recomputing face areas",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/mod_close.F",
+  "routine": "mod_close",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "/ALE/CLOSE closed-porous-volume correction",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/nodedege.F",
+  "routine": "nodedege",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "node-level degeneracy deletion helper; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/prelecflow.F",
+  "routine": "prelecflow",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALEFLOW pre-pass for porous-media / fluid-element coupling",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/preload_solid_ini.F90",
+  "routine": "preload_solid_ini",
+  "port_module": "pyradioss.engine.bolt_preload",
+  "port_symbol": "BoltPreloadEngine.compute_target_force",
+  "status": "partial",
+  "deviation_note": "the /PRELOAD entity and a t_ramp/t_hold ramp exist, but the BPRELD(:,10)=SFAC evaluation from the /FCT time function (finter_mixed on tf/npc) and the sensor TSTART shift are not implemented",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/s11defo3.F",
+  "routine": "s11defo3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "silent-boundary strain-rate filter (S11 element group)",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/s11fx3.F",
+  "routine": "s11fx3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "silent-boundary multi-material flux (no silent-boundary group in the port)",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/s8dlenmax_sm.F90",
+  "routine": "s8dlenmax_sm",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "small-strain (ISMSTR=1/11) L_MAX variant; element_erosion.compute_sdlenmax implements the plain sdlenmax.F formula only",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/s8for_distor.F",
+  "routine": "s8for_distor",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "distortion-driven solid-to-lower-order degeneration; not implemented",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/s8get_x3.F",
+  "routine": "s8get_x3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/s8jac_i.F",
+  "routine": "s8jac_i",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "inverse Jacobian for the ISMSTR=10 co-rotational formulation",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/s8sav12.F",
+  "routine": "s8sav12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "small-strain SAV history storage (ISMSTR=12); the port keeps no SAV array",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/s8sav3.F",
+  "routine": "s8sav3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "small-strain SAV history storage; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/s8savsr3.F",
+  "routine": "s8savsr3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "co-rotational SAV storage (JCVT!=0); no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/s8upd11t12.F",
+  "routine": "s8upd11t12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "small-strain SAV update between ISMSTR 11 and 12; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/s_hg5.F",
+  "routine": "s_hg5",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "5-node hourglass control (IINT=3); the port's stiff hourglass is the LAW70-only _phys_hourglass_law70, a different element technology",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sbilan.F",
+  "routine": "sbilan",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "updated-Lagrangian energy bookkeeping of the SRCOOR3/SDEFO3 outputs; the port books its own deint/w_visc/dehour in _post",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sboltlaw.F",
+  "routine": "sboltlaw",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "the bolt law called from inside MMAIN (updates SSP/DTEL and the bolt pressure); pyradioss.engine.bolt_preload is the /PRELOAD/AXIAL spring-force path, a different routine",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/schkjab3.F",
+  "routine": "schkjab3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "volume-upwind strain-filter switching predicate; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/scoor3.F",
+  "routine": "scoor3",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "the default JCVT==0 branch (nodal coordinate/velocity gather + OFF bookkeeping) is reproduced; the small-strain SAV coordinate swap and the SORTHDIR3 co-rotational / ALE-Euler branches are absent",
+  "parity_case": "c19_V0700_LAW36_HEXA_18"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/scre_sig3.F",
+  "routine": "scre_sig3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "crane/ISCTL signal stress screening",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/scumu3.F",
+  "routine": "scumu3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE cumulative momentum force bookkeeping",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/scumu3p.F",
+  "routine": "scumu3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "parallel variant of scumu3",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sdefo3.F",
+  "routine": "sdefo3",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_pre",
+  "status": "ported",
+  "deviation_note": "verified against the body: the INTEG8 opposite-pair velocity grouping is an exact regrouping (sum_i gradN_i = 0 at the centroid) and D4=DXY+DYX is engineering shear, as in _pre; the spin convention reconciles exactly with srota3. The JHBE>=2 geometry-weighted spin filter and the ISROT branches are absent",
+  "parity_case": "c19_V0700_LAW36_HEXA_18"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sdefot3.F",
+  "routine": "sdefot3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "total-strain (ISMSTR=10/12) strain rates; the port has no small-strain/total-strain switch",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sderi3.F",
+  "routine": "sderi3",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "verified identical: sderi3's VOLDP=(1/64)det(JAC from the three diagonals) and the port's J=(1/8)JAC with vol=8*detJ give the same volume and the same centroid shape-function gradients. The SCHKJABT3 negative-Jacobian SAV restoration is replaced by an EM20 volume floor plus log.error",
+  "parity_case": "c19_V0700_LAW36_HEXA_18"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sderit3.F",
+  "routine": "sderit3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "shape-function derivatives for the total-strain (initial-coordinate) formulation",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sderito3.F",
+  "routine": "sderito3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "shape-function derivatives for the ISMSTR=10 co-rotational formulation",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sdistror_ini.F90",
+  "routine": "sdistror_ini",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ISCTL distortion-stabilization initialisation",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sdlen3.F",
+  "routine": "sdlen3",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_char_length",
+  "status": "ported",
+  "deviation_note": "verified identical: SLEN's AREA=E*G-F^2 = 16*Amax^2, so DELTAX = 4*VOLN/sqrt(AREAM) = V/Amax, exactly the port's lc. The port additionally multiplies the dt claim by its own exact-eigenvalue dtfac - an addition to the claim, not a change of the length",
+  "parity_case": "c19_V0700_LAW36_HEXA_18"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sdlen_dege.F",
+  "routine": "sdlen_dege",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "init_group",
+  "status": "approximate",
+  "deviation_note": "The length scaling factors do match upstream (FAC=1/4 at IDEGE=2, FAC=1/9 at IDEGE>2, i.e. V/Amax/sqrt(FAC)), but the formulation differs: the port scales the whole hexa lc instead of recomputing the collapsed-face areas (IDEGE8) and the degenerate volume (DEGES4V), and solid_pyra5 applies a flat x1/9 with no upstream counterpart (an upstream pyramid has IDEGE=2 -> x2). Parity consequence not measured - the HEXA_DEGE decks are NO-CHANNELS / SKIPPED-SLOW in parity_m41.json.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sdlen_sm11.F",
+  "routine": "sdlen_sm11",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ISMSTR=11 small-strain cap DELTAX = MIN(DELTAX, 16*VOLG*SMAX); no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sdlenmax.F",
+  "routine": "sdlenmax",
+  "port_module": "pyradioss.engine.element_erosion",
+  "port_symbol": "compute_sdlenmax",
+  "status": "ported",
+  "deviation_note": "verified identical: the R/S/T diagonal sums and LM_MAX = 0.25*sqrt(max(|R|^2,|S|^2,|T|^2)) are reproduced exactly",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sfillopt.F",
+  "routine": "sfillopt",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE fluid-fill force on the solid boundary",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sfint3.F",
+  "routine": "sfint3",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_post",
+  "status": "ported",
+  "deviation_note": "the ISFINT=1 volume integration is reproduced exactly, including the bulk-viscosity pressure subtracted from the three normal stresses; the ISFINT=2 (deviator) and ISFINT=3 (ALE surface) branches are absent",
+  "parity_case": "c19_V0700_LAW36_HEXA_18"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sfint3b.F",
+  "routine": "sfint3b",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the convected-frame -> global force transform exists only in the corotational kernel solid_hexa8z (Isolid=14/24), which builds the internal force directly in the element frame; the plain bricks kernel has no ISROT=1 branch",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sfint_reg.F",
+  "routine": "sfint_reg",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "non-local (regularised) damage virtual internal forces",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sfor_4n2s4.F90",
+  "routine": "sfor_4n2s4",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "4-node -> 2-node solid degeneration; not implemented",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sfor_n2s4.F",
+  "routine": "sfor_n2s4",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "solid -> 2-node line degeneration; not implemented",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sfor_ns2s4.F90",
+  "routine": "sfor_ns2s4",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "n-node -> 2-node degeneration; not implemented",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sfor_visn8.F",
+  "routine": "sfor_visn8",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "distortion visibility for the degeneration paths",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sforc3.F",
+  "routine": "sforc3",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "the documented cycle is implemented end to end (gather -> geometry -> D/W -> Jaumann -> material -> viscosity + internal/hourglass forces -> energy -> dt). Absent branches: SCOOR3_FVM, SGCOOR3/SDERIT3/SDERITO3 (ISMSTR>=10), SMALLB3's OFFG protocol, SGEODEL3's ITET branch, SBILAN/SRBILAN and the whole ALE/Euler tail",
+  "parity_case": "c19_V0700_LAW36_HEXA_18"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sgcoor3.F",
+  "routine": "sgcoor3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "initial-coordinate gather for the total-strain (ISMSTR>=10) formulation",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sgeodel3.F",
+  "routine": "sgeodel3",
+  "port_module": "pyradioss.engine.element_erosion",
+  "port_symbol": "check_solid_geometric_erosion",
+  "status": "partial",
+  "deviation_note": "the four /DT + property limits and the ITET==0 hexa ratios L_MAX/DELTAX and DELTAX/L_MAX are implemented; the ITET!=0 branch, the IDEL7NOK flag and the Fortran deletion report are not",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sgparav3.F",
+  "routine": "sgparav3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "parametric-variation signal geometry",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/shvis3.F",
+  "routine": "shvis3",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_post",
+  "status": "approximate",
+  "deviation_note": "Different formulation for the same quantity: SHVIS3 JHBE=0 builds the hourglass forces from the RAW velocity combinations HGX1..4 with LINEAR + QUADRATIC damping H*(FCL+|H|*FCQ), FCQ=100*FCL*CAQ, FCL=CAQ*RHO*VOL**(2/3)*C; the port orthogonalizes the modes (gamma = h - (h.x).gradN) and applies LINEAR damping only - the Flanagan-Belytschko form the docstring describes, not SHVIS3. The JHBE>=1 and JHBE>=2 branches are absent. Parity consequence NOT measured: the decks whose viscous hourglass matters (RD-V-0220 LAW70 c46/c47/c49) are SKIPPED-SLOW in parity_m41.json and c48 (MATCH 0.0353) has an inert hourglass.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sldege.F",
+  "routine": "sldege",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "IDTS6 face-area correction for degenerate elements inside SDLEN3; the port's _char_length has no such correction",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/slen.F",
+  "routine": "slen",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_char_length",
+  "status": "ported",
+  "deviation_note": "the face-area formula is the same algebra (SLEN's E*G-F^2 = |d1xd2|^2 = (2A)^2; the port takes 0.5*|d1xd2| = A and maximises over the 6 faces)",
+  "parity_case": "c19_V0700_LAW36_HEXA_18"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/slena.F",
+  "routine": "slena",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE facet-area variant used by the ICAA/ISFINT>=2 branch of sdlen3; no ALE grid in the port",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/smalla3.F",
+  "routine": "smalla3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "the solid_hexa8 docstring claim 'smalla3.F / mmain.F call the material law' is WRONG: smalla3's whole body rotates the SAV small-strain displacement history by the spin increment. The port keeps no SAV array at all, so nothing implements it; the material dispatch the docstring means is MMAIN, which is not in this directory",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/smallb3.F",
+  "routine": "smallb3",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the element deletion state is maintained (st['off'], the alive mask), but SMALLB3's OFFG two-flag protocol (OFFG=2 marker for ISMSTR=1/3, OFFG=1+OFF for a partially deleted element) is not reproduced; the port has a single flag",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/smallg3.F",
+  "routine": "smallg3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/smallgeo3.F",
+  "routine": "smallgeo3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "switches ISMSTR=2/12 elements to small strain when TET_COLLA drops below the /DT thresholds; the port has no small-strain formulation switch at all",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sorthdir3.F",
+  "routine": "sorthdir3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "co-rotational direction frame called by SCOOR3/SRCOOR3; the plain brick has no convected frame (the frames live in solid_hexa8z._corotational_frame, which uses srepiso3+sortho3, not sorthdir3)",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sortho12.F",
+  "routine": "sortho12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "orthogonalisation variant for the ISMSTR=12 frame; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sortho3.F",
+  "routine": "sortho3",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "_corotational_frame",
+  "status": "ported",
+  "deviation_note": "transcribed exactly, including the 3 fixed-point iterations, the final Gram-Schmidt and the [e3,e1,e2] column order. Only the zero-norm guard differs (MAX(norm,EM20) instead of a bare divide). Implemented in the corotational brick (Isolid=14/24), a different family from the plain sforc3 path",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sortho31.F",
+  "routine": "sortho31",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "orthogonalisation variant for the ISMSTR=12/13 frame; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srbilan.F",
+  "routine": "srbilan",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "co-rotational energy bookkeeping of the SRCOOR3 outputs (VGAX..VGA2); no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srcoor12.F",
+  "routine": "srcoor12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "local reference frame R11..R33 for ISMSTR=12 (OFFG>1); no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srcoor3.F",
+  "routine": "srcoor3",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "only the centroid geometry (Jacobian, volume, cartesian shape gradients) is ported; the Belytschko co-rotational frame R11..R33, the GAMA/GAMA_R hourglass vectors and the convected-frame coordinate set are not implemented in the plain brick (SORTHO3/SREPISO3 exist only inside solid_hexa8z)",
+  "parity_case": "c19_V0700_LAW36_HEXA_18"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srepiso12.F",
+  "routine": "srepiso12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "isotropic frame variant for ISMSTR=12; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srepiso3.F",
+  "routine": "srepiso3",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "_corotational_frame",
+  "status": "ported",
+  "deviation_note": "transcribed exactly - the four opposite-corner diagonals X17/X28/X35/X46, A17=X17+X46, A28=X28+X35, then R=X17+X28-X35-X46, S=A17+A28, T=A17-A28. Implemented in the corotational brick, a different family",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srepisot3.F",
+  "routine": "srepisot3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "remeshing remap isotropic frame; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sreploc3.F",
+  "routine": "sreploc3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "remeshing remap local frame; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srho3.F",
+  "routine": "srho3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE density update from the volume flux; the port derives rho = mass/V per cycle but not this ALE balance",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srmall3.F",
+  "routine": "srmall3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "co-rotational SAV/stress bookkeeping by OFF/ISMSTR; the port keeps no SAV state",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srmalla11.F",
+  "routine": "srmalla11",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "small-strain rotation of the SAV history into the local frame for ISMSTR=11/12; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srota3.F",
+  "routine": "srota3",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_pre",
+  "status": "ported",
+  "deviation_note": "verified component by component: with sdefo3's convention SROTA3's SIG1-S1 = -2*S4*WZZ+2*S6*WYY reduces exactly to the port's Jaumann commutator sigma + dt(W.sigma - sigma.W). The MTN/ISMSTR early-return guards are absent",
+  "parity_case": "c19_V0700_LAW36_HEXA_18"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srrota3.F",
+  "routine": "srrota3",
+  "port_module": "pyradioss.elements.solid_connect",
+  "port_symbol": "forces_connect_type43",
+  "status": "partial",
+  "deviation_note": "the FORCE-side dual (F_glob,j = e1*F_loc,j,x + e2*F_loc,j,y + e3*F_loc,j,z) is implemented exactly in the /PROP/TYPE43 kernel; the coordinate-side rotation and the plain brick's convected frame have no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/srrotadp.F",
+  "routine": "srrotadp",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "co-rotational velocity/frame update for the JCVT!=0 formulation; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/ssort_n4.F",
+  "routine": "ssort_n4",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "node re-ordering helper of the 4-node degeneration; not implemented",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/sstra3.F",
+  "routine": "sstra3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "post-material cumulative strain output for the ISMSTR=10/12 branch",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/stherm.F",
+  "routine": "stherm",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "thermal_solver.py names stherm.F in prose but its conduction is a 1-D bar or a preassembled K matrix; the solid-element conduction (PHI = sum_i T_i gradN_i, KC = (AS+BS*T)*VOL*DT*THEACCFACT, the nodal FPHI(I,1..8) and the RHOCP*VOL0*(TEMPEL-T0)+HEAT ledger) is absent",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/tetra4v.F",
+  "routine": "tetra4v",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "tetra volume of the first four nodes (helper of DEGES4V in the sdlen_dege chain); no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/upwind.F",
+  "routine": "upwind",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE volume-upwind strain filter (GAM from the element Peclet number); no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/upwind_v.F",
+  "routine": "upwind_v",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "velocity-based variant of the ALE volume-upwind filter; no counterpart",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide/vfluid.F",
+  "routine": "vfluid",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "fluid-element (porous/law 77) coupling hook",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/m1tot_stab_p.F",
+  "routine": "m1tot_stab_p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/nsvis_sm12.F",
+  "routine": "nsvis_sm12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/nsvis_stab.F",
+  "routine": "nsvis_stab",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10bilan.F",
+  "routine": "s10bilan",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10cndf.F",
+  "routine": "s10cndf",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10cndv.F",
+  "routine": "s10cndv",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10coor3.F",
+  "routine": "s10coor3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_pre",
+  "status": "partial",
+  "deviation_note": "the D/W strain-rate block is present; the thermal strain (CONDE), ALE/mesh-velocity, tensor-component and SAV initial-stress paths are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10coork.F",
+  "routine": "s10coork",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "tangent",
+  "status": "partial",
+  "deviation_note": "IXS/IXS10 -> NC and the nodal coordinates with the same slaved-midside rule; the ISMSTR=1 SAV restore branch is absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10cumg3.F",
+  "routine": "s10cumg3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "tangent",
+  "status": "partial",
+  "deviation_note": "the element stiffness integral int W.V.B^T.D.B is assembled from a 6x30 B instead of 55 per-node-pair blocks (s8zked3/s8zkeg3); the IKSUP inhibiting branch is absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10cumu3.F",
+  "routine": "s10cumu3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the global force scatter is present; the thermal force THEM/FTHE and the IDT1TET10 spectral time step are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10cumu3p.F",
+  "routine": "s10cumu3p",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the coloured scatter covers the FSKY colour accumulation; FTHESKY/CONDNSKY and the spectral dt are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10defo3.F",
+  "routine": "s10defo3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_pre",
+  "status": "ported",
+  "deviation_note": "Dxx..Dzz and D4..D6 from gradN.V plus the spin increments and VOLN/RHOO.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10defot3.F",
+  "routine": "s10defot3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_pre",
+  "status": "partial",
+  "deviation_note": "the mechanical part is ported; the thermal-strain-rate contribution is absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10deri3.F",
+  "routine": "s10deri3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "PX/PY/PZ and VOL are present; the RX..TZ edges, VOLDP, DELTAX/DELTAX2 and the inverted-element message are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10derit3.F",
+  "routine": "s10derit3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "derivatives and volume are done; the routine's own RX..TZ/VOLG edge set and its distinct entry point are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10divde12.F",
+  "routine": "s10divde12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10dvm12.F",
+  "routine": "s10dvm12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10eoff.F",
+  "routine": "s10eoff",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10fint3.F",
+  "routine": "s10fint3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_post",
+  "status": "ported",
+  "deviation_note": "fe = -sum W.V.S.gradN with QVIS on the normal components; only the SIGG/EINTG/QG/EPSDG weighted-average output bookkeeping is not retained.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10for_distor.F",
+  "routine": "s10for_distor",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10for_edgec.F",
+  "routine": "s10for_edgec",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10forc3.F",
+  "routine": "s10forc3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the explicit driver job is done (geometry -> kinematics -> Jaumann -> material -> viscosity -> forces -> dt) but only the isotropic Voigt path: no ISMSTR tensor components, no ALE/ALPHA, and none of the s10bilan, s10therm, s10upd11t12, s10for_distor, s10dvm12/s10divde12, s10sav3/s10sav12, s10malla3/s10mallb3, s10rcoor12, sgcoor10, s10pijto3 or sxfillopt branches.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10get_x0.F90",
+  "routine": "s10get_x0",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "init_group",
+  "status": "ported",
+  "deviation_note": "the element initial coordinates including the NN==0 half-sum slaved-midside rule; the port reads model.x0 at init rather than recovering x-d each cycle.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10get_x3.F",
+  "routine": "s10get_x3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the current coordinates and the slaved half-sum are present; the ISROT==1 edge-rotation term (1/8.edge x dr) is absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10jacob.F",
+  "routine": "s10jacob",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "J = dn/dxi.e, cofactor determinant and inverse, dN/dx and V=detJ/6 - same formulation (upstream's decomposed XA/XB reconstruction is a different route to the same derivatives).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10jacob1.F",
+  "routine": "s10jacob1",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "same mathematics, but the NNEGA/INDEX inverted-element detection and the VOLDP bookkeeping have no counterpart.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10jacobnel.F",
+  "routine": "s10jacobnel",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "the s10pij12 internal-pressure path only",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10jacobt.F",
+  "routine": "s10jacobt",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "implicit-branch entry point taking a precomputed JAC_I(10); the port has no such signature",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10ke3.F",
+  "routine": "s10ke3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "tangent",
+  "status": "partial",
+  "deviation_note": "material and geometric tangents are assembled; the sorthdir3/morthlock3 locking treatment, s10eoff, mmats/mmstifs and sreploc3 are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10kgeo3.F",
+  "routine": "s10kgeo3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "kgeo",
+  "status": "ported",
+  "deviation_note": "int W.V.gradN^T.sigma.gradN over the 10x10 nodal 3x3 blocks - the same operator as s4keh3.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10len3.F",
+  "routine": "s10len3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_char_length",
+  "status": "partial",
+  "deviation_note": "_char_length reproduces s10len3's default branch verbatim (6.VOLG/sqrt(max A1..A4) == 3.VOL/max(0.5|cross|)); the IDT1SOL/IDT1TET10/IFORMDT/ISROT branches and DELTAX2 are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10malla3.F",
+  "routine": "s10malla3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10mallb3.F",
+  "routine": "s10mallb3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10mallgeo3.F",
+  "routine": "s10mallgeo3",
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_char_length",
+  "status": "ported",
+  "deviation_note": "LC = SIX.VOLG/sqrt(max(A1..A4)) with the four face cross products - identical algebra; the port applies it unconditionally (no ICST/IDEL gating).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10nx3.F",
+  "routine": "s10nx3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "upstream fills NX(10,5) from AA=(2a-1)a, BB=(2b-1)b, B2=4b^2, AB=4ab; those entries sum to 1 so NX is not the derivative array, and the port stores its own literal _DN_DXI instead",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10nxt4.F",
+  "routine": "s10nxt4",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "the TETRA4 4-corner NX table (BETA/ALPH), not built by the tet10 module",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10pij12.F",
+  "routine": "s10pij12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10pijsav12.F",
+  "routine": "s10pijsav12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10pijto3.F",
+  "routine": "s10pijto3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10rcoor12.F",
+  "routine": "s10rcoor12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10rrota10.F",
+  "routine": "s10rrota10",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10sav12.F",
+  "routine": "s10sav12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10sav3.F",
+  "routine": "s10sav3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10therm.F",
+  "routine": "s10therm",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/s10upd11t12.F",
+  "routine": "s10upd11t12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/sfor_n2stria2.F",
+  "routine": "sfor_n2stria2",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/sfor_visn10.F",
+  "routine": "sfor_visn10",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/sgcoor10.F",
+  "routine": "sgcoor10",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/sxfillopt.F",
+  "routine": "sxfillopt",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide10/tetra_for_trac.F90",
+  "routine": "tetra_for_trac",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20bilan.F",
+  "routine": "s20bilan",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the element internal-energy booking (trapezoidal viscous term + stress work, st['eint']) is ported; the center-of-mass/inertia/mass computation, the PARTSAV bookkeeping and the sensor_energy_bilan/grelem_sav output are not - the port's generic engine ledger sums st['eint'] instead.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20coor3.F",
+  "routine": "s20coor3",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the coordinate/velocity gather with virtual-midside reconstruction is ported; absent are the OFFG/VIS/NGEO/MXT init, the volume-weighted global averages SIGG/EINTG/RHOG/QG/STIG/CONDEN and the VDXX/VDYY/VDZZ strain-rate decomposition.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20coork.F",
+  "routine": "s20coork",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "no corotational geometry frame / rotation of the K basis for BRIC20; implicit_internal_forces(nlgeom=True) falls back to a stress-based total-Lagrangian force, not a corotational tangent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20cumg3.F",
+  "routine": "s20cumg3",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "tangent",
+  "status": "partial",
+  "deviation_note": "the material accumulation K = sum_k V_k B^T D B over the 8 Gauss points is ported; absent are the GG/DG strain-rate derivative terms for rate-dependent materials and the IKSUP orthotropic branch.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20cumu3.F",
+  "routine": "s20cumu3",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the nodal force cumulation with the virtual-midside 50/50 split and the OFFG<0 zeroing is ported; the thermal accumulations STIFN/FTHE/CONDN are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20cumu3p.F",
+  "routine": "s20cumu3p",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the IVECTOR=1 vectorised cumulation is done by scatter_add3 into fint (same job, same split), but the separate FSKY/FSKYV index-table addressings and the thermal FTHESKY/CONDNSKY vectors are not ported.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20defo3.F",
+  "routine": "s20defo3",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "L_ab = sum_i V_i,a dN_i,b over all 20 nodes, D = 0.5(L+L^T), d4/d5/d6 and the Jaumann rates - the same formulation, expressed as one einsum instead of the Fortran's node loop.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20deri3.F",
+  "routine": "s20deri3",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "J = dN/dxi^T xe, the cofactor-expansion determinant and inverse, dN/dx and the weighted volumes are the same formulation; the port's _char_length (cube root of the volume) is the closed-form characteristic length.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20eoff.F",
+  "routine": "s20eoff",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "the ETAG node-product element OFF (min over the 20 node ETAGs) is not implemented; the port's st['off'] comes only from failure criteria.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20fint3.F",
+  "routine": "s20fint3",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "fe = -sum_k V_k (SIG - QVIS).gradN_k is ported (as is the static variant); absent are the volume-weighted global averages, the STIG thermal stiffness and the NODADT_THERM conduction CONDEG branch.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20forc3.F",
+  "routine": "s20forc3",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the explicit driver is ported (geometry + virtual midsides, velocity gradient, material update, bulk viscosity, internal force, cumulation, critical dt); absent are thermal coupling, the s20bilan energy/sensor output and the sky/IVECTOR path.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20ke3.F",
+  "routine": "s20ke3",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "tangent",
+  "status": "partial",
+  "deviation_note": "the 60x60 element tangent is implemented and consumed by implicit/assembly.py (virtual-midside DOF condensation replaces assem_s20); absent are the s20rst strain-rate (GG/DG) contributions, the s20coork corotational frame, s20eoff and assem_s20 itself.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20kgeo3.F",
+  "routine": "s20kgeo3",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "kgeo",
+  "status": "ported",
+  "deviation_note": "the same formulation as the unrolled S4KEH3 calls: K_ab = sum_k (SIG_k V_k).gradN_a.gradN_b over all 20x20 node pairs, written as one 3x3 einsum and consumed by implicit/assembly.py.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20rst.F",
+  "routine": "s20rst",
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "_eval_dndxi",
+  "status": "ported",
+  "deviation_note": "the same 20-node serendipity N and dN/dr,ds,dt expressions, tabulated at the 8 Gauss points; the Fortran's unrolled form is replaced by a loop over 8 corners and 12 midsides.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20tempcg.F",
+  "routine": "s20tempcg",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "integration-point temperature interpolation; no element-level thermal state exists for BRIC20 (thermal_solver covers only 1-D bar conduction).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide20/s20therm.F",
+  "routine": "s20therm",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "thermal dilatation nodal force FPHI with CA/CB temperature-dependent conductivity; not implemented for solids.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/a4mass3.F",
+  "routine": "a4mass3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "init_group",
+  "status": "ported",
+  "deviation_note": "init_group returns mass_c = repeat(rho0*VOL0/4, 4) scattered to the 4 nodes, exactly DMASS=FOURTH*RHO*VOLU*OFF.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_mass_lumping_and_volume"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/a4mass3p.F",
+  "routine": "a4mass3p",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "consistent_mass",
+  "status": "approximate",
+  "deviation_note": "Formulation difference: A4MASS3P writes the row-sum-lumped diagonal rho*V/4 into FSKYM for the implicit solve; the port's implicit operator is consistent_mass(), the exact integral int_V rho N^T N dV = rho*V/20*(I+11^T), and the lumped diagonal survives only on the explicit path. Parity consequence NOT measured against any Fortran FSKYM; the only check is the analytical unit test.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_consistent_mass_matrix"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/a4momt3.F",
+  "routine": "a4momt3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE/multi-fluid transport force at the element centre; no ALE grid-velocity path in the port",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/a4momtn3.F",
+  "routine": "a4momtn3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE upwind transport force (calls UPWIND4)",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/e4pxle3.F",
+  "routine": "e4pxle3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "unpacks ALE grid velocities VEUL into element quantities; the port is purely Lagrangian",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/morthlock3.F",
+  "routine": "morthlock3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "orthotropic GAMA frame lock for the implicit stiffness; the tet4 kernel has no orthotropic local-frame machinery",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4bilan.F",
+  "routine": "s4bilan",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "forces() books the internal energy (vol*sigma_mid:deps + viscous work) that S4BILAN derives, but the per-element output path is absent: no PARTSAV/GRESAV records, no element inertia tensor and no grelem_sav/sensor_energy_bilan hooks.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_energy_accounting_elastic_cycle"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4coor3.F",
+  "routine": "s4coor3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "the coordinate/velocity gather and the constant-Jacobian geometry are performed; the ALE-only outputs (VIS, SAV, RHOO) have no counterpart in a Lagrangian port.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_constant_strain_gradient_operator"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4coork.F",
+  "routine": "s4coork",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "implicit-path gather that also stores and rotates the 9-value saved configuration; the port has no SAV array",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4cumg3.F",
+  "routine": "s4cumg3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "tangent",
+  "status": "ported",
+  "deviation_note": "tangent() accumulates the same element stiffness K = V B^T D B; the Fortran DD/GG/DG block helpers are an explicit triple-loop form of the same contraction.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_material_tangent_stiffness_nullspace"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4cumu3.F",
+  "routine": "s4cumu3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "scatters the element thermal conduction result and zeroes inactive elements; the port has no solid-element conduction",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4cumu3p.F",
+  "routine": "s4cumu3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "implicit (FSKYV) counterpart of s4cumu3; depends on the absent element conduction",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4defo3.F",
+  "routine": "s4defo3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "forces() forms L = sum_i v_i (x) dndx_i, splits D = (L+L^T)/2 and the spin increments, then builds the Voigt strain rate with engineering shear - the same formulation for ISMSTR=1 (the ISMSTR=2/4 large-strain correction is absent).",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_pure_shear_analytical"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4defot3.F",
+  "routine": "s4defot3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "same velocity-gradient contraction as s4defo3 (only the D components are returned); it is the L tensor inside forces().",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_pure_shear_analytical"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4deri3.F",
+  "routine": "s4deri3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "PX/PY/PZ and VOLDP are computed by _geometry (det/6 and dndx with an explicit 3x3 inverse); DELTAX = 1/sqrt(max |gradN_i|^2) is reproduced by _char_length in closed form. Not ported: the NNEGA negative-Jacobian SAV restore and the IFORMDT shaped-element length variants.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_constant_strain_gradient_operator"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4derit3.F",
+  "routine": "s4derit3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "explicit (time-step only) twin of s4deri3: same gradients and volume via _geometry; the ISV/PSI shape-factor tables of the implicit path have no counterpart.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_characteristic_length_and_courant_step"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4derito3.F",
+  "routine": "s4derito3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "packs the 12 cartesian shape gradients and DET=VOL; _geometry returns exactly dndx + vol. Only the JAC_I packing layout differs.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_constant_strain_gradient_operator"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4dlenmax_sm.F90",
+  "routine": "s4dlenmax_sm",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "_char_length",
+  "status": "ported",
+  "deviation_note": "l_min = 6*vol/sqrt(max |R x S|^2) = 3V/A_max is reproduced by _char_length via fastmath.cross3/norm3.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_characteristic_length_and_courant_step"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4fillopt.F",
+  "routine": "s4fillopt",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "scales the element arrays by the FILL factor; the port has no FILL array",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4fint3.F",
+  "routine": "s4fint3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "fe = -vol * sigma . dndx scattered to the global force array (no hourglass term, correct for a full-integration constant-strain tet); static_internal_forces states the same expression for the implicit end-configuration assembly.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_linear_momentum_conservation_arbitrary_3d"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4fint_reg.F",
+  "routine": "s4fint_reg",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "non-local regularisation force (NLOC_DMG diffusion of the cumulated plastic strain); /NONLOCAL is parsed but never solved or applied",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4for_distor.F",
+  "routine": "s4for_distor",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "FLD anti-distortion stabilisation forces and energy; the tet4 kernel applies no element stabilisation",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4forc3.F",
+  "routine": "s4forc3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "forces",
+  "status": "approximate",
+  "deviation_note": "Formulation difference in one output only: the critical time step. forces() computes the same Courant formula but multiplies it by the pre-computed per-element eigen factor dtfac (2/sqrt(4/rho*max eig(C.BB^T))), which upstream S4FORC3 does not have, so the port's dt is a refinement (equal to the Fortran value for a regular tet only if the factor is 1). Everything else is the same formulation. Parity consequence NOT measured: no validation run compares the port's tet4 dt with the Fortran cycle step. Missing sub-paths of the driver: ALE, element conduction, non-local regularisation, FLD, FILL and the JCVT/SAV machinery.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_uniaxial_tension_analytical"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4jac_i.F",
+  "routine": "s4jac_i",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "same co-factor inverse Jacobian as s4derito3 for the SFEM/itetra nodal-pressure path.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_constant_strain_gradient_operator"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4ke3.F",
+  "routine": "s4ke3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "tangent",
+  "status": "ported",
+  "deviation_note": "material tangent assembly K = V B^T D B with D from materials.solid_tangent (the mmats/mmstifs equivalent); the geometric branch is a separate entry point, kgeo(), as the Fortran splits s4kgeo3 out of s4ke3.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_implicit_internal_forces_and_tangent_consistency"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4keh3.F",
+  "routine": "s4keh3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "kgeo",
+  "status": "ported",
+  "deviation_note": "kgeo() builds the whole g[a,b] = vol * gradN_a . sigma . gradN_b node-pair operator in one einsum, a superset of the Fortran's single diagonal-direction contribution.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_geometric_stiffness_matrix"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4kgeo3.F",
+  "routine": "s4kgeo3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "kgeo",
+  "status": "ported",
+  "deviation_note": "g = vol * gradN_a . sigma . gradN_b replicated over the three translation directions, identically zero at zero stress.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_geometric_stiffness_matrix"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4mall3.F",
+  "routine": "s4mall3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "rotates the SAV 9-coordinate array by the spin increments for ISMSTR=11 or JLAG>0; the port keeps no SAV array",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4rcoor12.F",
+  "routine": "s4rcoor12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "builds the orthotropic rotation matrix R11..R33 for the ISMSTR=10->11 switch; no orthotropic element frame in the port",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4sav12.F",
+  "routine": "s4sav12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "stores the SAV 9-coordinate array on an OFFG transition; no SAV state in the port",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4sav3.F",
+  "routine": "s4sav3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "stores the SAV 9-coordinate array when |OFFG|<=1; no SAV state in the port",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4therm-itet1.F",
+  "routine": "s4therm-itet1",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "solid-element thermal conduction forces for the itetra1 (SFEM) tet; the port has no solid-element conduction at all. Named by phase task P2.8, but unimplemented today.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4therm.F",
+  "routine": "s4therm",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "Fourier conduction nodal thermal forces FPHI for /TETRA4; no solid-element conduction exists in the port. Named by phase task P2.8, but unimplemented today.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4upd11t12.F",
+  "routine": "s4upd11t12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "refreshes JAC_1 and SIGL for elements whose OFFG changed; depends on the absent JAC_1/SAV state",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/s4volume.F",
+  "routine": "s4volume",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "VOL from the gathered coordinates, returned as the vol component of _geometry and stored as st['vol0'] by init_group.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_mass_lumping_and_volume"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/schkjabt3.F",
+  "routine": "schkjabt3",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "init_group",
+  "status": "partial",
+  "deviation_note": "negative/near-zero-Jacobian DETECTION is ported (the size-relative vtol test, log.error, VOL forced to EM20 and the singular gradients neutralised). The recovery modes are not: /INEG_V=0 stop, =1 element deletion, =2 switch-to-small-strain (the NNEGA/SAV restore), and the IDTMIN-based VOLMIN branches.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_degenerate_and_inverted_volume_handling"
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/sfor_n2s3.F",
+  "routine": "sfor_n2s3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "normal/tangential stabilisation force on a triangular element face (FLD chain)",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/sfor_n2stria.F",
+  "routine": "sfor_n2stria",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "stiffness-based dispatch of sfor_n2s3 for the element centre node; part of the FLD chain",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/sfor_visn4.F",
+  "routine": "sfor_visn4",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "viscous/normal stabilisation force of the FLD chain; absent",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/smortho3.F",
+  "routine": "smortho3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "Gram-Schmidt construction of the orthotropic element basis used by s4rcoor12; no orthotropic element frame in the port",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/ssort_n3.F",
+  "routine": "ssort_n3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "face-normal penetration test selecting control nodes for the FLD stabilisation",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4/upwind4.F",
+  "routine": "upwind4",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ALE upwind weight (/UPWM/TG, /UPWM/SUPG); the port has no ALE grid-velocity/upwind parameterisation",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/s10_icp.F",
+  "routine": "s10_icp",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "10-node SFEM incompressible-plasticity volume/gradient log-scaling (ICPRE=1 tetra10 path); pyradioss has no tetra10 SFEM smoothing at all",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/s10sigp3.F",
+  "routine": "s10sigp3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "10-node radial-return triaxiality factor FAC=exp((1/15)*ln(DEFP/DEFT)); its only caller is s10forc3, which has no SFEM branch in solid_tetra10.py",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/s10volj.F",
+  "routine": "s10volj",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "quadratic sub-tetra Jacobian volume for the 10-node SFEM; not implemented",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/s10volnod3.F",
+  "routine": "s10volnod3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "builds the 4 IPERM-subdivided tetra10 volumes into sfem%tetra_fsky; tetra10 SFEM path absent",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/s10volnodt3.F",
+  "routine": "s10volnodt3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "ISMSTR=10 nodal/Gauss-point Fsky volumes for tetra10; tetra10 SFEM path absent",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/s4alesfem.F",
+  "routine": "s4alesfem",
+  "port_module": "pyradioss.elements.solid_tetra4_sfem",
+  "port_symbol": "init_group",
+  "status": "partial",
+  "deviation_note": "only the nodal mass scatter (mass_c = mass/4 per node) is done. Absent: the ALE/ISROT=3 path this routine exists for, the SFEM_NODVAR = sum(V)/sum(mass) normalization that is its actual output, and the SPMD isend/irecv halo.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/s4lagsfem.F",
+  "routine": "s4lagsfem",
+  "port_module": "pyradioss.elements.solid_tetra4_sfem",
+  "port_symbol": "_smooth_gradients",
+  "status": "approximate",
+  "deviation_note": "Formulation difference: upstream s4lagsfem builds SFEM_NODVAR_k = sum(V_e)/sum(mass_e) per node through the tetra_fsky table and an SPMD halo, which s4voln_m/s4forc3 consume as an effective ELEMENT volume weighting UNSMOOTHED CST gradients; the port instead normalises node-domain shape-function gradients (V_k = sum V_e/4, grad~N_k = sum (V_e/4) grad N^e_k / V_k) and applies those smoothed gradients directly to L, deps and f_int. Same smoothing quantity, different formulation; also no SPMD exchange. Parity NOT measured - no oracle/parity case for Itetra4=3 exists, only the analytic unit tests tests/test_itetra3.py::test_itetra3_sfem_smoothing and tests/test_fe_solids_advanced.py::test_tetra4_sfem_smoothing. Note solid_tetra4.py separately reproduces the upstream effective-volume formulation (see the s4voln_m row).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/s4voln_m.F",
+  "routine": "s4voln_m",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the main STRAIN_FORMULATION=1 branch is implemented (Jbar_e = 1/4*sum(J_a), AMU = 1/Jbar_e - 1, DIVDE, the DTREP_R trace correction and vol_eff = Jbar_e*V0_e used in place of VOLGS). Absent: the ISMSTR=11 rho/rho0 branch, the ISMSTR>=10 branch calling JACOB_J33 with the log volume-ratio rescaling, and the ISMSTR=2/12 with IDTMIN(1)==3 branch.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/s4volnod3.F",
+  "routine": "s4volnod3",
+  "port_module": "pyradioss.elements.solid_tetra4_sfem",
+  "port_symbol": "_smooth_gradients",
+  "status": "ported",
+  "deviation_note": "the volume comes from solid_tetra4._geometry (same cofactor determinant) with np.add.at scattering V_e to the 4 incident nodes; the 1/4 weight upstream applies later in s4voln_m is applied at scatter time (same product).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/s4volnod_sm.F",
+  "routine": "s4volnod_sm",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "pre_forces",
+  "status": "partial",
+  "deviation_note": "the per-node volume scatter is present (init_group writes fsky(:,2)=VOL0 and pre_forces re-accumulates the current element volumes to nodes each cycle). Absent: the SAV small-strain-coordinate + velocity driven equivalent volume, the ISMSTR sub-domains, the TT==ZERO skip and the off gating.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/sfem_init.F90",
+  "routine": "sfem_init",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "init_group",
+  "status": "partial",
+  "deviation_note": "node-to-element incidence accumulation exists (model.nodal_vol_0/nodal_vol_t plus sfem_v0_nodes/sfem_v_nodes). Absent: the sfem_ structure itself (node_list, node_iad, tetra4_iad, tetra10_iad, the tetra_fsky table with its row layout), the Lagrangian/ALE two-structure split and the ISROT/ICPRE/ISMSTR/MTN eligibility scan; the port re-derives adjacency every cycle.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide4_sfem/sfem_init_spmd.F90",
+  "routine": "sfem_init_spmd",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "no SFEM halo send/recv index construction; pyradioss/spmd/domdec.py instead flags tetras_sfem as unsupported ('SFEM tetra: nodal smoothing buffer').",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6fint_reg.F90",
+  "routine": "s6fint_reg",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zcoor_cp2sp.F90",
+  "routine": "s6zcoor_cp2sp",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zdefc3.F90",
+  "routine": "s6zdefc3",
+  "port_module": "pyradioss.elements.solid_penta6",
+  "port_symbol": "_pre",
+  "status": "ported",
+  "deviation_note": "velocity-gradient strain rates dxx..dzz via sum_i p_i.v_i, the same contraction as L=einsum('nib,ngic->ngbc').",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zdefo3.F90",
+  "routine": "s6zdefo3",
+  "port_module": "pyradioss.elements.solid_penta6",
+  "port_symbol": "_pre",
+  "status": "partial",
+  "deviation_note": "only the ISMSTR==11 spin branch is implemented (wxy = (L_xy-L_yx)/2*dt, engineering d4/d5/d6). Absent: the vol=voldp clamp with off gating, the three non-11 objective-rotation correction branches and the /ANIM/ELEM/VORT output.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zdefot3.F90",
+  "routine": "s6zdefot3",
+  "port_module": "pyradioss.elements.solid_penta6",
+  "port_symbol": "_pre",
+  "status": "ported",
+  "deviation_note": "same contraction as s6zdefc3 with the spin forced to zero, as in the Fortran's 'T' variant.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zderi3.F90",
+  "routine": "s6zderi3",
+  "port_module": "pyradioss.elements.solid_penta6",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "the Fortran builds J from the edge combinations with a scalar-triple-product determinant and a closed-form cofactor inverse; the port builds the same constant linear-wedge J by einsum and takes det/inverse by cofactor expansion, and sum_g(0.5*detJ) equals the Fortran's one_over_8*triple. The Fortran's runtime negative-volume re-orientation (restore from sav, offg=2) is absent; the port flips the winding once at starter time.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zderit3.F90",
+  "routine": "s6zderit3",
+  "port_module": "pyradioss.elements.solid_penta6",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "same body as s6zderi3 minus the sav-recovery branch; the same port symbol serves both.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zderito3.F90",
+  "routine": "s6zderito3",
+  "port_module": "pyradioss.elements.solid_penta6",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "converts the stored cofactor inverse into the 18 shape-function gradients; the port forms dndx = dN/dxi . Jinv with the identical cofactor inverse.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zfint3.F90",
+  "routine": "s6zfint3",
+  "port_module": "pyradioss.elements.solid_penta6",
+  "port_symbol": "_post",
+  "status": "ported",
+  "deviation_note": "f_ib = -sum_c S_bc * gradN_ic * w * detJ, identical to the port's einsum.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zforc3.F90",
+  "routine": "s6zforc3",
+  "port_module": "pyradioss.elements.solid_penta6",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "the whole explicit cycle (gather, kinematics, constitutive update, failure, bulk viscosity, internal forces + scatter, dt_crit). The driver's corotational/orthotropic/non-local branches (s6zrcoor3, sztorth3/storth3/szordef3, s6fint_reg) are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zhourg3.F90",
+  "routine": "s6zhourg3",
+  "port_module": "pyradioss.elements.solid_penta6_heph",
+  "port_symbol": "_wedge_hg_modes",
+  "status": "approximate",
+  "deviation_note": "same quantity - the wedge HEPH hourglass force - by a different formulation: the Fortran builds gamma by Belytschko-Bindeman orthogonalisation over the full mode set, scales the stiffness by the element-specific szetfac visco-elastic factor and adds mdama24 material damping (both gated on iplast/iet); the port instead uses hard-coded out-of-phase hourglass vectors with its own damping. Parity has NOT been measured: no wedge case exists in tools/validation_data or VALIDATION.md, only the synthetic unit tests test_fe_solids_advanced.py::test_penta6_heph_stabilization and test_fe_engine_integration.py::test_engine_penta6_heph_isolid24.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zhourg3_or.F90",
+  "routine": "s6zhourg3_or",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zjac_i.F90",
+  "routine": "s6zjac_i",
+  "port_module": "pyradioss.elements.solid_penta6",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "det plus the 3x3 inverse Jacobian from the nodal coordinates by the same one_over_8 triple product and cofactor inverse; the port returns det*w as vol_g and consumes Jinv directly.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zrcoor3.F90",
+  "routine": "s6zrcoor3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zrmalla11.F90",
+  "routine": "s6zrmalla11",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zrrota3.F90",
+  "routine": "s6zrrota3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zrrotadp.F90",
+  "routine": "s6zrrotadp",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zsav12.F90",
+  "routine": "s6zsav12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zsav3.F90",
+  "routine": "s6zsav3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide6z/s6zupd11t12.F90",
+  "routine": "s6zupd11t12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/basis8.F",
+  "routine": "basis8",
+  "port_module": "pyradioss.elements.solid_hexa8_full",
+  "port_symbol": "_N_GP",
+  "status": "ported",
+  "deviation_note": "the trilinear H_i = 1/8*(1+xi_i r)(1+eta_i s)(1+zeta_i t) is precomputed at the 8 GPs; the PR/PS/PT derivative arrays are _DN_DXI. Same formulation.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/basisf.F",
+  "routine": "basisf",
+  "port_module": "pyradioss.elements.solid_hexa8_full",
+  "port_symbol": "_GP_COORDS",
+  "status": "ported",
+  "deviation_note": "basisf is BASIS8 evaluated at the fixed IP coordinates in its DATA G(3,8); the port holds those eight +/-1/sqrt(3) points in _GP_COORDS and pre-evaluates the values/derivatives instead of calling BASISF per IP.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/s8bilan.F",
+  "routine": "s8bilan",
+  "port_module": "pyradioss.elements.solid_hexa8_full",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "only the internal-energy booking exists (_post returns deint0, stored as the extensive st['eint'] and summed generically by the engine). Absent: per-part PARTSAV(1..6), the FLAG==1 XCG/XM/XXM/IXX..IZX block, GRELEM_SAV (IGRE) and SENSOR_ENERGY_BILAN.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/s8coor3.F",
+  "routine": "s8coor3",
+  "port_module": "pyradioss.elements.solid_hexa8_full",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "xe = x[conn], ve = v[conn] performs the same gather; dead elements (off<=0) have deps/trD zeroed in _pre, the vectorised equivalent of upstream zeroing VXLOC/VYLOC/VZLOC.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/s8cumu3.F",
+  "routine": "s8cumu3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "accumulation of the element force arrays into the global external force A and of STI into nodal STIFN is not ported; forces() scatters internal forces into fint only.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/s8defo3.F",
+  "routine": "s8defo3",
+  "port_module": "pyradioss.elements.solid_hexa8_full",
+  "port_symbol": "_pre",
+  "status": "ported",
+  "deviation_note": "_pre builds L = sum_i ve (x) dN/dx, D = (L+L^T)/2, W = (L-L^T)/2 and the engineering-shear deps - the JCVT==0 branch of S8DEFO3 exactly.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/s8deri3.F",
+  "routine": "s8deri3",
+  "port_module": "pyradioss.elements.solid_hexa8_full",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "Jacobian, detJ and the cartesian shape-function gradients at the 8 GPs are the same formulation. Absent: the DELTAX output (100*VMIN/sqrt(SMAX), the min-determinant length handed to the material law - the port uses sdlen3's V/max-face-area instead) and the negative-Jacobian ANCMSG(172)/ARRET abort, downgraded to a log.error.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/s8eoff.F",
+  "routine": "s8eoff",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "OFF from the ETAG node-activity product is not ported; element death in the port comes from the engine erosion/failure module and solid_hexa8_full only reads st['off'].",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/s8fint3.F",
+  "routine": "s8fint3",
+  "port_module": "pyradioss.elements.solid_hexa8_full",
+  "port_symbol": "_post",
+  "status": "ported",
+  "deviation_note": "fe = -sum_g vol_g * S . dndx after subtracting QVIS from the three normal components, the same combination and sign convention as S8FINT3 (SVIS is not a separate term in the port).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/s8forc3.F",
+  "routine": "s8forc3",
+  "port_module": "pyradioss.elements.solid_hexa8_full",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "full driver: gather -> _pre (s8deri3+s8defo3+s8rota3) -> the per-GP materials.solid_update loop -> _post (bulk viscosity + s8fint3 + dt) -> scatter_add3 into fint. The JCVT=1 rotating path has no counterpart.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/s8lagr3.F",
+  "routine": "s8lagr3",
+  "port_module": "pyradioss.elements.solid_hexa8_full",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "rho = mass/vol is algebraically the same update as S8LAGR3's RHO(I)=RHO0*VOL0/VOLN with a mass-conserving mass. Not implemented: DVOL(I)=VOLN-(RHO0/RHO)*VOL0 and the EINT(I)=EINT(I)*VOL0(I) rescale.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/s8rota3.F",
+  "routine": "s8rota3",
+  "port_module": "pyradioss.elements.solid_hexa8_full",
+  "port_symbol": "_pre",
+  "status": "ported",
+  "deviation_note": "_pre applies the identical component-wise Jaumann update sigma += (W.sigma - sigma.W)*dt with the same sign pattern as the Q1/Q2/Q3 block of S8ROTA3.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/sr8bilan.F",
+  "routine": "sr8bilan",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "rotating-element (JCVT=1) energy balance using the element rotational DOFs; no rotating-solid group exists in pyradioss.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8/sr8coor3.F",
+  "routine": "sr8coor3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "rotating-element frame gather (calls sortho3/srepisot3 and projects X, V and the inertia tensor into the element frame); solid_hexa8z._corotational_frame is the s8zforc3 port of srepisot3/sortho3, a different family.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/jacob_f0.F",
+  "routine": "jacob_f0",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "the centre Jacobian/volume is present as the mean of the 8 GP Jacobians (exact for a trilinear hexa); the DIV0 initial divergence output is absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/jacob_j33.F",
+  "routine": "jacob_j33",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/m1tot_stab11.F",
+  "routine": "m1tot_stab11",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/m1tot_stab18.F",
+  "routine": "m1tot_stab18",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/nsvis_stab18.F",
+  "routine": "nsvis_stab18",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8_is17jac_i.F",
+  "routine": "s8_is17jac_i",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8bicp11.F",
+  "routine": "s8bicp11",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8e_sig.F",
+  "routine": "s8e_sig",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8e_sig_a.F",
+  "routine": "s8e_sig_a",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "forces",
+  "status": "approximate",
+  "deviation_note": "the Fortran updates the PIJ bubble stresses from the B-matrix and nodal velocities (DC1=C1*dt, DG2=2G*dt) and books EINT; the port relaxes 9 pij variables by a hard-coded 0.01*vol*xi*sigma loop with no C1/G/v term and no energy booking. Parity NOT measured (no EAS oracle case exists in the repo).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8ea2bp8.F",
+  "routine": "s8ea2bp8",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8edefo3.F",
+  "routine": "s8edefo3",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "tangent",
+  "status": "approximate",
+  "deviation_note": "same output (the EAS element tangent) via 9-mode static condensation with the port's own M(xi), versus upstream's dynamically coupled BIJ/Pij stiffness. Not measured.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8edefoc3.F",
+  "routine": "s8edefoc3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8edefot12.F",
+  "routine": "s8edefot12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8edefot3.F",
+  "routine": "s8edefot3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8edefw3.F",
+  "routine": "s8edefw3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8ederi_2.F",
+  "routine": "s8ederi_2",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "derivatives at the fixed 8 GPs are computed; upstream evaluates at the NPT integration points and builds the EAS-coupled arrays through S8BICP11.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8ederi_bij.F",
+  "routine": "s8ederi_bij",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "tangent",
+  "status": "approximate",
+  "deviation_note": "the EAS-coupled bubble derivative coupling is replaced by K_ua/K_aa from the port's own M plus condensation. Not measured.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8ederic3.F",
+  "routine": "s8ederic3",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "detJ at the GPs plus the negative-volume check in init_group are ported; the SMALLB3/SMALLGEO3 small-strain flag and the DEGENES8 degeneracy detection are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8edericm3.F",
+  "routine": "s8edericm3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8ederict3.F",
+  "routine": "s8ederict3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8edericto3.F",
+  "routine": "s8edericto3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8ederig3.F",
+  "routine": "s8ederig3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8ederipr3.F",
+  "routine": "s8ederipr3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8ederish2.F",
+  "routine": "s8ederish2",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "forces",
+  "status": "approximate",
+  "deviation_note": "the EAS-condensed derivative coefficients P/PXY are replaced by compatible 8-GP dndx. Not measured.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8efint3.F",
+  "routine": "s8efint3",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "forces",
+  "status": "approximate",
+  "deviation_note": "the same nodal force -int sigma.grad(N), but contracted with compatible GP gradients instead of the condensed coefficients; the SVIS/SIG_A stabilised-stress terms are absent. Not measured.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8efmoy3.F",
+  "routine": "s8efmoy3",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "element-average energy bookkeeping is present; the element-mean stress state SIGM/EINTM is not stored.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8eforc3.F",
+  "routine": "s8eforc3",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the explicit cycle (geometry, rates, Jaumann, constitutive update, viscosity, force scatter, energy, dt) is ported; the EAS-defining stress update (s8edefo*/s8ederi_bij), the s8e_sig_a bubble path, hourglass, thermal, ANIM, failure and MMAIN state are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8egetbij.F",
+  "routine": "s8egetbij",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "tangent",
+  "status": "approximate",
+  "deviation_note": "the 24 coupled B-coefficient arrays are formed inline by einsum from the port's M instead of materialised. Not measured.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8egetpij.F",
+  "routine": "s8egetpij",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8ejacip3.F",
+  "routine": "s8ejacip3",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "the cell Jacobian is built in closed form by einsum over _DN_DXI instead of the SX/SY/SZ decomposition.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8ejacit3.F",
+  "routine": "s8ejacit3",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "dN/dx = _DN_DXI . Jinv at each GP, same formulation.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8eprst_ini.F",
+  "routine": "s8eprst_ini",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8eselecsh.F",
+  "routine": "s8eselecsh",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8eselecsht.F",
+  "routine": "s8eselecsht",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8esigp3i.F",
+  "routine": "s8esigp3i",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8etemper.F",
+  "routine": "s8etemper",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8etherm.F",
+  "routine": "s8etherm",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8etotsh10.F",
+  "routine": "s8etotsh10",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8evis3.F",
+  "routine": "s8evis3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "read in full, this is the HOURGLASS viscous force (NFHOUR/NU), not bulk viscosity; no pyradioss module implements it (the port's qa/qb bulk viscosity is a different routine, mmain/mqviscb).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8evolume.F",
+  "routine": "s8evolume",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "the 8-GP and total volumes are ported; the single-point/condensed VOLG and the nodal VOLP are not.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8fupd11t12.F",
+  "routine": "s8fupd11t12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8zjac_i3.F",
+  "routine": "s8zjac_i3",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "inverse-Jacobian entries at the GPs from the same cofactor route.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/s8zjac_ic.F",
+  "routine": "s8zjac_ic",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "the Jacobian at the parametric centre, which for a trilinear hexa is exactly the mean of the 8 GP Jacobians.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8e/sordeftb.F",
+  "routine": "sordeftb",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/crframe_imp.F",
+  "routine": "crframe_imp",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "crimp/imperfection frame construction; the crimp path (Iframe) is not routed in pyradioss",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/crtrans_imp.F",
+  "routine": "crtrans_imp",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "crimp transform kernel (1,123 lines); no reference to it anywhere in pyradioss",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/getuloc.F",
+  "routine": "getuloc",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "projects the 8-node increment UL* onto the local direction cosines R; called only from srcoor3_imp",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/s8sansb.F",
+  "routine": "s8sansb",
+  "port_module": "pyradioss.elements.solid_shell_ha8",
+  "port_symbol": "_apply_ans_shear",
+  "status": "approximate",
+  "deviation_note": "the Fortran builds BB=C*B from explicit mid-edge sampling (A1A1..C2B3, UM=(1-zeta)/8, UP=(1+zeta)/8) times the INVJ-derived C(6,6); the port post-averages the compatible B rows (shear components 4/5 across the xi/eta Gauss-point pairs, normal component 2 across the 4 in-plane points per zeta-plane). Parity NOT measured: no HA8/Isolid=16 case exists in tools/validation_data or VALIDATION.md; the only checks are tests/test_fe_solids_advanced.py::test_solid_shell_ha8_ans and tests/test_m614_implicit_elements_solids.py, which assert dt_crit>0, force equilibrium, symmetry and shape only.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/s8sav3_imp.F",
+  "routine": "s8sav3_imp",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "saves the 21-component SAV geometry vector for OFF=0 elements; crimp path absent",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/s8sbdefo3.F",
+  "routine": "s8sbdefo3",
+  "port_module": "pyradioss.elements.solid_shell_ha8",
+  "port_symbol": "forces",
+  "status": "approximate",
+  "deviation_note": "the Fortran contracts the nodal increments through the ANS B and C matrices into natural strain rates DXX..D6 and returns BB=C*B with the ICP=1/2 volumetric branch; the port uses L=v.dndx, D=sym(L), deps=dt*D in global Cartesian, with no ANS projection and no volumetric branch. Parity not measured.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/s8sderi3.F",
+  "routine": "s8sderi3",
+  "port_module": "pyradioss.elements.solid_shell_ha8",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "same formulation: the 2x2x2 Gauss Jacobian, a cofactor inverse instead of an explicit 3x3 determinant, the same DN_X/DN_Y/DN_Z and the weighted volume (the port clips detJ at 0 where the Fortran sets OFF=0).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/s8sfint3.F",
+  "routine": "s8sfint3",
+  "port_module": "pyradioss.elements.solid_shell_ha8",
+  "port_symbol": "forces",
+  "status": "approximate",
+  "deviation_note": "the Fortran assembles F = sum (SIG+SVIS-QVIS) contracted with the ANS B-matrix; the port assembles fe = -sum vol_g * sigma * dndx from the plain compatible gradient, with QVIS present but no SVIS viscous stress. Parity not measured.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/s8sfint3_crimp.F",
+  "routine": "s8sfint3_crimp",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "crimp nodal force from TRM/COR_NF/COR_FR; crimp path not routed",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/s8sforc3.F",
+  "routine": "s8sforc3",
+  "port_module": "pyradioss.elements.solid_shell_ha8",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "gather, Jacobian, velocity gradient, Jaumann rotation, material law, bulk viscosity, force assembly, energies and the critical dt are done. Absent: the ANS-projected strain rate and ANS B, the SVIS viscous stress, the srcoor3_imp intrinsic rotation/local frames and every crimp branch.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/s8ske3.F",
+  "routine": "s8ske3",
+  "port_module": "pyradioss.elements.solid_shell_ha8",
+  "port_symbol": "tangent",
+  "status": "partial",
+  "deviation_note": "the material tangent is integrated over 8 GPs and assembled to global DOFs, but the Fortran route is local-frame (HH from PM(21)/PM(32), per-point KL via s8slke3, TRANSK local-to-global, plus the S8SKSIG skew term); the port has no local frame, no TRANSK and no skew term.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/s8sksig.F",
+  "routine": "s8sksig",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "skew/non-linear stiffness from COR_NF and the local frames V1..V8; COR_NF appears nowhere in pyradioss. solid_shell_ha8.kgeo is the initial-stress geometric stiffness, a different quantity.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/s8slke3.F",
+  "routine": "s8slke3",
+  "port_module": "pyradioss.elements.solid_shell_ha8",
+  "port_symbol": "tangent",
+  "status": "approximate",
+  "deviation_note": "same GP stiffness integration KL += B^T.HV.B, but the Fortran HV is the isotropic HH(1)=LAMDA, HH(2)=GG/2 from PM(21)/PM(32) with the S8SANSB matrix; the port integrates vol_g * B_ans^T * D * B_ans with materials.solid_tangent per law and a pair-averaged B. Parity not measured.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/s8xref_imp.F",
+  "routine": "s8xref_imp",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "updates the COR_XR reference geometry when INCONV=1; no INCONV/COR_XR state in pyradioss",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/srcoor3_imp.F",
+  "routine": "srcoor3_imp",
+  "port_module": "pyradioss.elements.solid_shell_ha8",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "only the gather (xe = x[conn], ve = v[conn]) is performed; the intrinsic rotation GAMA, the local frames V1..V8 / R11..R33, the TRM transforms and the whole crimp chain are absent.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/srcoork_imp.F",
+  "routine": "srcoork_imp",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "builds the element local frames V1..V8 and the 24x24 local/global transform TRM for the implicit route; solid_hexa8z._corotational_frame is a different frame (srepiso3/sortho3, a different family)",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8s/transk.F",
+  "routine": "transk",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "transforms the accumulated local 24x24 KL to global through TRM; the port builds the HA8 stiffness directly in global Cartesian DOFs and has no TRM",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/get_etfac_s.F",
+  "routine": "get_etfac_s",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/gethkt3.F",
+  "routine": "gethkt3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/gettrans.F",
+  "routine": "gettrans",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/mmat_h1.F",
+  "routine": "mmat_h1",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/mmats.F",
+  "routine": "mmats",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/mmstifs.F",
+  "routine": "mmstifs",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/mstiforth.F",
+  "routine": "mstiforth",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/put_etfac.F",
+  "routine": "put_etfac",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/putsignor3.F",
+  "routine": "putsignor3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zcumg3.F",
+  "routine": "s8zcumg3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zdefo3.F",
+  "routine": "s8zdefo3",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the velocity-gradient Dxx..Dzz plus the ICP==1 assumed-volumetric-dilatation DVCA term are reproduced with the same formulation. Absent: the ICP/=1 B-matrix branch, the ICR/ICS/ICT constant-stress branches, the JCVT/ISCAU non-linear correction and the DSV volume-update bookkeeping.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zdefot3.F",
+  "routine": "s8zdefot3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zderi3.F",
+  "routine": "s8zderi3",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "the centroid Jacobian, determinant, volume and dN/dx are computed by cofactor inversion of the same trilinear derivative set. Absent: the per-node PX..PZY assumed-strain gradients, the ICP/=1 and ICP==11 BXY/BYX/BXZ/BZX/BYZ/BZY matrices, PXC/PYC/PZC and DELTAX/SMAX.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zderic3.F",
+  "routine": "s8zderic3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zdericm3.F",
+  "routine": "s8zdericm3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zderict3.F",
+  "routine": "s8zderict3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zdericto3.F",
+  "routine": "s8zdericto3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zderii3.F",
+  "routine": "s8zderii3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zderim3.F",
+  "routine": "s8zderim3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zderims3.F",
+  "routine": "s8zderims3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zderipr3.F",
+  "routine": "s8zderipr3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zderit3.F",
+  "routine": "s8zderit3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zfint3.F",
+  "routine": "s8zfint3",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "forces",
+  "status": "approximate",
+  "deviation_note": "same output (nodal internal forces from sigma and gradN, rotated back by R) but the volumetric-stress treatment differs: the port subtracts only QVIS from the three normal components, whereas upstream's ICP==1 general branch removes a third of the stress trace and scales by JFAC*VOL. The ICP/=1 B-matrix force terms and the SVIS/thermal/plastic-work averages are absent. Parity has NOT been measured: no validation case is tied to s8zfint3 or to this element group.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zfint_reg.F",
+  "routine": "s8zfint_reg",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zfintp3.F",
+  "routine": "s8zfintp3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zforc3.F",
+  "routine": "s8zforc3",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "forces() runs the explicit corotational cycle (frame, kinematics, material law, hourglass, stress rotation, energy, critical dt, force scatter) but only the default path: no degenerate-element handling, no small-strain/ISPIN variants, no thermal, no sensor or element-failure bookkeeping and no per-cycle state save.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zke3.F",
+  "routine": "s8zke3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zkeb3.F",
+  "routine": "s8zkeb3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zkebg1.F",
+  "routine": "s8zkebg1",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zkebg3.F",
+  "routine": "s8zkebg3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zked3.F",
+  "routine": "s8zked3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zkeg3.F",
+  "routine": "s8zkeg3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zkeg33.F",
+  "routine": "s8zkeg33",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zkeh3.F",
+  "routine": "s8zkeh3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zkehij.F",
+  "routine": "s8zkehij",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zkgei3.F",
+  "routine": "s8zkgei3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zkgeo3.F",
+  "routine": "s8zkgeo3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zlke3.F",
+  "routine": "s8zlke3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zlkep3.F",
+  "routine": "s8zlkep3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zsigp3.F",
+  "routine": "s8zsigp3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8ztempel.F",
+  "routine": "s8ztempel",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/s8zzero3.F",
+  "routine": "s8zzero3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/sktcons2.F",
+  "routine": "sktcons2",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/sktvonm3.F",
+  "routine": "sktvonm3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/sktvonm4.F",
+  "routine": "sktvonm4",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/sorthdir17.F",
+  "routine": "sorthdir17",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/srcoork.F",
+  "routine": "srcoork",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solide8z/systran3.F",
+  "routine": "systran3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/c33stif2el.F",
+  "routine": "c33stif2el",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/cbatran3v.F",
+  "routine": "cbatran3v",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/gettransv.F",
+  "routine": "gettransv",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/gfhour_or.F",
+  "routine": "gfhour_or",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/m1tot_stab24.F",
+  "routine": "m1tot_stab24",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/mdama24.F",
+  "routine": "mdama24",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/mmod_norm.F",
+  "routine": "mmod_norm",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/mmodul.F",
+  "routine": "mmodul",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/mmodul24c.F",
+  "routine": "mmodul24c",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/mstiforthv.F",
+  "routine": "mstiforthv",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/nsvis_stab11.F",
+  "routine": "nsvis_stab11",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/scoor_cp2sp.F",
+  "routine": "scoor_cp2sp",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/sdlen8.F",
+  "routine": "sdlen8",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/sdlen_sms.F",
+  "routine": "sdlen_sms",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/shour_ctl.F90",
+  "routine": "shour_ctl",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/sordef12.F",
+  "routine": "sordef12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/sordeft12.F",
+  "routine": "sordeft12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/sordeft3.F",
+  "routine": "sordeft3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/sroto12.F",
+  "routine": "sroto12",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/sroto12_sig.F",
+  "routine": "sroto12_sig",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/sroto3.F",
+  "routine": "sroto3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/sroto3v.F",
+  "routine": "sroto3v",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/storth3.F",
+  "routine": "storth3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/sz_dt1.F90",
+  "routine": "sz_dt1",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "MISATTRIBUTION: upstream sz_dt1.F90 is a B-matrix hourglass characteristic length DELTAX1 = 1/sqrt(d) gated on gfac = G/BULK < 1; solid_cohesive.py and solid_connect.py cite it for an eigenvalue dt bound instead, which is a different quantity.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szderi3.F",
+  "routine": "szderi3",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "DET and the cartesian shape gradients of the hex-8 by centroid cofactor expansion; the SZDERI3 hourglass PXaHi products, the SCHKJABT3 negative-Jacobian rescue and the SZDERIT3/SZDERITO3 orientation variants have no counterpart.",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szetfac.F",
+  "routine": "szetfac",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szforc3.F",
+  "routine": "szforc3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "MISATTRIBUTION: upstream szforc3 is the Isolid=11/12 orthotropic solid continuum driver (srcoor3 -> mmain -> szderi3 -> sordeft3/szordef3 -> szsvm/szsvm_or/szsigpara -> szhour3 -> sfint3 -> srrota3). pyradioss/elements/solid_cohesive.py cites szforc3.F but implements a bilinear traction-separation cohesive element that exists nowhere under engine/source/elements/, and the port has no orthotropic solid kernel at all (/PROP/SOL_ORTH is parsed but its isolid defaults to 14, which routes to the tshells group).",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szhour3.F",
+  "routine": "szhour3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szhour3_or.F",
+  "routine": "szhour3_or",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szhour_ctl.F",
+  "routine": "szhour_ctl",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szordef3.F",
+  "routine": "szordef3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szsigpara.F",
+  "routine": "szsigpara",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szstraingps.F",
+  "routine": "szstraingps",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szstrainhg.F",
+  "routine": "szstrainhg",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szsvm.F",
+  "routine": "szsvm",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/szsvm_or.F",
+  "routine": "szsvm_or",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/sztorth3.F",
+  "routine": "sztorth3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/solidez/visc_et.F",
+  "routine": "visc_et",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "",
+  "parity_case": null
+ },
+ {
+  "fortran": "engine/source/elements/solid/srotorth.F",
+  "routine": "srotorth",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "output/anim helper called by dfunc6.F, h3d_solid_scalar_1.F and stat_s_ortho.F: it builds the global-to-orthotropic passage matrix from the element frame (sortho31/scortho31) and the material direction cosines GAMA(1:6). No pyradioss module performs this solid 4th-order frame transform; shell_ortho.py is the SHELL planar in-plane fiber frame (corthdir.F), a different quantity.",
+  "parity_case": null
+ }
+]
