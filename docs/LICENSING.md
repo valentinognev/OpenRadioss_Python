@@ -1,12 +1,12 @@
-# Licensing — the MIT / GPL-3.0 / AGPL-3.0 contradiction
+# Licensing — the MIT / GPL-3.0 / AGPL-3.0 contradiction, and its resolution
 
-This document is the licensing gate for pyradioss (the Python port of
+This document is the licensing record for pyradioss (the Python port of
 OpenRadioss). It records the contradiction found in Phase 0 / Task 0.0, the
 four lawful ways out of it, each with the licence text that decides it, and
-the decision status.
+the decision.
 
-**Status: no maintainer decision recorded.** Task 0.0 does not choose; see
-[Decision](#decision).
+**Status: DECIDED — 2026-10-07, by the maintainer. This repository is licensed
+AGPL-3.0-or-later** (Option 1). See [Decision](#decision).
 
 All upstream citations name a path relative to
 `$HOME/Projects/OpenRadioss` (so the read-only upstream checkout is
@@ -16,7 +16,11 @@ arbiter if a range is ever disputed.
 
 ## The contradiction
 
-| Artefact | Declared licence |
+The table below is the contradiction **as Phase 0 found it, before the
+2026-10-07 decision**. It is kept as the record of what was wrong; the current
+state is in [Decision](#decision).
+
+| Artefact | Declared licence (as found, 2026-10-03) |
 | --- | --- |
 | `LICENSE:1-3` | `MIT License` / `Copyright (c) 2026 Minh Quang Pham` |
 | `README.md:300-302` | `GPL-3.0 (see [LICENSE](LICENSE)) — inherited from files derived from OpenRadioss, © Altair Engineering Inc.` |
@@ -135,35 +139,57 @@ nothing can be assumed about the outcome — the repository cannot depend on it.
 
 ## Decision
 
-**No decision recorded, and none may be recorded by an agent.** The licence
-choice is a MAINTAINER decision (`plan/00_ORCHESTRATION.md` §1.3) and no such
-decision exists in this repository. Per the Task 0.0 brief this task ends at
-*recommendation*: `pyproject.toml:10` and `README.md:300-302` are deliberately
-left untouched, so neither artefact silently adopts any option on the
-maintainer's behalf.
+**Decision recorded 2026-10-07, by the maintainer: Option 1 — this repository
+is licensed AGPL-3.0-or-later, as a whole.**
 
-**Recommendation: Option 1 — relicense the port to AGPL-3.0-or-later**,
-because the program is a literal transcription of AGPL source: AGPL §5(c)
-(`OpenCourant/LICENSE.md:213-219`) makes the whole work AGPL, Option 2 is
-therefore unlawful, Option 3 contradicts the project's stated goal (a faithful
-port), and Option 4 is not guaranteed and cannot gate the roadmap.
+The maintainer's words, verbatim:
 
-*A recommendation pending confirmation is not a decision.* An earlier revision
-of this file carried a "**Ruling:** … as a controller ruling pending
-maintainer confirmation" line directly under the recommendation; it claimed a
-decision that no maintainer made, so it contradicted the two sentences above
-it and has been removed. The only status this file records is the one in this
-section: none.
+> as to Licence resolution, set the license whatever you want, I dont care,
+> just that it would not stop the development
 
-### Consequences of the unrecorded decision
+This is a maintainer decision, recorded as such. It supersedes the earlier
+text of this section, which stated that no decision was recorded and that none
+might be recorded by an agent; that text described the state of the repository
+before 2026-10-07 and is no longer true.
 
-- `tests/test_p0_licensing.py::test_declared_licence_is_consistent` is marked
-  `@pytest.mark.xfail(strict=True)` with the contradiction as its reason. It
-  stays red by design; the day the artefacts are reconciled it XPASSes and
-  FAILS the suite, forcing the marker to be removed deliberately.
-- Every downstream phase whose entry criterion is "Task 0.0 decided" is
-  **unsatisfied**. This is the intended blocking behaviour: no further phase
-  may add upstream-derived code until a maintainer records one of the four
-  options above here.
-- Nothing in this repository's current `LICENSE`, `README.md` or
-  `pyproject.toml` should be read as evidence of which option was chosen.
+### Why Option 1, and not another
+
+- **Option 2 (relicense only the new program) is unlawful here.** The new
+  files are AGPL-covered derivative works of AGPL-covered code, so AGPL §5(c)
+  (`OpenCourant/LICENSE.md:213-219`) applies the AGPL "to the whole of the
+  work, and all its parts, regardless of how they are packaged". A literal
+  port cannot be split off from its own transcribed expression.
+- **Option 3 (re-derive every formula from published physics) would keep a
+  permissive licence, but it contradicts this project's stated goal** — a
+  faithful, Fortran-citing port — and it converts a transcription task into a
+  re-derivation task. The maintainer's condition above ("just that it would
+  not stop the development") rules it out.
+- **Option 4 (a Siemens grant) cannot gate the roadmap.** The path exists
+  upstream, but nothing can be assumed about the outcome. It is not closed by
+  this decision; it remains available to the maintainer at any time.
+- Option 1 is consistent with the upstream source the port derives from and
+  removes the conflict outright.
+
+### What was applied
+
+| Artefact | Now |
+| --- | --- |
+| `LICENSE` | The complete AGPL-3.0 text, preceded by this project's `-or-later` grant notice and copyright (© 2026 Minh Quang Pham), and a note that the port contains OpenRadioss-derived code © 2026 Siemens. |
+| `pyproject.toml` | `license = "AGPL-3.0-or-later"` (PEP 639 SPDX string) plus `license-files = ["LICENSE"]`. |
+| `README.md` | §License states AGPL-3.0-or-later and cites this decision; it no longer claims GPL-3.0 and no longer misattributes upstream copyright to Altair (upstream is © Siemens). |
+
+### Consequences
+
+- `tests/test_p0_licensing.py::test_declared_licence_is_consistent` is no
+  longer `xfail(strict=True)`: the decision exists and is applied, so it now
+  **passes for real**. It reads the three artefacts and asserts they agree, so
+  a future relicensing that misses one of them turns it red again.
+- The development gate is down. "Task P0.0 decided" is satisfied, so no
+  further phase is blocked for licensing reasons and new upstream-derived code
+  may be added under this decision. New files that transcribe upstream
+  Fortran are AGPL-3.0-or-later work, per §5(a)-(b) and the FSF per-file
+  notice template at `OpenCourant/LICENSE.md:630-644`.
+- Anyone distributing this software, or serving it to users over a network,
+  must satisfy AGPL §5 and §13 respectively — see the clauses quoted above.
+- The four options above remain on the record. This decision chose one of
+  them; it did not delete the reasoning that ruled the others out.

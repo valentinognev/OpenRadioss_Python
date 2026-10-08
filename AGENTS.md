@@ -10,25 +10,22 @@ Linux-first. Windows 11 is a supported compatibility target, not the assumption
 `plan/00_ORCHESTRATION.md` §4, and its §4.1 table is the single source of truth
 for every variable named below.
 
-## STOP — licensing gate: no new upstream-derived code
+## Licensing — decided: AGPL-3.0-or-later
 
-**Unresolved. Do not add new upstream-derived code** — no ported routine, kernel,
-material law, contact path or output path taken from `$OR_SRC` — until a
-maintainer records a decision. Upstream is **AGPL-3.0-or-later**; this
-repository declares MIT (`LICENSE`) *and* GPL-3.0 (`README.md`), so a literal
-port is an AGPL-covered derivative work: `plan/00_ORCHESTRATION.md`
-**§1.3, lines 58-73** (GATING, UNRESOLVED).
+**The licence gate is down. This repository is AGPL-3.0-or-later as a whole.**
+Decision recorded by the maintainer on 2026-10-07 (Option 1 in
+`docs/LICENSING.md` §Decision): `LICENSE` carries the complete AGPL-3.0 text,
+`pyproject.toml` declares `AGPL-3.0-or-later`, and `README.md` says so too.
+`tests/test_p0_licensing.py::test_declared_licence_is_consistent` reads those
+three artefacts and passes for real — it is no longer an `xfail`.
 
-- **No decision is recorded, and an agent may not record one**
-  (`docs/LICENSING.md` §Decision, lines 136-156 — a recommendation only). This
-  notice records none.
-- **What unblocks it:** the maintainer records one of the four options in that
-  §Decision and applies it, so `pyproject.toml`, `LICENSE` and `README.md` agree;
-  `tests/test_p0_licensing.py` is then updated by hand.
-- **The enforcement is documentary, not mechanical:** the only enforcement is
-  `tests/test_p0_licensing.py::test_declared_licence_is_consistent`, an
-  `xfail(strict=True)` that **PASSES**. Nothing stops you except this notice.
-- Working text: `docs/STATE.md` §Licensing gate, lines 11-56.
+New upstream-derived code — ported routines, kernels, material laws, contact
+and output paths taken from `$OR_SRC` — is expected and unblocked. Upstream is
+AGPL-3.0-or-later and this is a literal transcription of it, so AGPL §5(c)
+applies the AGPL to the whole work; new files that transcribe upstream Fortran
+are AGPL work and should carry the FSF per-file notice
+(`$OR_SRC/LICENSE.md:630-644`) with modified notices per §5(a)-(b).
+`plan/00_ORCHESTRATION.md` §1.3 carries the same status.
 
 ## Environment (do not deviate)
 
