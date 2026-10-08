@@ -1,4 +1,4 @@
-"""
+r"""
 /MAT/LAW87 (/MAT/BARLAT2000 / /MAT/BARLAT_2000 / /MAT/BARLAT2000_2D)
 Barlat Yld2000-2d Anisotropic Plasticity Model for Shells.
 

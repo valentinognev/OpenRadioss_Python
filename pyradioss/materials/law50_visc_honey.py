@@ -669,7 +669,7 @@ def solid_update(
     return_tuple: bool = True,
     **kwargs: Any,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray] | np.ndarray:
-    """Vectorized constitutive stress update for LAW50 solid elements.
+    r"""Vectorized constitutive stress update for LAW50 solid elements.
 
     Fortran origin: ``C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat050\sigeps50.F``
     (implemented as ``engine/source/materials/mat/mat050/sigeps50s.F90``).

@@ -1,4 +1,4 @@
-"""
+r"""
 OpenRadioss /MAT/LAW12 (/MAT/3D_COMP, /MAT/COMP_3D) — 3D Orthotropic Elastic Composite.
 
 Upstream OpenRadioss Fortran source references:

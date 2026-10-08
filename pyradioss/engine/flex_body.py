@@ -1,4 +1,4 @@
-"""
+r"""
 Flexible Body Modal Solver (/FXBODY).
 
 This module implements component mode synthesis (CMS) / modal superposition
@@ -61,7 +61,7 @@ import numpy as np
 
 
 class ModalEnergy(float):
-    """Modal energy container representing total modal energy (KE + PE).
+    r"""Modal energy container representing total modal energy (KE + PE).
 
     Behaves as a float (total energy) for scalar operations, but can also
     be unpacked as `(kinetic, potential)` or accessed via `.kinetic`,
@@ -285,7 +285,7 @@ class FlexBody:
         return self.kinetic_energy + self.potential_energy
 
     def critical_dt(self) -> float:
-        """Compute critical time step based on highest frequency: 2 / ω_max.
+        r"""Compute critical time step based on highest frequency: 2 / ω_max.
 
         Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\constraints\fxbody\hm_read_fxb.F (lines 633-646)
 
@@ -313,7 +313,7 @@ class FlexBody:
         return float(2.0 / omega_max)
 
     def compute_generalized_forces(self, external_forces: Union[Sequence, np.ndarray]) -> np.ndarray:
-        """Project physical external forces onto the modal basis: Q = Φᵀ · F.
+        r"""Project physical external forces onto the modal basis: Q = Φᵀ · F.
 
         Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodfp.F (lines 120-167)
 
@@ -345,7 +345,7 @@ class FlexBody:
         return self.q_force
 
     def modal_time_step(self, dt: float) -> np.ndarray:
-        """Integrate modal equations of motion for one time step dt:
+        r"""Integrate modal equations of motion for one time step dt:
             q̈ = M⁻¹ (Q - K·q - C·q̇)
 
         Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodvp.F (fxbodvp1, lines 60-155)
@@ -426,7 +426,7 @@ class FlexBody:
         return self.q
 
     def recover_displacements(self) -> np.ndarray:
-        """Recover physical nodal displacements from modal amplitudes: u = Φ · q.
+        r"""Recover physical nodal displacements from modal amplitudes: u = Φ · q.
 
         Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbdispl.F (fxbdepla, lines 57-127)
 
@@ -439,7 +439,7 @@ class FlexBody:
         return self.u
 
     def recover_velocities(self) -> np.ndarray:
-        """Recover physical nodal velocities from modal velocities: v = Φ · q̇.
+        r"""Recover physical nodal velocities from modal velocities: v = Φ · q̇.
 
         Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbyvit.F (fxbodvp2, lines 202-307)
 
@@ -452,7 +452,7 @@ class FlexBody:
         return self.v
 
     def update_physical_nodes(self, model: Any) -> None:
-        """Write recovered physical displacements and velocities back to model node arrays.
+        r"""Write recovered physical displacements and velocities back to model node arrays.
 
         Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbdispl.F (lines 128-140)
         and C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodvp.F (lines 325-341)
@@ -510,7 +510,7 @@ class FlexBody:
                 model.u[idx, : len(u_node)] = u_node
 
     def compute_modal_energy(self) -> ModalEnergy:
-        """Compute kinetic and potential energies in modal space.
+        r"""Compute kinetic and potential energies in modal space.
 
         Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodvp.F (ECIN, lines 128-148)
         and C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbodfp.F (ENINT, lines 397-404)
@@ -564,7 +564,7 @@ class FlexBody:
 
 
 def init_flex_bodies(model: Any) -> List[FlexBody]:
-    """Initialize flexible body solvers from model data (/FXBODY).
+    r"""Initialize flexible body solvers from model data (/FXBODY).
 
     Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\constraints\fxbody\ini_fxbody.F
     and C:\OpenRadioss\source\OpenRadioss-latest-20260520\starter\source\constraints\fxbody\hm_read_fxb.F
@@ -646,7 +646,7 @@ def init_flex_bodies(model: Any) -> List[FlexBody]:
 def flex_body_forces(
     model: Any, flex_bodies: Sequence[FlexBody], dt: Optional[float] = None
 ) -> float:
-    """Engine cycle hook for flexible bodies (/FXBODY).
+    r"""Engine cycle hook for flexible bodies (/FXBODY).
 
     Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbyfor.F
     and C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\constraints\fxbody\fxbyvit.F

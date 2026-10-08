@@ -856,7 +856,7 @@ def shell_update(
 # ==============================================================================
 
 def solid_update(*args: Any, **kwargs: Any) -> Any:
-    """Solid update stub per template.
+    r"""Solid update stub per template.
 
     Function: SIGEPS_119 (lines 33-152) in
     C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat119\sigeps119c.F
@@ -873,7 +873,7 @@ def solid_update(*args: Any, **kwargs: Any) -> Any:
 
 
 def tangent(*args: Any, **kwargs: Any) -> Any:
-    """Consistent tangent operator for LAW119 per template.
+    r"""Consistent tangent operator for LAW119 per template.
 
     Function: SIGEPS_119 (lines 33-152) in
     C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\materials\mat\mat119\sigeps119c.F

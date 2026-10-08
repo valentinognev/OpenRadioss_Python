@@ -1,4 +1,4 @@
-"""
+r"""
 OpenRadioss /MAT/LAW15 (CHANG) — Chang-Chang Orthotropic Composite Model with Tsai-Wu Plasticity.
 
 Upstream OpenRadioss Fortran source references:
