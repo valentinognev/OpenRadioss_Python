@@ -560,7 +560,7 @@ class ContactType11:
     ) -> Tuple[np.ndarray, np.ndarray, float]:
         """Compute thermal conduction and radiation for /INTER/TYPE11 edge-to-edge contact.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int11\\i11therm.F
+        Ported from $OR_SRC/engine/source/interfaces/int11/i11therm.F
 
         Parameters
         ----------

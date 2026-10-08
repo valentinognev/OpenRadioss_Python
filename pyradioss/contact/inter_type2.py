@@ -458,7 +458,7 @@ class ContactType2:
     ) -> Tuple[np.ndarray, np.ndarray, float]:
         """Compute thermal conduction across the tied contact interface.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\interf\\i2therm.F
+        Ported from $OR_SRC/engine/source/interfaces/interf/i2therm.F
 
         Parameters
         ----------
@@ -941,7 +941,7 @@ class LagmulType2:
     ) -> Tuple[np.ndarray, np.ndarray, float]:
         """Compute thermal conduction across the tied contact interface.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\interf\\i2therm.F
+        Ported from $OR_SRC/engine/source/interfaces/interf/i2therm.F
 
         Parameters
         ----------

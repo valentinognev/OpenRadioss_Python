@@ -481,7 +481,7 @@ class ContactType21:
     ) -> Tuple[np.ndarray, np.ndarray, float]:
         """Compute thermal conduction and radiation across /INTER/TYPE21 drawbead interface.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int21\\i21therm.F
+        Ported from $OR_SRC/engine/source/interfaces/int21/i21therm.F
 
         Parameters
         ----------

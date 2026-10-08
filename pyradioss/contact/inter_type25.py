@@ -425,7 +425,7 @@ class ContactType25:
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, float]]:
         """Compute general interface thermal contact conduction and radiation for /INTER/TYPE25.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int25\\i25therm.F
+        Ported from $OR_SRC/engine/source/interfaces/int25/i25therm.F
 
         Parameters
         ----------

@@ -743,7 +743,7 @@ class ContactType7:
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, float]]:
         """Compute thermal conduction, radiation, and friction heating for /INTER/TYPE7.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int07\\i7therm.F
+        Ported from $OR_SRC/engine/source/interfaces/int07/i7therm.F
 
         Parameters
         ----------

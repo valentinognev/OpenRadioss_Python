@@ -92,7 +92,7 @@ def thermal_contact_type2(
 ) -> Tuple[np.ndarray, np.ndarray, float]:
     """Compute thermal conduction across /INTER/TYPE2 tied contact interface.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\interf\\i2therm.F
+    Ported from $OR_SRC/engine/source/interfaces/interf/i2therm.F
 
     Parameters
     ----------
@@ -247,7 +247,7 @@ def thermal_contact_type7(
 ) -> Tuple[np.ndarray, np.ndarray, Dict[str, float]]:
     """Compute thermal conduction, radiation, and friction heating for /INTER/TYPE7.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int07\\i7therm.F
+    Ported from $OR_SRC/engine/source/interfaces/int07/i7therm.F
 
     Parameters
     ----------
@@ -466,7 +466,7 @@ def thermal_contact_type11(
 ) -> Tuple[np.ndarray, np.ndarray, float]:
     """Compute thermal conduction and radiation across /INTER/TYPE11 edge-to-edge contact.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int11\\i11therm.F
+    Ported from $OR_SRC/engine/source/interfaces/int11/i11therm.F
 
     Parameters
     ----------
@@ -604,7 +604,7 @@ def thermal_contact_type21(
 ) -> Tuple[np.ndarray, np.ndarray, float]:
     """Compute thermal contact with distance-decay conductivity for /INTER/TYPE21.
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int21\\i21therm.F
+    Ported from $OR_SRC/engine/source/interfaces/int21/i21therm.F
 
     Parameters
     ----------
@@ -790,7 +790,7 @@ def thermal_contact_type25(
 ) -> Tuple[np.ndarray, np.ndarray, Dict[str, float]]:
     """Compute general interface thermal contact with harmonic mean conductivity (/INTER/TYPE25).
 
-    Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\interfaces\\int25\\i25therm.F
+    Ported from $OR_SRC/engine/source/interfaces/int25/i25therm.F
 
     Parameters
     ----------
