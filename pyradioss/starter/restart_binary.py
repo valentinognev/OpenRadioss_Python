@@ -30,12 +30,12 @@ from .. import __version__
 from ..model.model import ElementGroup, Model
 
 # Upstream Fortran magic constants from engine/share/includes/scr03_c.inc:59,61
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\share\includes\scr03_c.inc
+# Ported from $OR_SRC/engine/share/includes/scr03_c.inc
 IRADIOS: int = 2143942393
 IRESFIL: int = 101
 
 # Binary restart file identifier (exactly 20 bytes for Fortran record)
-# Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\output\restart\wrrestp.F
+# Ported from $OR_SRC/engine/source/output/restart/wrrestp.F
 _MAGIC_BINARY: bytes = b"OPENRADIOSS-RST-BIN\x00"
 
 _ELEMENT_GROUP_NAMES = {
@@ -94,7 +94,7 @@ class FortranBinaryFile:
     def write_record(self, data: bytes) -> None:
         """Write one Fortran unformatted sequential record with 4-byte markers.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\output\\tools\\wrtsqi.F
+        Ported from $OR_SRC/starter/source/output/tools/wrtsqi.F
         """
         n = len(data)
         hdr = struct.pack("<i", n)
@@ -106,7 +106,7 @@ class FortranBinaryFile:
     def read_record(self) -> bytes:
         """Read one Fortran unformatted sequential record and verify record markers.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\input_output\\write_routines.c
+        Ported from $OR_SRC/common_source/tools/input_output/write_routines.c
         """
         hdr = self._fh.read(4)
         if not hdr:
@@ -130,7 +130,7 @@ class FortranBinaryFile:
     def write_array(self, arr: np.ndarray) -> None:
         """Write numpy array as a Fortran record.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\output\\tools\\wrtsqr.F
+        Ported from $OR_SRC/starter/source/output/tools/wrtsqr.F
         """
         data = np.ascontiguousarray(arr).tobytes()
         self.write_record(data)
@@ -142,7 +142,7 @@ class FortranBinaryFile:
     ) -> np.ndarray:
         """Read numpy array from record with optional shape or element count.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\output\\restart\\rdresb.F
+        Ported from $OR_SRC/engine/source/output/restart/rdresb.F
         """
         data = self.read_record()
         arr = np.frombuffer(data, dtype=dtype).copy()
@@ -157,14 +157,14 @@ class FortranBinaryFile:
     def write_int(self, value: int) -> None:
         """Write a 4-byte signed integer as a Fortran record.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\output\\tools\\wrtsqi.F
+        Ported from $OR_SRC/starter/source/output/tools/wrtsqi.F
         """
         self.write_record(struct.pack("<i", int(value)))
 
     def read_int(self) -> int:
         """Read an integer from a Fortran record.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\output\\restart\\rdresa.F
+        Ported from $OR_SRC/engine/source/output/restart/rdresa.F
         """
         data = self.read_record()
         if len(data) == 4:
@@ -176,14 +176,14 @@ class FortranBinaryFile:
     def write_float(self, value: float) -> None:
         """Write an 8-byte double precision float as a Fortran record.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\starter\\source\\output\\tools\\wrtsqr.F
+        Ported from $OR_SRC/starter/source/output/tools/wrtsqr.F
         """
         self.write_record(struct.pack("<d", float(value)))
 
     def read_float(self) -> float:
         """Read an 8-byte float from a Fortran record.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\output\\restart\\rdresb.F
+        Ported from $OR_SRC/engine/source/output/restart/rdresb.F
         """
         data = self.read_record()
         if len(data) == 8:
@@ -195,7 +195,7 @@ class FortranBinaryFile:
     def write_string(self, s: str, length: Optional[int] = None) -> None:
         """Write a string as a Fortran record with optional fixed length padding.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\common_source\\tools\\input_output\\write_routines.c
+        Ported from $OR_SRC/common_source/tools/input_output/write_routines.c
         """
         raw = s.encode("utf-8")
         if length is not None:
@@ -205,7 +205,7 @@ class FortranBinaryFile:
     def read_string(self, length: Optional[int] = None) -> str:
         """Read a string from a Fortran record.
 
-        Ported from C:\\OpenRadioss\\source\\OpenRadioss-latest-20260520\\engine\\source\\output\\restart\\rdresa.F
+        Ported from $OR_SRC/engine/source/output/restart/rdresa.F
         """
         data = self.read_record()
         s = data.decode("utf-8", errors="replace")
@@ -274,7 +274,7 @@ def write_restart_binary(model: Model, path: str, engine: Optional[dict] = None)
     """
     with FortranBinaryFile(path, "wb") as fb:
         # 1. Header block (magic number, version, format flags)
-        # Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\output\restart\wrrestp.F:475-508
+        # Ported from $OR_SRC/engine/source/output/restart/wrrestp.F:475-508
         fb.write_record(_MAGIC_BINARY)
         has_engine = 1 if engine is not None else 0
         has_aux = 1
@@ -285,7 +285,7 @@ def write_restart_binary(model: Model, path: str, engine: Optional[dict] = None)
         fb.write_string(title)
 
         # 2. Node block: coordinates, velocities, accelerations, masses
-        # Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\output\restart\wrrestp.F:523-543
+        # Ported from $OR_SRC/engine/source/output/restart/wrrestp.F:523-543
         n_nodes = int(model.numnod) if hasattr(model, "numnod") and model.numnod > 0 else len(getattr(model, "node_ids", []))
         fb.write_int(n_nodes)
         if n_nodes > 0:
@@ -313,7 +313,7 @@ def write_restart_binary(model: Model, path: str, engine: Optional[dict] = None)
             fb.write_array(np.ascontiguousarray(inertia, dtype=np.float64))
 
         # 3. Element block: connectivity, stresses, strains, internal energy
-        # Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\output\restart\wrrestp.F:550-600
+        # Ported from $OR_SRC/engine/source/output/restart/wrrestp.F:550-600
         groups = list(model.element_groups()) if hasattr(model, "element_groups") else []
         fb.write_int(len(groups))
         for name, group in groups:
@@ -344,7 +344,7 @@ def write_restart_binary(model: Model, path: str, engine: Optional[dict] = None)
                 fb.write_array(sarr)
 
         # 5. Engine state: time, cycle, dt, energy balances, rigid bodies, sensors
-        # Ported from C:\OpenRadioss\source\OpenRadioss-latest-20260520\engine\source\output\restart\wrrestp.F:360-424
+        # Ported from $OR_SRC/engine/source/output/restart/wrrestp.F:360-424
         fb.write_int(has_engine)
         if has_engine and engine is not None:
             t = float(engine.get("t", 0.0))
