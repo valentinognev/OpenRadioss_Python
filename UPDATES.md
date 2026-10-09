@@ -13,6 +13,61 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.14.0 - Task P2.4: the volume-upwind strain filter, transcribed from `upwind_v.F` (2026-10-09)
+
+`pyradioss/elements/solid_upwind.py` carries the `GAM` ladder of
+`$OR_SRC/engine/source/elements/solid/solide/upwind_v.F` and its two public
+callables, `filter_rate(group, dstra, dt)` and `should_upwind(group, dstra,
+dt)`. No existing kernel, no engine path and no `elements/__init__.py` export
+was touched; nothing calls this module yet.
+
+- **The ladder, not a single constant.** `UPWM == 2` is the one-line
+  Taylor-Galerkin branch (`FAC = CUPWM*HALF*DT1`, `upwind_v.F:74-77`);
+  `UPWM == 3` is the SUPG branch (`:100-107`), whose strength is picked per
+  element by the local Peclet number `PE = FAC*|tr|` against `EM3 = 1e-3` and
+  `THREE = 3` — three rungs (`DELTAX**2`, `GAM**2/V`, `GAM/V`), constants,
+  thresholds and branch order transcribed, nothing re-derived. A sweep of
+  `vis` alone walks the whole ladder, and the tests require the damping to grow
+  monotonically across it.
+- **The default is off, and the test says so with `array_equal`.** Upstream's
+  default is `ALE%UPWIND%UPWM = 0` (`ale_mod.F:325`), and `upwind_v.F` writes
+  `GAM` *only* for levels 2 and 3 — levels 0 and 1 use it as a dimensionless
+  sign coefficient on the transportation force (`amomt3.F:391-410`), never as
+  a rate. So a group that does not carry the property flag comes out of the
+  filter bit-identical: that is the reviewer focus at
+  `plan/03_phase2_elements_solid.md:698`, asserted rather than described.
+- **Volumetric only.** `upwind_v.F` is the volume variant, so only the leading
+  three columns (the trace) are relaxed, towards the element group's mean,
+  over one step with mixing fraction `1 - exp(-GAM*dt)`. The deviatoric columns
+  are returned untouched, and because the target is a group mean the blend is a
+  convex combination — a lone spike is damped and the field's peak magnitude
+  can never rise, which is what the Fortran's own algebra gives on its worst
+  input and is asserted rather than left to a plot.
+- **`should_upwind` is the switching predicate.** Off for every element unless
+  the flag selects level 2 or 3, and within a filtered group it selects only
+  elements whose `|tr|` exceeds twice the group median: bulk volume transport
+  is what the stabilization schemes are *for*, and damping it is why a smooth
+  strain field is unchanged whether or not the deck asked for upwinding.
+
+**One generated record moves with it.** Citing `upwind.F`/`upwind_v.F` in the
+new module's docstring is what `tools/census.py` reads to map Fortran to
+Python, so `tools/validation_data/census.json` now resolves both files to
+`pyradioss.elements.solid_upwind` instead of `null`/`missing`. Regenerated
+with `python tools/census.py`; the diff is that one field and `plan/CENSUS.md`
+is byte identical. Left stale it fails
+`tests/test_p0_census.py::test_committed_artifacts_are_byte_reproducible`, so
+the record is part of this task rather than a follow-up.
+
+**Evidence.** `tests/test_p2_solid_upwind.py` (21) and
+`tests/test_p1_documentation_contract.py` (6) pass, 27 total; the census,
+reconciliation, module-size and licence gates pass alongside them (85).
+Interpreter: this disposable worktree carries no `.venv` of its own, so the
+run used `$PYTHON` as AGENTS.md §Environment resolves it — Python 3.12.3, the
+`requirements-lock.txt` §[B] pin. The fast tier on that interpreter is
+`14903 passed, 17 skipped, 20 deselected, 25 xfailed`, measured on this branch
+with Task P2.1 merged in; nothing here depends on a version-sensitive numerical
+path — the filter is a closed-form blend of the strain-rate field.
+
 ## 1.13.0 - Task P2.1: `solid_tria3` is a declared port extension, not a port - the fabricated `solid_2d/tria` citation is gone (2026-10-09)
 
 `pyradioss/elements/solid_tria3.py` claimed a Fortran origin under

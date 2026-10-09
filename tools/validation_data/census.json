@@ -25987,7 +25987,7 @@
         "emomt2"
       ],
       "area": "engine/source/elements/solid/solide",
-      "python_module": null,
+      "python_module": "pyradioss.elements.solid_upwind",
       "status": "missing"
     },
     "engine/source/elements/solid/solide/upwind_v.F": {
