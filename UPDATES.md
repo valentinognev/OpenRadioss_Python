@@ -13,6 +13,88 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.12.0 - Task P2.3: the solid-to-2-node degeneration paths, and the sort that decides which pair survives (2026-10-09)
+
+`pyradioss/elements/solid_degenerate.py` and
+`tests/test_p2_solid_degenerate.py`. No existing kernel, no engine path and no
+`elements/__init__.py` export was touched; this task adds a module and nothing
+calls it yet.
+
+**The four routines, opened before a line was written** —
+`engine/source/elements/solid/solide/ssort_n4.F`, `.../solide/sfor_n2s4.F`,
+`.../solide/sfor_ns2s4.F90`, `.../solide/sfor_4n2s4.F90` and
+`.../solide4/sfor_n2stria.F`.
+
+- **`ssort_n4` is a node re-ordering, and it is transcribed, not re-derived.**
+  It permutes nothing: it writes an integer code — `2` (flattened inside
+  MARGE), `3`/`4`/`5`/`6` (one pair merged) or `0` (already a line) — and every
+  downstream `SELECT CASE` re-orders the nodes by that code. The ladder is
+  branch-for-branch in the Fortran's own order (`X4==X3`, then `X2==X1`, then
+  `X4==X1`, then `X3==X2`, each `CYCLE`ing on its first hit), because the order
+  *is* the answer: a quad with several merged pairs takes the earliest branch,
+  and a rule that picks "the" merged pair on any other criterion gets the same
+  *set* of nodes in several cases and the wrong order in all of them. The tests
+  pin each branch against the one a re-derived rule would have chosen.
+- **The two ways of reaching code `0` stay distinguishable.** Upstream lets both
+  stand — `X4==X3` then `X2==X1` (the line runs 1 → 3) and `X4==X1` then
+  `X3==X2` (the line runs 1 → 2) — and does not need them apart, because it
+  *skips* those quads. A port that has to reduce them needs the pair, so
+  `line_pair()` walks the same ladder rather than inferring a pair from `0`.
+- **`six_to_two`, `eight_to_two` and `four_to_two` carry the element's mass and
+  its centroid.** The weights are the lumped mass projected onto the surviving
+  segment, measured from the nodes; the tests assert the first-moment identity
+  `sum m_k x_k`, not a tuple compare, and one of them pins a collapse whose nodes
+  are *not* evenly split (the top face stops at the midpoint, giving weights
+  `[0.625, 0.375]`). A hand-written half-and-half split passes every uniform
+  case and fails that one. A solid whose nodes leave the line is refused rather
+  than reduced: a flat face is not a line collapse.
+- **`four_to_four_striking` keeps upstream's four `ns = n1..n4` passes
+  independent**, each with its own `IFC2` and the `ITGSUB` a pass borrows handed
+  back afterwards, and carries `sfor_ns2s4`'s `SELECT CASE` tables verbatim. The
+  `HJ` slot table is transcribed, *not* derived from the triangle, and the two
+  disagree: code 3 puts `LA` on node 1 while its triangle `3-4-2` has `XA` at
+  node 2, so `sum(hj_j * X_j)` is not the striking point for every code. That is
+  upstream's formulation and a port that "fixes" it stops matching the Fortran.
+- **One deliberate deviation.** `sfor_ns2s4` divides by `S2` with no guard; this
+  port uses `max(EM20, S2)`, the same `one/max(em20, ...)` idiom the routine
+  itself uses two loops earlier to normalize the normal. It changes nothing
+  upstream computes and keeps a collinear quad from producing `inf` weights.
+- **Not in scope, deliberately:** the forces. `sfor_n2s4`/`sfor_ns2s4` go on to
+  build `FN`, book `E_DISTOR` and scatter into `FOR_T`/`FORC_N`; that is the
+  distortion-energy path, which reads the element's stiffness history and
+  belongs to a different task. This module owns the topology and the weights
+  that path consumes.
+
+**The plan's Step-1 sample does not describe the interface, and the interface
+block wins.** `plan/03_phase2_elements_solid.md` P2.3 §Interfaces declares
+`six_to_two(state, nodes) -> (ids, weights)`, while its Step-1 sample calls a
+`hexa_to_two` returning a four-tuple `(ids, w, m, com)`. This entry follows the
+Interfaces block: the name is `eight_to_two`, there is no `hexa_to_two` alias,
+and mass and centroid are read off the returned weights rather than returned
+again — a weight vector that does not conserve them is the bug those two extra
+numbers would have hidden.
+
+**No parity row was added, and no deck was invented.** The Phase 0 oracle *is* on
+this machine — `~/OpenRadioss_or/bin/starter_linux64_gf` and
+`engine_linux64_gf`, reached with `OR_BUILD` and `OR_ROOT` exported as
+`tools/oracle/oracle_env.sh` requires, and the engine launches and reports its
+version. What is absent is the *deck*: no example under `examples/` collapses a
+solid onto a line, and `tests/data/rd_decks` has none either. A parity case
+would therefore have meant writing a new deck, which is outside this task's
+file set, so `tools/validate_vs_fortran.py parity` was not run for it.
+
+**Evidence and how it was measured.** `tests/test_p2_solid_degenerate.py` (56
+tests) and `tests/test_p1_documentation_contract.py` (6) pass, 62 total. The
+interpreter is not the repo's recorded Linux `.venv` — that tree has no
+`.venv` at all in this worktree, and no candidate interpreter on the box
+matches `requirements-lock.txt` §[B] (numpy 2.5.3 / scipy 1.18.1); the run used
+the `aid` environment (numpy 2.4.6, scipy 1.18.0, pytest 9.1.1), which matches
+§[A] exactly. Nothing here depends on a version-sensitive numerical path — the
+degradations are exact comparisons and closed-form projections — but the
+figures above are that interpreter's, and the full suite was not run.
+
+
+
 ## 1.11.0 - Task P1.10: the documentation contract - one measured baseline, a program-status pointer, and a changelog in order (2026-10-08)
 
 The first program-era task that changes no code at all, and the first to find
