@@ -13,6 +13,73 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.16.0 - Task P2.5: the 5-hourglass-mode control, and the ledger it books into (2026-10-09)
+
+`pyradioss/elements/solid_hourglass5.py` and `tests/test_p2_hourglass5.py`. No
+existing kernel, no engine path and no `elements/__init__.py` export was
+touched; this task adds a module and nothing calls it yet.
+
+**The four sources, opened before a line was written** —
+`engine/source/elements/solid/solide/s_hg5.F` (the control),
+`.../solide/shvis3.F` (its viscous sibling, which the port already implements
+as the `Isolid=1` default), `.../solidez/shour_ctl.F90` (the distortion-control
+coefficient ladder), `.../solide/fderi3.F` (the `PX*H` hourglass projection)
+and `starter/source/properties/solid/hm_read_prop14.F` (the property read).
+
+- **What selects it is `Isolid=5`, and it is a different control, not a bigger
+  one.** `hm_read_prop14.F:233-235` maps the formulation flag 5 to `IINT = 3`,
+  and `sforc3.F:1232` dispatches `IINT == 3` to `S_HG5` and everything else to
+  `SHVIS3`. `enabled()` is exactly that dispatch read off the property the deck
+  already carries, so the control is off by default and a deck that does not
+  ask for it is bit-for-bit untouched — which is also why nothing in the engine
+  needs changing for this commit.
+- **The mode matrix is read, never rebuilt.** `solid_hexa8._hg_operators()`
+  already returns `gamma`, the Flanagan–Belytschko shape vectors `_H`
+  orthogonalized against the linear field — the port's `PX*H` hourglass matrix,
+  which `s_hg5.F:211-278` builds column by column from the shape gradients.
+  This module calls it and never rebuilds it, per the P2.5 contract.
+- **`gamma`'s rows are not in `s_hg5.F`'s column order, and getting that wrong
+  silently swaps two modes.** `_H` is the FB table; `s_hg5` numbers its columns
+  by the sign product of the coordinates the mode alternates in. Reading the
+  base patterns off the Fortran G blocks (lines 212, 233, 253, 274) against
+  `_XI` gives column 1 = `x*y` = `_H` row 2, column 2 = `y*z` = row 0, column 3
+  = `x*z` = row 1, column 4 = `-x*y*z` = row 3 with sign −1. Hence the public
+  names `xy | yz | zx | xyz` (`hg_mode="zx"` is Fortran column 3), and
+  `_MODE_ROW`/`_MODE_SIGN` are that table. Each name is pinned by a test that
+  checks it drives its own row and that no two rows give the same force.
+- **The energy is the point, and the test proves it is the TRAPEZOID.** The M36
+  finding was a control that produced force and booked no work: the force test
+  passed and the balance leaked. `s_hg5.F` books the work twice — half against
+  the hourglass stress *before* it is advanced, half after (`:297-305`,
+  `:371-379`), each with `DT05 = dt/2`, with `FHOUR *= OFF` in between
+  (`:307`). Both halves are transcribed and the result lands in BOTH ledgers:
+  the per-element `state["ehour"]` the balance tests read, and
+  `state["evis"][8]` (slot 8 = the hourglass row of `PARTSAV(8,*)`,
+  `s_hg5.F:393`). The test holds a modal velocity constant for six cycles and
+  asserts the total is exactly `½ (FHOUR_final · v) T`; booking the rectangle
+  `FHOUR_new · v dt` instead comes out twice as large, which is the leak.
+- **The coefficient ladder is transcribed arm by arm**, not re-derived: the
+  `SELECT CASE (MTN)` (`1`, `42/69`, `62`, `70`, `88`, `90`, default), the
+  `F_GT` / `SFAC1 = TEN` stiffening blocks, the law-1/62 hourglass-strain
+  block, and the `IF (ISCTL==0) F_ET=ONE` reset at `:204`. A test pins the
+  law-62 `F_ET = TEN` jump (`SFAC1 > 2`) against the value recomputed by hand
+  from the Fortran factors.
+- **`rot` is rejected when it is not the identity.** `s_hg5.F` rotates
+  nothing — the port's `Isolid=1` solid carries its stress in the global basis
+  and `gamma` is built from global gradients — so a rotated force here would
+  be physics upstream never computes. The parameter exists for signature
+  symmetry with the other solid kernels and says so.
+- **One documented asymmetry, and it is upstream's.** `s_hg5.F`'s fourth
+  column carries no `PX*H` correction at all (it is the raw warping pattern)
+  while columns 1–3 carry one; the port's `gamma` orthogonalizes all four
+  rows, so mode 4 inherits the port's correction where upstream has none.
+  Every other part of the routine is common to all four columns.
+
+**No parity number is quoted, and none can be yet.** Nothing in the engine
+calls this module, so no deck exercises it and `tools/validate_vs_fortran.py
+parity` has nothing to compare; the physics claims above are pinned against the
+Fortran's own algebra in `tests/test_p2_hourglass5.py`, not against a solver
+run. A parity run belongs to the task that wires `Isolid=5` into the cycle.
 
 ## 1.15.0 - Task P2.2: the `solidez` orthotropic solid family (mmodul / sortho / szforc3) (2026-10-09)
 
