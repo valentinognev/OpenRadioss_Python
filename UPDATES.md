@@ -13,6 +13,74 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.18.0 - Task P2.7: the remeshing remap — `sreploc3` / `srepiso3` family (2026-10-09)
+
+`pyradioss/elements/solid_remesh.py` and `tests/test_p2_solid_remesh.py`.
+No existing kernel, no engine path and no `elements/__init__.py` export was
+touched; this task adds a module and nothing calls it yet.
+
+**The consumer is declared, as the plan makes mandatory.** Phase 11's ALE and
+Euler remeshers are the consumer of `remap_state`, and Phase 11 Task P11.15
+(`plan/12_phase11_ale_airbag_fsi.md`) is the task that wires the call. The
+declaration is in the module docstring, in `remap_state`'s own docstring and
+here. **Phase 11 must actually call it**, or this task's code is dead — that
+phase's own test (`test_remesh_actually_calls_the_tensor_remap`) exists to
+enforce it.
+
+**The four sources, opened before a line was written** —
+`engine/source/elements/solid/solide/srepiso3.F` (the R/S/T vectors),
+`.../solide/sreploc3.F` (the orthogonalization), `.../srepiso12.F` (the same
+plus the `OFF <= 1` skip) and `.../srepisot3.F` (the same again, single
+precision, for the anim/output path) — plus their consumers
+`.../solide/srcoor3.F` and `engine/source/ale/alefvm/scoor3_fvm.F`, which fix
+the frame **convention** rather than merely its value.
+
+- **None of the four interpolates a field onto a new mesh.** All four build an
+  orthonormal element frame from a brick's geometry, and the callers
+  re-express state that was stored in one frame after the mesh moved into
+  another. So the port is `local_frame` (= `srepiso3` + `sreploc3`),
+  `remap_isotropic` (the `R M Rᵀ` rule) and `remap_state` (the composition,
+  and what Phase 11 calls).
+- **`sreploc3`'s zero guard is exact, not an epsilon.** `SUMA` is assigned
+  `SQRT(...)` *before* the test, so a zero length is left at zero and
+  `E1 = R*0 = 0`: a collapsed brick gets a **zero frame**, not an identity
+  frame and not a NaN. `solid_hexa8z._corotational_frame` clamps to `EM20`
+  for `sortho3` — that is a different routine, and `local_frame` does not do
+  it. `test_local_frame_of_a_collapsed_r_is_zero_not_nan` pins the difference.
+- **`sreploc3` never reads `T`.** It takes `RX..TZ` and uses only `R` and `S`.
+  The frame is blind to the third diagonal and `local_frame` is too; a test
+  holds that so a future reader who "fixes" it finds out.
+- **The frame change is `Q = F_newᵀ F_old`, not `F_new F_oldᵀ`.** The frame's
+  rows are the *directions* (`srcoor3.F:301-306` puts dir1 in `GAMA(:,1:3)`),
+  so local components are `Fᵀ v_global` (`srcoor3.F:562-574`). The transposed
+  product is a real bug and it is silent: it produces a perfectly orthogonal,
+  perfectly finite, wrong matrix. The consequence worth stating because it is
+  easy to invert — under a **rigid** rotation `R` of the mesh
+  (`F_new = F_old Rᵀ`), `Q` collapses to *exactly* `R`, so a rigidly rotated
+  element frame must leave the state rotated by `R` and nothing else. Two
+  tests pin that (`…collapses_to_r…`, `…rotates_the_state_by_r`), and the
+  transposed alternative is asserted to be *different*.
+- **The engine's `sreploc3.F` dummy-argument order is permuted.** The routine
+  declares `E1X, E1Y, E1Z, E2X, …` (line 58) while every caller passes
+  `E1X, E2X, E3X, E1Y, …` (`s10ke3.F:210`, `s10forc3.F:533`,
+  `s4forc3.F:416`, `scoor3.F:194`). Fortran matches positionally, so the
+  caller's `E2X` receives what the routine calls `E1Y`. Every caller passes
+  and consumes in the same order, so the computed frame is right — but reading
+  the engine file alone suggests the columns are transposed when they are not,
+  and a port that "cleans up" the argument list would silently break all four
+  callers. Recorded in the module docstring.
+- **`remap_state` dispatches on trailing shape, never on key name.** A
+  `(nel, 3, 3)` value is second-order, `(nel, 3)` first-order, anything else a
+  scalar. Guessing from a name like `"stress"` would need a list of names to
+  maintain and would mis-transform anything not on it. Scalars are **copied,
+  never rotated** — a scalar has no direction, and rotating `dens` is the
+  classic remesh bug, so that is a test rather than an assumption.
+
+No oracle parity run accompanies this task, and that is deliberate rather
+than skipped: the module has no caller, so no deck exercises it and there is
+nothing for the Fortran solver to differ from. The parity case belongs to
+Phase 11 Task P11.15, which is where the code enters a run.
+
 ## 1.17.0 - Task P2.6: degeneracy detection, the length correction it buys, and the dim/ind assembly mesh (2026-10-09)
 
 `pyradioss/elements/solid_degeneracy.py` and `tests/test_p2_solid_degeneracy.py`.
