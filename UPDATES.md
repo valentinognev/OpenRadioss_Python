@@ -13,6 +13,57 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+
+## 1.15.0 - Task P2.2: the `solidez` orthotropic solid family (mmodul / sortho / szforc3) (2026-10-09)
+
+The first solid kernel whose behaviour is **frame-dependent**, and the first
+where the plan's reading of the Fortran had to be corrected against it. New
+`pyradioss/elements/solid_orthotropic.py` (1200 lines) with 30 tests in
+`tests/test_p2_solid_orthotropic.py`.
+
+- **Exports** `init_group`, `forces`, `dt_claim`, `tangent`, `kgeo`, plus
+  `stress_from_strain`, `hourglass_moduli`, `material_frame` and the ported
+  routines `gettransv`, `cbatran3v`, `mstiforthv`, `mmod_norm`, `sz_dt1`,
+  `scoor_cp2sp`, `sordeft3`, `sroto3`, `szordef3`. Geometry and lumping go
+  through `solid_hexa8.init_group` (`srcoor3.F` / `smass3.F` are the same
+  one-point brick), so `IORTH == 0` reproduces `solid_hexa8.forces` **bitwise**.
+- **The moduli rotation is done on the 4th-order elasticity tensor**, not on the
+  Voigt matrix. This is the substantive finding of the task: the strain is
+  read in engineering shear (`gamma = 2 eps`) while the stress slot is plain
+  (`tau_ab IS sigma_ab`), so the Kelvin operators for strain and stress are
+  neither inverses nor transposes of each other and **no ordering of them**
+  turns a Voigt shear of `G` into the rotated answer. Every wrong variant still
+  returns a symmetric matrix and still maps a permuted frame onto a diagonal,
+  so the load-bearing check is the invariance: an isotropic moduli matrix comes
+  back unchanged under *any* frame to round-off (~1e-16 relative). Verified
+  against the raw tensor rotation of a pure shear, and cross-checked between
+  the `forces` path and `tangent`'s `D` (agree to 1.9e-17 relative on an
+  anisotropic material).
+- **`mmodul.F`'s `ELSE` branch is not the constitutive Lamé stiffness.** It
+  reads `C1 = 3E/(1+ν)`, `LAMDA = C1·ν`, `GG = C1(1-2ν)` and writes
+  `CC11 = LAMDA + GG = 3E(1-ν)/(1+ν)`, which is `3(1-2ν)` times the physical
+  `lam + 2G` — 20% off at an ordinary `ν = 0.3`. `CC`/`CG`/`G33` are the
+  **hourglass** moduli and are kept exactly as upstream builds them; the
+  constitutive moduli `D` are taken separately from the material law, which is
+  what makes the isotropic limit exact.
+- **`scoor_cp2sp.F` is a coordinate split, not a transform**: it copies
+  `X0(I,1..8)`/`Y0`/`Z0` (declared `DOUBLE PRECISION`) into 24 separate
+  `my_real` arrays `X1..X8`, `Y1..Y8`, `Z1..Z8`. Ported as exactly that; the
+  strain-rate-to-material-frame transform is `sordeft3.F`.
+- **`sz_dt1.F90` yields a length, not a time step** (`DELTAX1`, gated on
+  `gfac = G/BULK`), yet `solid_cohesive.py` and `solid_connect.py` cite it for
+  an eigenvalue `dt` bound.
+- **Declared absent:** the orthotropic hourglass law (`szhour3_or.F`,
+  `szsvm_or.F`, `szhour_ctl.F`, `gfhour_or.F`, `szstrainhg.F`) is not
+  transcribed; the orthotropic branch runs the isotropic viscous
+  Flanagan–Belytschko hourglass, which is what upstream itself calls at
+  `szforc3.F:970` for `ISORTH == 0`. The moduli those routines consume *are*
+  ported, exposed and tested.
+- **No parity case added.** RD-E-2100 exists only as a zip under
+  `guide/radioss_models/example/` and contains **no orthotropic material**, and
+  registration in the element dispatch is Task P2.11. Recorded here rather than
+  worked around.
+
 ## 1.14.0 - Task P2.4: the volume-upwind strain filter, transcribed from `upwind_v.F` (2026-10-09)
 
 `pyradioss/elements/solid_upwind.py` carries the `GAM` ladder of
