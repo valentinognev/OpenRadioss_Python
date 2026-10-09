@@ -13,6 +13,79 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.17.0 - Task P2.6: degeneracy detection, the length correction it buys, and the dim/ind assembly mesh (2026-10-09)
+
+`pyradioss/elements/solid_degeneracy.py` and `tests/test_p2_solid_degeneracy.py`.
+No existing kernel, no engine path and no `elements/__init__.py` export was
+touched; this task adds a module and nothing calls it yet.
+
+**The four sources, opened before a line was written** —
+`engine/source/elements/solid/solide/degenes8.F` (the `IDEGE` count),
+`.../solide/idege8.F` + `.../solide/idege.F` (the per-face degenerate-quad
+scan), `.../solide/sdlen_dege.F` + `.../solide/sldege.F` (the `FAC` ladder and
+the `DELTAX` correction), `.../solide/deges4v.F` + `.../solide/nodedege.F` +
+`.../solide/tetra4v.F` (the fully collapsed case), and
+`engine/source/elements/thickshell/solidec/dim_tshedg.F`, `.../ind_tshedg.F`,
+`.../tshcdcom_ini.F`, `.../tshcdcom_dim.F` (the degenerate-direction edge
+list).
+
+- **One definition of "degenerate", and it is the Starter's.**
+  `starter/initialization.py` runs a /BRICK with 5, 6 or 7 distinct node ids
+  through the same 8-node kernel with the connectivity as written, repeats
+  included; 4 distinct becomes a /TETRA4 and never reaches the brick kernel at
+  all. `detect()` is true on exactly that population. The plan's Step 3 warning
+  — "a Starter that marks an element collapsed while the Engine never sees the
+  flag is a silent inconsistency" — is therefore a **test**, not a claim:
+  `test_detect_agrees_with_the_starter_collapsed_hexa_mark` runs
+  `_convert_degenerated_bricks` for real, takes the collapsed-hexa tally out of
+  the Starter's own message, and requires `detect()` to reproduce it over the
+  bricks the Starter actually kept. `degenes8()` is also held to the inline
+  `IDEGE` that `solid_hexa8.init_group` computes for `lc_scale`, so the two
+  implementations of one count cannot drift.
+- **`detect()` also sees the collapse the id test cannot.** A deck can flatten
+  a face by giving every corner its own node, and `degenes8` (repeated *ids*)
+  is then silent. That is `nodedege`'s case — upstream compares *positions*
+  there — so `detect(group, x)` unions it in. The union is one-directional:
+  the Starter's mark is always a subset, so this can catch a collapse the id
+  test misses but can never contradict a Starter that already ran. It is
+  deliberately not a Jacobian or volume test.
+- **Nothing is deleted, because upstream deletes nothing.** `sgeodel3.F`
+  (`engine/element_erosion.py`, already ported) is the only solid deletion
+  criterion and it is property-driven (`/DEL` col_min / defv_min / asp_max),
+  not degeneracy-driven. What upstream does with a crushed brick is correct
+  its characteristic length, because `lc = V/A_max -> 0` as the element
+  flattens and a zero `lc` is a zero time step. `degeneracy_factors()` and
+  `characteristic_length()` are that correction (`sdlen_dege.F`:
+  `DELTAX = 4*V_G/sqrt(FAC*AREAM)`).
+- **`degeneracy_factors()` ports `sdlen_dege`, not `sldege`.** The two callers
+  of the same expression differ — `sldege` counts faces with `AREA < EM30`,
+  `sdlen_dege` counts repeated nodes — and the connectivity version is the one
+  that agrees with `detect()` and therefore with the Starter. It is also the
+  one with the coarser `FAC` ladder (`1/9`, `1/4`, `1` at `IDEGE` 3, 2, 1).
+  `sqrt(FAC)` sits in the denominator, so the correction *multiplies* the
+  length by 2 (`IDEGE = 2`) or 3 (`IDEGE > 2`) — the same 2x/3x the engine's
+  `lc_scale` applies from the count alone.
+  `test_the_length_correction_actually_moves_the_number` pins that on the
+  plan's own 3-repeat wedge sample: `lc_corrected == 3 * lc_plain`, so the test
+  cannot pass vacuously.
+- **`IDEGE8`'s area normalization is `(4*area)^2`, not the `(2*AREA)^2` its
+  comment claims.** With `R = P13-P24`, `S = P13+P24`, `R x S = -2 P13 x P24`,
+  so `A = (4*area)^2`. That is the same normalization `slen.F` uses, which is
+  why `sdlen3.F`'s `4*VOL/sqrt(AREAM)` comes out as `VOL/A_max`. The Fortran
+  wins over its own comment; the module docstring records the discrepancy.
+- **The `dim_tshedg`/`ind_tshedg` halves are one list, so this is one
+  function.** `assemble_isotropic(mesh, ids)` returns the `IENUNL(2, NEDG)`
+  array `ind_tshedg` writes, built in the `JHBE == 15` (8-node solid) branch's
+  order. The load-bearing part is `ITAG`: a direction is emitted only when both
+  its nodes are still unclaimed, so the result is a *matching*, not a
+  per-element list. Upstream has no `N1 /= N2` guard, so a brick collapsed
+  along a direction yields a self-loop edge — kept here and pinned by
+  `test_assemble_isotropic_keeps_the_self_loop_upstream_produces`.
+- **`tshcdcom_dim`/`tshcdcom_ini` reduce to a mask on one rank.** `mpi4py` is
+  not installed in this tree (`comm.mpi_world_size()` is always 1), so the
+  `spmd_exch_dttsh` call is the identity and `tag_elements()` is the whole
+  routine; `tagged_ids()` is the compaction `tshcdcom_ini` performs.
+
 ## 1.16.0 - Task P2.5: the 5-hourglass-mode control, and the ledger it books into (2026-10-09)
 
 `pyradioss/elements/solid_hourglass5.py` and `tests/test_p2_hourglass5.py`. No
