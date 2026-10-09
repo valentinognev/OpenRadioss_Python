@@ -59,13 +59,13 @@ REPO = Path(__file__).resolve().parent.parent
 #: ``solid/solide/``, ``solid_2d/tria/`` -- and a two-level pattern would walk
 #: straight past the citations it is meant to catch.
 QUALIFIED = re.compile(
-    r"(?:engine|starter|common)/source/elements/[A-Za-z0-9_/]+\.F"
+    r"(?:engine|starter|common)/source/elements/[A-Za-z0-9_/]+\.F(?:90)?"
 )
 
 #: The plan's bare form, resolved against ``engine/source/`` as the plan says.
 #: It needs the same open depth, or ``elements/solid_2d/tria/t3forc2.F`` --
 #: the exact shape this gate was written for -- would not match at all.
-BARE = re.compile(r"(?<![a-z_])elements/[a-z0-9_/]+\.F")
+BARE = re.compile(r"(?<![a-z_])elements/[a-z0-9_/]+\.F(?:90)?")
 
 #: Citations that were already wrong when this gate landed, in modules this task
 #: is not allowed to edit.  Each still needs its own decision -- many look like a
