@@ -1,11 +1,15 @@
 """
 3-node Constant Strain 2D Triangle Solid Element (/TRIA / /TRIA3).
 
-Fortran origin: ``engine/source/elements/solid_2d/tria/``
-    t3forc2.F  driver: constant strain kinematics, hoop stress, internal forces
-    t3deri2.F  area, centroid radius, in-plane Cartesian gradients
-    t3rota2.F  Jaumann stress rate rotation
-    t3dlen2.F  characteristic length -> Courant time step
+**This module is a declared port extension, not a port**, registered with its
+justification and upstream-search evidence in ``docs/PORT_EXTENSIONS.md`` and
+kept honest by ``tests/test_p2_tria3_provenance.py``. There is no open-source
+kernel to transcribe: ``engine/source/elements/solid_2d/`` holds only ``quad/``
+and ``quad4/`` with no ``tria/``, while the ``tria/`` under ``starter/`` holds
+just two deck readers, ``t3grhead.F``/``t3grtails.F``. /TRIA3 is a declared
+element of the input format whose kernel ships only in the closed-source tree,
+so the only honest citation is **Simcenter Radioss (closed source)**. Nothing
+here was read off a Fortran routine; this module must never be listed as a port.
 
 Theory notes:
 * 3 nodes in the (Y, Z) plane with 2 translational DOFs per node (Y=radial, Z=axial).
@@ -14,14 +18,12 @@ Theory notes:
       dN1/dy = (z2 - z3) / (2A),  dN1/dz = (y3 - y2) / (2A)
       dN2/dy = (z3 - z1) / (2A),  dN2/dz = (y1 - y3) / (2A)
       dN3/dy = (z1 - z2) / (2A),  dN3/dz = (y2 - y1) / (2A)
-* Axisymmetric formulation (N2D=1):
-    - Centroid radius: r_c = (y1 + y2 + y3) / 3
-    - 1-radian volume: V = A * r_c
-    - Hoop strain rate: D_theta = (v_{y,1} + v_{y,2} + v_{y,3}) / (3 * r_c)
-    - Radial hoop force: f_{y,i}^{hoop} = - 1/3 * A * sigma_theta
-* Plane strain formulation (N2D=2):
-    - Volume per unit thickness is A.
-    - Out-of-plane strain D_theta = 0.
+* Axisymmetric formulation (N2D=1): centroid radius r_c = (y1 + y2 + y3) / 3,
+    1-radian volume V = A * r_c, hoop strain rate
+    D_theta = (v_{y,1} + v_{y,2} + v_{y,3}) / (3 * r_c), and the radial hoop
+    force f_{y,i}^{hoop} = - 1/3 * A * sigma_theta on the Y DOFs.
+* Plane strain formulation (N2D=2): volume per unit thickness is A, and the
+    out-of-plane strain D_theta = 0.
 """
 
 from __future__ import annotations
@@ -304,10 +306,9 @@ def forces(group, x, v, vr, dt, fint, mint):
 # ----------------------------------------------------------------------------
 # Implicit element matrices: tangent, kgeo, consistent_mass (M614 Component 1B)
 # ----------------------------------------------------------------------------
-# Fortran origin:
-#   engine/source/elements/solid_2d/tria/t3forc2.F (driver)
-#   engine/source/elements/solid_2d/tria/t3deri2.F (derivatives)
-#   starter/source/elements/solid_2d/tria/t3mass2.F (mass)
+# Port extension -- no upstream counterpart (see the module docstring and
+# docs/PORT_EXTENSIONS.md): the standard CST consistent matrices, built from the
+# same shape functions _geometry_tria() gives above.
 # ----------------------------------------------------------------------------
 
 def _edofs(conn: np.ndarray) -> np.ndarray:
@@ -325,8 +326,7 @@ def _edofs(conn: np.ndarray) -> np.ndarray:
 def tangent(group, x, epsp_incr=None):
     """Element tangent stiffness for 3-node 2D CST triangle (n, 6, 6).
 
-    Fortran origin: engine/source/elements/solid_2d/tria/t3forc2.F,
-    t3deri2.F.
+    Port extension -- no upstream counterpart (see the module docstring).
 
     Returns (ke, edofs):
       ke: (n, 6, 6) in-plane element stiffness matrix (uy, uz)
@@ -385,7 +385,7 @@ def tangent(group, x, epsp_incr=None):
 def kgeo(group, x):
     """Geometric (initial-stress) element stiffness for 2D triangle (n, 6, 6).
 
-    Fortran origin: engine/source/elements/solid_2d/tria/t3forc2.F.
+    Port extension -- no upstream counterpart (see the module docstring).
 
     Returns (ke, edofs): ke (n, 6, 6), edofs (n, 6).
     """
@@ -432,7 +432,7 @@ _M_TRIA3_2D = np.array([
 def consistent_mass(group, x=None):
     """Analytical 2D triangle consistent mass matrix (6x6 in plane).
 
-    Fortran origin: starter/source/elements/solid_2d/tria/t3mass2.F.
+    Port extension -- no upstream counterpart (see the module docstring).
 
     Returns (me, edofs): me (n, 6, 6), edofs (n, 6).
     """

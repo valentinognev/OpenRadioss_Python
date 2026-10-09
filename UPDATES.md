@@ -13,6 +13,45 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.13.0 - Task P2.1: `solid_tria3` is a declared port extension, not a port - the fabricated `solid_2d/tria` citation is gone (2026-10-09)
+
+`pyradioss/elements/solid_tria3.py` claimed a Fortran origin under
+`engine/source/elements/solid_2d/tria/` - a driver, a derivative routine, a
+Jaumann rotation, a length routine and a starter-side mass routine. **Not one of
+those files exists.** The claim has been removed and the module relabelled.
+
+- **What upstream actually holds, checked rather than assumed.**
+  `engine/source/elements/solid_2d/` contains only `quad/` and `quad4/` - the
+  plan's 2026-10-02 note confirmed. There is no engine-side `tria/` directory
+  and no `t3*2.F` kernel anywhere in the tree. `starter/source/elements/
+  solid_2d/tria/` does exist, and holds exactly two files - `t3grhead.F` and
+  `t3grtails.F` - which are input-deck **mesh readers** called from `lectur.F`,
+  not kernels; there is no mass routine there either.
+- **Decision** (plan Step 3, branch 1): /TRIA3 is a declared element of the
+  input format whose kernel ships only in the closed-source tree, so the honest
+  citation is **Simcenter Radioss (closed source)** and the module is a
+  **declared port extension**. It is no longer described as a port anywhere.
+- **New `docs/PORT_EXTENSIONS.md`** - the registry of code with no upstream
+  counterpart, carrying the /TRIA3 entry, its upstream-search evidence and the
+  per-entry tests that keep it honest.
+- **New `tests/test_p2_tria3_provenance.py`** - every Fortran file this port
+  cites must exist under `$OR_SRC`. The plan's sketch is generalised from
+  `pyradioss/elements/` to the whole `pyradioss/` tree, and its directory depth
+  widened: upstream families nest (`shell/coque/`, `solid/solide/`,
+  `solid_2d/tria/`), so a two-level pattern cannot see
+  `solid_2d/tria/t3forc2.F` at all.
+- **56 further misses found and recorded, not fixed.** Generalising the scan
+  surfaced that many citations in 23 further modules name absent files. Each
+  needs its own decision - a misspelled path (`solid/sdefo3.F` is really
+  `solid/solide/sdefo3.F`) is a one-line fix, a genuinely absent kernel is a
+  registry entry - so they are enumerated in the test's `KNOWN_MISSES` and
+  analysed in `docs/PORT_EXTENSIONS.md` §Known misses. The gate is ratcheted,
+  not waived: a *new* fabricated citation still fails, and repairing an entry
+  without removing it from the allowlist also fails.
+- **No physics changed.** Kinematics, hoop terms, bulk viscosity, Courant step
+  and the implicit matrices are byte-identical; this task only relabels
+  provenance. No parity claim is made or possible for /TRIA3.
+
 ## 1.12.0 - Task P2.3: the solid-to-2-node degeneration paths, and the sort that decides which pair survives (2026-10-09)
 
 `pyradioss/elements/solid_degenerate.py` and
@@ -92,7 +131,6 @@ the `aid` environment (numpy 2.4.6, scipy 1.18.0, pytest 9.1.1), which matches
 §[A] exactly. Nothing here depends on a version-sensitive numerical path — the
 degradations are exact comparisons and closed-form projections — but the
 figures above are that interpreter's, and the full suite was not run.
-
 
 
 ## 1.11.0 - Task P1.10: the documentation contract - one measured baseline, a program-status pointer, and a changelog in order (2026-10-08)
