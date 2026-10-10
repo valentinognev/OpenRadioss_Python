@@ -15,7 +15,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "The four routines under elements/shell/ are Startup/driver level (shell basis table, thick-shell error check, force-equilibrium check, warping-membrane offset init); no RD-E-1000 case isolates them, so no channel is attributed to this family."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "common",
@@ -33,7 +34,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "The four routines under elements/shell/ are Startup/driver level (shell basis table, thick-shell error check, force-equilibrium check, warping-membrane offset init); no RD-E-1000 case isolates them, so no channel is attributed to this family."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "common",
@@ -51,7 +53,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "The four routines under elements/shell/ are Startup/driver level (shell basis table, thick-shell error check, force-equilibrium check, warping-membrane offset init); no RD-E-1000 case isolates them, so no channel is attributed to this family."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "common",
@@ -69,7 +72,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "The four routines under elements/shell/ are Startup/driver level (shell basis table, thick-shell error check, force-equilibrium check, warping-membrane offset init); no RD-E-1000 case isolates them, so no channel is attributed to this family."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -94,7 +98,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -119,7 +124,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -144,7 +150,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -169,7 +176,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -194,7 +202,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -219,7 +228,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -244,7 +254,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -269,7 +280,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -294,7 +306,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -319,7 +332,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -344,7 +358,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -353,7 +368,7 @@
     "port_module": null,
     "port_symbol": null,
     "status": "missing",
-    "deviation_note": "Non-local (regularised) damage internal forces for the BT quad, guarded upstream by INLOC>0 (IPARG(78), cforc3.F) and driven by its own DOF numbering NLOC_DMG%POSI. The port has no element-level non-local path: pyradioss/materials/law130_nonlocal_damage.py is the local damage LAW130 law at the Gauss point only, and the internal-length averaging this routine performs has no counterpart. Same gap as solid/solide/sfint_reg.F in the P2.0 table.",
+    "deviation_note": "Non-local (regularised) damage internal forces for the BT quad, guarded upstream by INLOC>0 (IPARG(78), cforc3.F) and driven by its own DOF numbering NLOC_DMG%POSI. The port has no element-level non-local path: pyradioss/materials/law130_nonlocal_damage.py is the local damage LAW130 law at the Gauss point only, and the internal-length averaging this routine performs has no counterpart. Same gap as solid/solide/sfint_reg.F in the P2.0 table. Owner: the queued non-local shell force and timestep work.",
     "parity_case": "c40",
     "parity": {
       "family": "bt",
@@ -369,7 +384,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": true
   },
   {
     "family": "bt",
@@ -394,7 +410,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -419,7 +436,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -444,7 +462,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -469,7 +488,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -494,7 +514,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -519,7 +540,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -544,7 +566,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -569,7 +592,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -594,7 +618,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -619,7 +644,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -644,7 +670,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -669,7 +696,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -694,7 +722,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "bt",
@@ -719,7 +748,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -742,7 +772,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -765,7 +796,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -788,7 +820,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -811,7 +844,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -834,7 +868,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -857,7 +892,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -880,7 +916,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -889,7 +926,7 @@
     "port_module": null,
     "port_symbol": null,
     "status": "missing",
-    "deviation_note": "Non-local (regularised) damage internal forces for QBAT, guarded by INLOC>0 upstream. No element-level non-local path exists in the port (see the BT cfint_reg.F row and the P2.0 solid sfint_reg.F row).",
+    "deviation_note": "Non-local (regularised) damage internal forces for QBAT, guarded by INLOC>0 upstream. No element-level non-local path exists in the port (see the BT cfint_reg.F row and the P2.0 solid sfint_reg.F row). Owner: the queued non-local shell force and timestep work.",
     "parity_case": "c02",
     "parity": {
       "family": "qbat",
@@ -903,7 +940,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": true
   },
   {
     "family": "qbat",
@@ -926,7 +964,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -949,7 +988,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -972,7 +1012,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -995,7 +1036,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1018,7 +1060,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1041,7 +1084,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1064,7 +1108,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1087,7 +1132,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1110,7 +1156,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1133,7 +1180,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1156,7 +1204,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1179,7 +1228,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1202,7 +1252,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1225,7 +1276,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1248,7 +1300,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1271,7 +1324,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1294,7 +1348,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1317,7 +1372,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1340,7 +1396,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1363,7 +1420,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qbat",
@@ -1372,7 +1430,7 @@
     "port_module": null,
     "port_symbol": null,
     "status": "missing",
-    "deviation_note": "Non-local element time-step (the DT2T reduction by the non-local internal length LEN, the non-local density ZETA and LE_MAX, guarded by NODADT). No port counterpart: the port's QBAT time-step claim is the local (sqrt(1+dn^2)-dn)*LL/SSP form. Same non-local gap as the BT cfint_reg.F row.",
+    "deviation_note": "Non-local element time-step (the DT2T reduction by the non-local internal length LEN, the non-local density ZETA and LE_MAX, guarded by NODADT). No port counterpart: the port's QBAT time-step claim is the local (sqrt(1+dn^2)-dn)*LL/SSP form. Same non-local gap as the BT cfint_reg.F row. Owner: the queued non-local shell force and timestep work.",
     "parity_case": "c02",
     "parity": {
       "family": "qbat",
@@ -1386,7 +1444,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": true
   },
   {
     "family": "qbat",
@@ -1409,7 +1468,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1431,7 +1491,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1453,7 +1514,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1475,7 +1537,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1497,7 +1560,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1519,7 +1583,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1541,7 +1606,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1563,7 +1629,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1585,7 +1652,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1607,7 +1675,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1629,7 +1698,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1651,7 +1721,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1673,7 +1744,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1695,7 +1767,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1717,7 +1790,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1739,7 +1813,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1761,7 +1836,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1783,7 +1859,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "qeph",
@@ -1805,7 +1882,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -1825,7 +1903,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -1845,7 +1924,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -1865,7 +1945,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -1885,7 +1966,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -1905,7 +1987,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -1925,7 +2008,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -1945,7 +2029,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -1965,7 +2050,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -1985,7 +2071,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2005,7 +2092,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2025,7 +2113,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2045,7 +2134,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2065,7 +2155,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2074,7 +2165,7 @@
     "port_module": null,
     "port_symbol": null,
     "status": "missing",
-    "deviation_note": "Non-local (regularised) damage internal forces for the C0 triangle, guarded by INLOC>0 upstream. No element-level non-local path in the port; same gap as the BT cfint_reg.F row.",
+    "deviation_note": "Non-local (regularised) damage internal forces for the C0 triangle, guarded by INLOC>0 upstream. No element-level non-local path in the port; same gap as the BT cfint_reg.F row. Owner: the queued non-local shell force and timestep work.",
     "parity_case": "c17",
     "parity": {
       "family": "tri3",
@@ -2085,7 +2176,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": true
   },
   {
     "family": "tri3",
@@ -2105,7 +2197,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2125,7 +2218,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2145,7 +2239,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2165,7 +2260,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2185,7 +2281,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2205,7 +2302,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2225,7 +2323,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2245,7 +2344,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2265,7 +2365,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2285,7 +2386,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "tri3",
@@ -2305,7 +2407,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt18",
@@ -2327,7 +2430,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: unlikely - the frame, area and velocity gather are ported line for line; if the frame were wrong the bending AND the membrane channels would diverge together, and on c06/c07 the membrane-dominated KE/IE sit lower than MOMX."
+    "hypothesis": "hypothesis: unlikely - the frame, area and velocity gather are ported line for line; if the frame were wrong the bending AND the membrane channels would diverge together, and on c06/c07 the membrane-dominated KE/IE sit lower than MOMX.",
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt18",
@@ -2349,7 +2453,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: CANDIDATE (strain). If the membrane strain rates feeding the Hammer points are off, every downstream force is off and MOMX drifts with them; discriminate by comparing the port's EXX/EYY/EXY against the Fortran's on a c06 element - if they differ, this is the routine and cdkderi3.F/cdkfint3.F are downstream of it."
+    "hypothesis": "hypothesis: CANDIDATE (strain). If the membrane strain rates feeding the Hammer points are off, every downstream force is off and MOMX drifts with them; discriminate by comparing the port's EXX/EYY/EXY against the Fortran's on a c06 element - if they differ, this is the routine and cdkderi3.F/cdkfint3.F are downstream of it.",
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt18",
@@ -2371,7 +2476,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: CANDIDATE (strain). The DK bending operators at the three Hammer points set the curvature increments that dominate a bending-driven case; discriminate the same way - right membrane strain with wrong KXX/KYY/KXY points here, and both wrong points at cdkdefo3.F as well."
+    "hypothesis": "hypothesis: CANDIDATE (strain). The DK bending operators at the three Hammer points set the curvature increments that dominate a bending-driven case; discriminate the same way - right membrane strain with wrong KXX/KYY/KXY points here, and both wrong points at cdkdefo3.F as well.",
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt18",
@@ -2393,7 +2499,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: unlikely - a pure local-to-global rotation of quantities the other routines produced; a defect here would rotate the error, not create a moment-specific one, and would show equally on the force channels."
+    "hypothesis": "hypothesis: unlikely - a pure local-to-global rotation of quantities the other routines produced; a defect here would rotate the error, not create a moment-specific one, and would show equally on the force channels.",
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt18",
@@ -2415,7 +2522,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: CANDIDATE (force). If the strain side is right and only the force assembly diverges, this is the routine - it is the exact transpose of the operators cdkderi3.F built, so a transposed or mis-signed term produces a moment error with a correct strain. Discriminate by running the port's forces on a Fortran state: same SIG/EPS, different F/M."
+    "hypothesis": "hypothesis: CANDIDATE (force). If the strain side is right and only the force assembly diverges, this is the routine - it is the exact transpose of the operators cdkderi3.F built, so a transposed or mis-signed term produces a moment error with a correct strain. Discriminate by running the port's forces on a Fortran state: same SIG/EPS, different F/M.",
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt18",
@@ -2424,7 +2532,7 @@
     "port_module": null,
     "port_symbol": null,
     "status": "missing",
-    "deviation_note": "Non-local (regularised) damage internal forces for DKT18, guarded upstream by INLOC>0 (IPARG(78), cdkforc3.F:498) and driven by its own DOF numbering NLOC_DMG%POSI with the thickness integration NDDL. The port has no element-level non-local path at all: pyradioss/materials/law130_nonlocal_damage.py is the local damage law at the Gauss point only, and /MAT/NONLOCAL is parsed into model.mat_nonlocal_modifiers (pyradioss/model/model.py:1190) which nothing consumes. Same gap as solid/solide/sfint_reg.F in the P2.0 table.",
+    "deviation_note": "Non-local (regularised) damage internal forces for DKT18, guarded upstream by INLOC>0 (IPARG(78), cdkforc3.F:498) and driven by its own DOF numbering NLOC_DMG%POSI with the thickness integration NDDL. The port has no element-level non-local path at all: pyradioss/materials/law130_nonlocal_damage.py is the local damage law at the Gauss point only, and /MAT/NONLOCAL is parsed into model.mat_nonlocal_modifiers (pyradioss/model/model.py:1190) which nothing consumes. Same gap as solid/solide/sfint_reg.F in the P2.0 table. Owner: the queued non-local shell force and timestep work.",
     "parity_case": "c00",
     "parity": {
       "family": "dkt18",
@@ -2437,7 +2545,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: not a candidate - the routine is guarded by INLOC>0 and c06/c07 do not set /NONLOCAL (IPARG(78)); it cannot explain a MOMX deviation on those cases. Recorded because it is genuinely unported."
+    "hypothesis": "hypothesis: not a candidate - the routine is guarded by INLOC>0 and c06/c07 do not set /NONLOCAL (IPARG(78)); it cannot explain a MOMX deviation on those cases. Recorded because it is genuinely unported.",
+    "guarded_by_inloc": true
   },
   {
     "family": "dkt18",
@@ -2459,7 +2568,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: driver, not a candidate by itself - it orchestrates the rows above; a defect here would corrupt every channel rather than one."
+    "hypothesis": "hypothesis: driver, not a candidate by itself - it orchestrates the rows above; a defect here would corrupt every channel rather than one.",
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt18",
@@ -2481,7 +2591,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: unlikely as a physics source - the dt scaling of the curvature rates and the GSTR output it performs is reproduced inline in forces(). It is a candidate only if /ANIM strain output is what the harness compared, which the M41 channel set says it is not."
+    "hypothesis": "hypothesis: unlikely as a physics source - the dt scaling of the curvature rates and the GSTR output it performs is reproduced inline in forces(). It is a candidate only if /ANIM strain output is what the harness compared, which the M41 channel set says it is not.",
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt18",
@@ -2503,7 +2614,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: CANDIDATE (material, not geometry). The per-layer moduli A11/A12/G and the viscous AMU decide how much of the bending strain becomes moment; discriminate by comparing the port's SIG at the Hammer points against the Fortran's - a wrong modulus with a right strain is this routine, and it would show in MOMX before MOMZ because bending dominates there."
+    "hypothesis": "hypothesis: CANDIDATE (material, not geometry). The per-layer moduli A11/A12/G and the viscous AMU decide how much of the bending strain becomes moment; discriminate by comparing the port's SIG at the Hammer points against the Fortran's - a wrong modulus with a right strain is this routine, and it would show in MOMX before MOMZ because bending dominates there.",
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt18",
@@ -2525,7 +2637,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: excluded - a wrong time step changes the integration path and would move every channel of every case, not concentrate on MOMX on c06/c07 alone."
+    "hypothesis": "hypothesis: excluded - a wrong time step changes the integration path and would move every channel of every case, not concentrate on MOMX on c06/c07 alone.",
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt18",
@@ -2534,7 +2647,7 @@
     "port_module": null,
     "port_symbol": null,
     "status": "missing",
-    "deviation_note": "Non-local element time-step: the DT2T reduction by the non-local internal length LEN^2, the non-local density ZETA and LE_MAX, guarded by NODADT. The port's DKT18 claim is the local form only (see the cdkfint_reg.F row for what is parsed and unconsumed).",
+    "deviation_note": "Non-local element time-step: the DT2T reduction by the non-local internal length LEN^2, the non-local density ZETA and LE_MAX, guarded by NODADT. The port's DKT18 claim is the local form only (see the cdkfint_reg.F row for what is parsed and unconsumed). Owner: the queued non-local shell force and timestep work.",
     "parity_case": "c00",
     "parity": {
       "family": "dkt18",
@@ -2547,7 +2660,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: not a candidate - guarded by the non-local path, which c06/c07 do not enable. Recorded because it is genuinely unported."
+    "hypothesis": "hypothesis: not a candidate - guarded by the non-local path, which c06/c07 do not enable. Recorded because it is genuinely unported.",
+    "guarded_by_inloc": true
   },
   {
     "family": "dkt6",
@@ -2565,7 +2679,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt6",
@@ -2583,7 +2698,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt6",
@@ -2601,7 +2717,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt6",
@@ -2619,7 +2736,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt6",
@@ -2637,7 +2755,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt6",
@@ -2655,7 +2774,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt6",
@@ -2664,7 +2784,7 @@
     "port_module": null,
     "port_symbol": null,
     "status": "missing",
-    "deviation_note": "Non-local (regularised) damage internal forces for DKT6. No element-level non-local path in the port; same gap as the BT cfint_reg.F row.",
+    "deviation_note": "Non-local (regularised) damage internal forces for DKT6. No element-level non-local path in the port; same gap as the BT cfint_reg.F row. Owner: the queued non-local shell force and timestep work.",
     "parity_case": null,
     "parity": {
       "family": "dkt6",
@@ -2673,7 +2793,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": true
   },
   {
     "family": "dkt6",
@@ -2691,7 +2812,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt6",
@@ -2709,7 +2831,8 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   },
   {
     "family": "dkt6",
@@ -2727,6 +2850,7 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
     },
-    "hypothesis": null
+    "hypothesis": null,
+    "guarded_by_inloc": false
   }
 ]
