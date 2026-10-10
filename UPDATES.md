@@ -13,6 +13,64 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.19.0 - Task P2.8: solid thermal strain — `mmain`'s `ETH` block (2026-10-10)
+
+`pyradioss/elements/solid_thermal.py` and `tests/test_p2_solid_thermal.py`.
+No existing kernel, no engine path, no `elements/__init__.py` export and no
+caller was touched; this task adds a module and nothing calls it yet.
+`alpha` is an argument of every entry point and is never looked up — Phase 6's
+`materials.thermal_expansion(law)` supplies it at the wiring step.
+
+**The five routines the plan names are not the thermal strain.** All of
+`stherm.F`, `s4therm.F`, `s4therm-itet1.F`, `sctherm.F` and `s6ctherm.F` were
+read in full before a line was written, and all five build the **heat
+conduction source term** of their element family: `KC = (CA + CB*T) * VOL *
+DT * THEACCFACT`, a flux contracted with the PRE-COMPUTED gradients `PX1..PZ4`,
+and a nodal `FPHI` that also carries the volumetric heat source `HEAT`. **None
+of them reads `ALPHA`, none touches a stress, and none books a mechanical
+energy.** The solid thermal strain lives in
+`engine/source/materials/mat_share/mmain.F90:758-791`, and that is what is
+ported here. **The conduction routines are unported and remain open work on
+the heat side of the coupling** — they are four different node counts and four
+different sign conventions, so they are a separate task, not an appendix to
+this one. Recorded in the module docstring and in the test module docstring.
+
+- **The order is the physics, and it is what the constrained test pins.**
+  Upstream subtracts the thermal strain from the strain rate **before** the
+  constitutive update (`mmain.F90:781-783`, the law is called 200 lines
+  below), so the stress reaching the energy booking at `:786-787` is the
+  stress the element **entered the step with**, at **half** weight:
+  `EINTTH -= HALF*SIGKK*ETH`. Observable consequence, asserted as a test: the
+  first thermal step of an unstressed element books **exactly zero**. Booking
+  it after the update, or at full weight, moves the number by the
+  `sigma . alpha . dT` the plan names; both alternatives are asserted to
+  differ.
+- **`alpha` is ONE scalar per element, and the port refuses a triple.** 
+  `mmain.F90:776` evaluates `alpha` once and subtracts the same `ETH` from
+  `DXX`, `DYY` and `DZZ` — isotropic expansion. The per-direction
+  `ETHXX/ETHYY/ETHZZ` of `materials/mat_share/thermexpc.F` is the **shell**
+  path (and there only for layer stacks). The plan's snippet passes
+  `alpha=np.array([12e-6]*3)`; broadcasting it would invent an anisotropy no
+  solid element has, so `thermal_strain` raises instead, and says why.
+- **`OFF` kills the thermal strain outright** (`ETH = ... * OFF`,
+  `mmain.F90:778`): a deleted element expands by nothing, exerts no thermal
+  force and books no thermal energy. Exactly zero, not nearly zero.
+- **`MAX(DT1, EM20)` is a floor, not a tolerance.** It is reproduced rather
+  than replaced by `dt or EM20`, which would turn a negative dt into a
+  positive step. Any positive `dt` gives the same stress (the time step
+  cancels, as it must for a temperature effect); `dt = 0` gives zero, not a
+  division by zero.
+- **The one material read is `C : m = 3K`**, exact for an isotropic law and
+  taken off the group's own `state["slices"]` the way every other solid
+  kernel does — `K`, or `E / (3(1 - 2 nu))`, or `KeyError`. A group with no
+  slice raises rather than inventing a stiffness. Nothing else in the module
+  looks at a material.
+
+No oracle parity run accompanies this task: the module has no caller, so no
+deck exercises it and there is nothing for the Fortran solver to differ from.
+Dispatch and the `/MAT` α keyword reader are later tasks; the parity case
+belongs with the task that wires the module into a cycle.
+
 ## 1.18.0 - Task P2.7: the remeshing remap — `sreploc3` / `srepiso3` family (2026-10-09)
 
 `pyradioss/elements/solid_remesh.py` and `tests/test_p2_solid_remesh.py`.
