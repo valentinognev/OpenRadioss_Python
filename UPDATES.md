@@ -13,6 +13,106 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.22.0 - Task P2.11: every `Isolid` value is routed to a kernel or refused with its upstream citation (2026-10-10)
+
+New: `pyradioss/input/idsolid.py` (the refusal table) and
+`tests/test_p2_solid_isolid.py`. Modified: `pyradioss/elements/__init__.py`,
+`pyradioss/input/checks.py` (re-export), `pyradioss/input/keywords/elements.py`,
+`pyradioss/engine/engine.py`. No solid physics was added and no existing
+kernel was touched.
+
+**The size budget forced the shape.** All four modified modules were already
+*exactly* at their `tools/validation_data/size_budget.json` entry (151, 1689,
+58 and 8434 lines), and P1.7's rule is that an entry is never raised to absorb
+a change. So the refusal table went into a new module rather than into
+`checks.py`, `checks.py`'s hand-written `__all__` became a derived one (58 ->
+36 lines), and the two `read_def_solid` branch pairs became ternaries. The
+citations the `elements/__init__.py` comment lost went to `idsolid.py`'s
+docstring, which has room.
+
+**Sources opened before a line was written** —
+`starter/source/elements/reader/hm_read_solid.F`,
+`starter/source/properties/solid/hm_read_prop06.F` (the `Isolid` card),
+`hm_read_prop14.F` (`/PROP/TYPE14`), `hm_read_prop15.F` (`/PROP/TYPE15`),
+`hm_read_prop43.F` (`/PROP/TYPE43`), `thickshell/hm_read_prop20.F` /
+`_21.F` / `_22.F`, `general_controls/default_values/hm_read_defsolid.F`,
+`properties/hm_read_properties.F` (the property-type dispatch),
+`engine/source/elements/forint.F` (the group loop), and
+`starter/source/elements/elbuf_init/elbuf_ini.F` (the `JHBE` -> `NPT` table).
+
+- **The card is `hm_read_prop06.F`, not `hm_read_solid.F`.** The plan names
+  the element-card reader; the `Isolid` field itself is read at
+  `hm_read_prop06.F:166` and normalized at lines 255-294. Both were read.
+- **`Isolid=43` was a silent skip, and it is gone.** `/PROP/TYPE43` (SOLID
+  SPOTWELD) has **no `ISOLID` card at all** — `hm_read_prop43.F` reads only
+  `Ismstr` and `THICK` — so no `Isolid` value can select it. The old entry
+  `43: "solid_connect"` sent those elements to a group name that
+  `Model.element_groups()` never yields, so the Starter partitioned them
+  *out* of `bricks` and the Engine never integrated them: massless, motionless,
+  no warning. `tests/test_p2_solid_isolid.py::test_every_routed_idsolid_group_reaches_the_engine`
+  is the regression test for that class of bug and it failed on the old table.
+  The `solid_connect` kernel itself is untouched and still tested directly by
+  `tests/test_prop_type43.py`.
+- **Every other value now has a written answer.** `idsolid.py::UNSUPPORTED_ISOLID`
+  covers 0-49 plus the pre-5.1 aliases 101/102/104/112 and 222, each with the
+  upstream file and line that says what the Fortran starter does with it.
+  `checks.py` re-exports `UNSUPPORTED_ISOLID`, `unsupported_isolid()` and
+  `unsupported_isolid_reason()` so a caller finds the gate where it expects it.
+- **`Isolid` 0 and 1 are deliberately absent from `SOLID_ISOLID_GROUPS`.** Both
+  reach `SFORC3` (`forint.F:1156-1159`), which *is* the residual `bricks`
+  group. `_dispatch_solid_formulations` splits a mapped value *out* of
+  `bricks`, so mapping `1 -> "bricks"` would have deleted every default solid
+  from the model. The refusal text says so and cites the line.
+- **`/DT/SOLID` and `/DEL/SOLID` now match the dispatch table.**
+  `idsolid.py::solid_group_fragments()` derives its name fragments from
+  `SOLID_ISOLID_GROUPS` / `PENTA_ISOLID_GROUPS` / `QUAD_IQUAD_GROUPS`, so a group
+  added there answers to those keywords without a second hand-maintained list.
+  It is `lru_cache`d rather than computed at import: `pyradioss.elements`
+  imports the package this module lives in, so the derivation cannot run at
+  import time. This also fixes a real gap — `cohesives` matched neither keyword
+  before, so `/DEL/SOLID` could never reach a cohesive element.
+- **The reader refuses out loud.** `read_def_solid` now calls
+  `warn_unsupported_def_solid_isolid`, which warns with the citation when
+  `/DEF_SOLID` carries a value the port does not route.
+  `hm_read_defsolid.F:85` stores the card verbatim and
+  `hm_read_prop06.F:255` substitutes it into every property that omits the
+  field, so a bad default reaches the whole model.
+
+**Kept on purpose.** `16 -> solid_shells_ha8` and `21 -> cohesives` stay
+routed, as the brief requires. Both are reachable groups with their own
+end-to-end tests (`tests/test_fe_engine_integration.py`), and re-deriving
+their formulations is new physics, out of scope here. Worth an audit task:
+`forint.F` has no `JHBE == 16` branch (the ANS solid shell is reached from
+`JHBE == 14 .OR. JHBE == 222`, line 1026), and `szforc3.F` is reached from
+`NPT == 1` and `JHBE == 24`, line 1124.
+
+**Verification** (2026-10-10; this worktree has no `.venv`, `python3` from
+anaconda3, `OR_SRC` read-only upstream checkout): RED first — the three tests
+failed with `ImportError: cannot import name 'unsupported_isolid'` and
+`AssertionError: Isolid=43 routes to group 'solid_connect', which
+Model.element_groups() never yields`; GREEN after the edits above. The silent
+skip was then reproduced and closed end to end on a 40-element deck: before,
+`40 /BRICK ELEMENT(S) ROUTED TO THE CONNECT FORMULATION KERNEL` followed by
+`99 node(s) carry no mass` and an engine that stopped after 1 cycle with both
+energies at 0; after, the same deck runs 1847 cycles to
+`INTERNAL ENERGY 3.1521118E-01`, bit-identical to the default `Isolid=1`
+baseline. `tests/test_p1_module_size.py` passes unchanged.
+Fast tier: `python3 -m pytest -q -m "not slow"` -> **17 failed, 15139 passed**,
+18 skipped, 25 xfailed. All 17 fail identically on the unmodified tree
+(verified by stashing): six need an absent `numba`/`llvmlite`
+(`test_m40_auto_backend.py` x4, `test_m7_backends.py`,
+`test_p0_optional_deps.py::...[numba]`, `...[llvmlite]`), three compare
+`requirements-lock.txt` against the anaconda interpreter this worktree has
+(`test_p0_optional_deps.py` numpy/scipy/python),
+`test_p0_toolchain.py::test_the_record_holds_no_checkout_local_value` and
+`test_p1_regression_ledger.py::test_the_recorded_environment_is_measured_not_declared`
+record `3.12.3` against the running `3.11.5`,
+`test_p2_tria3_provenance.py::test_no_new_fabricated_citations` reports P2.8's
+pre-existing `solid_thermal.py -> engine/source/elements/solid/solide/sgrtails.F`
+(no such file upstream — that task's miss, not this one), and four numeric
+ones (`test_m15_fricmat.py`, `test_m39_skew.py`, `test_m552_law48_integration.py`,
+`test_m553_law58_engine_sim.py`).
+
 ## 1.21.0 - Task P2.10: the `solide8s` co-rotational frame (`crframe_imp` family) (2026-10-10)
 
 `pyradioss/elements/solid_crimp.py` and `tests/test_p2_solid_crimp.py`. No

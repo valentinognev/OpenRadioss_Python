@@ -56,6 +56,7 @@ from ..contact import build_contacts
 from ..elements import KERNELS
 from ..input.deck_reader import read_deck
 from ..input.engine_keywords import parse_engine_deck
+from ..input.idsolid import solid_group_fragments
 from ..input.mat_reader import refuse_inactive_materials
 from ..input.prop_reader import refuse_inactive_properties
 from ..model.model import EngineControls, Model
@@ -144,10 +145,9 @@ def _deleted_count(model: Model) -> int:
 def _matches_elem_dt_control(name: str, key: str) -> bool:
     """Check if element group name matches /DT/<elem> keyword specification (M580, M605)."""
     k = key.upper()
-    if k in ("ELEM", "ALL"):
-        return True
+    if k in ("ELEM", "ALL"): return True
     if k in ("SOLID", "SOLI", "HEXA", "BRIC", "BRICK"):
-        return any(s in name for s in ("bric", "hexa", "heph", "penta", "tshell", "soli", "solid"))
+        return any(s in name for s in solid_group_fragments())
     if k in ("PENTA", "PENTA6", "WEDGE") and ("penta" in name or "wedge" in name):
         return True
     if k in ("SHELL", "SHEL", "COQUE"):
@@ -493,7 +493,7 @@ def _integrate(model: Model, controls: EngineControls, log: MessageLog,
             k_upper = kind.upper()
             for gname, group in model.element_groups():
                 match = (k_upper in ("ELEM", "ALL") or
-                         (k_upper in ("BRICK", "BRIC", "SOLID") and ("bric" in gname or "hexa" in gname or "heph" in gname or "penta" in gname or "tshell" in gname)) or
+                         (k_upper in ("BRICK", "BRIC", "SOLID") and any(s in gname for s in solid_group_fragments())) or
                          (k_upper in ("PENTA", "PENTA6", "WEDGE") and "penta" in gname) or
                          (k_upper in ("SHELL", "SHEL") and ("shel" in gname or "sh3n" in gname)) or
                          (k_upper in ("SH3N", "TRI", "TRIA") and "sh3n" in gname) or

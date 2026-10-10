@@ -58,6 +58,7 @@ from ..card_layouts import LAYOUTS
 from ..card_layouts import CARD_LAYOUTS
 from ..card_layouts import split_fixed
 from ..deck_reader import Card, KeywordBlock, _to_float, parse_fortran_float
+from ..idsolid import warn_unsupported_def_solid_isolid
 
 
 # ----------------------------------------------------------------------------
@@ -789,17 +790,12 @@ def read_def_solid(block: KeywordBlock, model: Model, log: MessageLog) -> None:
         ISOLID  ISMSTR  ICPRE  (10-char gap)  ITETRA4  ITETRA10  IMAS  IFRAME
 
     Mirrors ``hm_read_defsolid.F``."""
-    if block.fixed:
-        cards = [c for c in block.fixed_cards() if not c.is_blank]
-    else:
-        cards = [c for c in block.cards if not c.is_blank]
+    cards = [c for c in (block.fixed_cards() if block.fixed else block.cards)
+             if not c.is_blank]
     if not cards:
         return
     c = cards[0]
-    if block.fixed:
-        vals = c.cut("DEF_SOLID_1")
-    else:
-        vals = c.tokens()
+    vals = c.cut("DEF_SOLID_1") if block.fixed else c.tokens()
     def _iv(idx):
         try:
             return int(float(vals[idx]))
@@ -814,6 +810,7 @@ def read_def_solid(block: KeywordBlock, model: Model, log: MessageLog) -> None:
         'imas': _iv(6 if block.fixed else 5),
         'iframe': _iv(7 if block.fixed else 6),
     }
+    warn_unsupported_def_solid_isolid(model.def_solid['isolid'], log)
 
 
 

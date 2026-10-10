@@ -111,14 +111,15 @@ SH3N_ISHELL_GROUPS = {
     3: "shells_dkt6",
 }
 
-#: /PROP/SOLID Isolid -> dedicated element-technology group.
-#: 2  = FULL (8-node 2x2x2 Gauss fully-integrated hex — s8forc3.F)
-#: 14 = TSHELL (8-node thick shell with through-thickness integration)
-#: 15 = TSHELL (8-node thick shell with through-thickness integration)
-#: 16 = HA8 (8-node solid shell with ANS — s8sforc3.F)
-#: 17 = EAS (8-node enhanced assumed strain — s8eforc3.F)
-#: 21 = COHESIVE (8-node cohesive zone interface — szforc3.F)
-#: 24 = HEPH (physically-stabilized 8-node hexahedral element).
+#: /PROP/SOLID Isolid -> dedicated element-technology group. Read by
+#: ``hm_read_prop06.F:285`` (which accepts {1,2,14,17,18,24}), stored as
+#: IPARG(23,NG)=JHBE and dispatched by ``forint.F``: 2 FULL (s8forc3.F),
+#: 14/15 TSHELL (scforc3.F), 16 HA8 (s8sforc3.F), 17 EAS (s8eforc3.F),
+#: 21 COHESIVE (szforc3.F), 24 HEPH. Every value NOT listed here is refused,
+#: with its upstream citation, by ``pyradioss.input.checks.unsupported_
+#: isolid()`` — never skipped silently. Isolid 0 and 1 are deliberately
+#: absent: both reach SFORC3 (forint.F:1156), which *is* the residual
+#: ``bricks`` group, so naming one here would partition those elements out.
 SOLID_ISOLID_GROUPS = {
     2: "bricks_full",
     14: "tshells",
@@ -127,7 +128,6 @@ SOLID_ISOLID_GROUPS = {
     17: "bricks_eas",
     21: "cohesives",
     24: "bricks_heph",
-    43: "solid_connect",
 }
 
 #: /PROP/SOLID Itetra4 -> dedicated tetrahedral formulation group.
