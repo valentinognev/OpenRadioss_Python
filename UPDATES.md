@@ -13,6 +13,98 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.21.0 - Task P2.10: the `solide8s` co-rotational frame (`crframe_imp` family) (2026-10-10)
+
+`pyradioss/elements/solid_crimp.py` and `tests/test_p2_solid_crimp.py`. No
+existing kernel, no engine path, no `elements/__init__.py` export and no
+keyword reader was touched; nothing calls the module yet (wiring is P2.11).
+
+**Sources opened before a line was written** —
+`engine/source/elements/solid/solide8s/crframe_imp.F`, `crtrans_imp.F`,
+`transk.F`, `getuloc.F`, `s8xref_imp.F`, `s8sav3_imp.F`, `srcoor3_imp.F`,
+`srcoork_imp.F`, `s8sfint3_crimp.F`, plus the callers `s8sforc3.F` /
+`s8ske3.F` and `forint.F` (the `JHBE == 17`, `IPARG(36) == 3` gate).
+
+- **"crimp" is not "crimp".** The plan and the task brief read it as
+  *crimp / geometrical imperfection*. The Fortran says otherwise: `CR` is
+  **co-rotational**, `IMP` is **implicit**, and there is no imperfection field,
+  perturbation or fabric crimp anywhere in the path (`crimp` occurs upstream
+  only in `s8sfint3_crimp.F` and its caller `s8sforc3.F`). The public name
+  `imperfection_frame` is kept because the plan fixes it; it returns the
+  co-rotational frame, and the module docstring says so.
+- **No keyword reader, on purpose.** The plan asks for a `crframe`/`crtrans`
+  reader in `input/keywords/elements.py`. No such card exists: `starter/`,
+  `reader/` and the CFG tree contain no `crframe`/`crtrans` keyword (the only
+  non-Fortran hits are a CMake compile-flag line and an unrelated C++
+  substring), and the routines are reached by property flags alone
+  (`/PROP/TYPE14` `Isolid` 17/19 -> `IHBE = 17`, `IINT = 3` in
+  `hm_read_prop14.F`; `forint.F` gates on `JHBE == 17`, `IPARG(36) == 3`).
+  Writing a `/CRFRAME` card would invent a deck
+  format upstream does not parse, so none was added;
+  `test_no_crframe_or_crtrans_keyword_is_invented` records that. The module is
+  therefore **ported and unreachable from a deck** until the dispatch task
+  routes `Isolid = 17`. That the plan asked for a deck reader is a finding
+  about the plan, not a gap in the port.
+- **The two stages are two functions.** `crframe()` (stage 1, `crframe_imp.F`)
+  returns the polar rotation `R` of `F = x_cur / X_ref` and the reference
+  `INVJ`. `corotational_transform()` (stage 2, `crtrans_imp.F`) takes `R` as an
+  *input* — it does not compute it — and builds the 24x24 `TRM`: `R^T` on the
+  diagonal, the derivative of `R` with respect to every nodal displacement
+  everywhere else. `transk()` applies it to a stiffness (`TRM^T K TRM`) and
+  `internal_force_to_global()` to the forces (`TRM^T f`, plus the stored
+  `-R f` of `s8sfint3_crimp.F`). Porting only stage 1 gives a frame that passes
+  every orthonormality test and is useless: `blockdiag(R^T)` leaves a rigid
+  rotation above 0.1, the full `TRM` maps it to under `1e-12`
+  (`test_rigid_rotation_maps_to_zero_and_one_stage_does_not`, on four
+  geometries; and the stiffness version, six rigid modes in the null space).
+- **The plan's orthonormality test is true only where Fortran makes it true.**
+  `crframe_imp.F` inverts the stretch with a Cardano-style closed form and
+  clamps `B = MAX(B, ZERO)`. For generic `F` (three distinct stretches) that
+  clamp is active, and `R` is **not exactly orthogonal**: `|R R^T - I|` is `1.3e-3` for a
+  shear of 0.4, `2.7e-6` for 0.05 and `0` where the clamp is inactive
+  (undeformed, rigid, any `F` with a repeated stretch). The plan's `1e-12`
+  therefore holds for those and no further; the port reproduces the clamp
+  rather than "fixing" it to an exact polar decomposition, and
+  `test_the_closed_form_is_not_exactly_orthogonal_and_that_is_upstream` makes
+  the fix fail.
+- **Verified against the real Fortran, not a re-derivation.** The unmodified
+  `crframe_imp.F` and `crtrans_imp.F` were compiled with gfortran against a
+  stub `constant_mod` (same constant values; nothing under `$OR_SRC` was
+  written) and driven on seven cases (undeformed, rigid, uniaxial stretch plus
+  turn, shear 0.4, a general `F` on a skewed element, two mild ones):
+  `R`, `INVJ`, `V1..V8` and all 576 `TRM` entries agree to `<= 5.6e-16`. One
+  case's outputs are embedded as goldens in the test file. The harness lives
+  outside the repo (`data/openradioss-p2-crimp/harness` under the supervisor).
+- **Hand-computed pins, so orthonormal-but-wrong cannot pass.** A quarter turn
+  about z gives `R = [[0,-1,0],[1,0,0],[0,0,1]]`; `Rz(t) diag(2,1,1)` gives
+  `Rz(t)` (the stretch is removed); a simple shear `g` gives the turn
+  `atan(g/2)`, where a Gram-Schmidt frame of the edges reports no turn (it
+  differs by `g/2`). `TRM` is also checked against central differences of the
+  whole pipeline at the undeformed and a uniaxial state (agreement `< 1e-7`
+  for a `1e-6` step), where `blockdiag(R^T)` is off by more than 0.1.
+- **Mutation-checked.** Five wrong ports (stage 1 only, exact polar
+  decomposition, Gram-Schmidt edges, `TRM K TRM^T`, transposed `TRM`) were each
+  run against the suite and each turns it red.
+- `getuloc.F` (`local_displacements`), `s8xref_imp.F` (`local_reference`),
+  `s8sav3_imp.F` (`save_reference`, with its `ABS(OFFG) <= 1` write guard) and
+  `srcoor3_imp.F`'s `ISMSTR` 1/2/4 coordinate change (`convected_coordinates`)
+  are ported; `reference_state()` returns `SAV` and `XREF` for a group and
+  stores `SAV` in `group.state['crimp_sav']`.
+
+**Not here, and why.** `s8ske3.F` / `s8slke3.F` / `s8sksig.F` (the implicit
+element stiffness with its ANS `B` matrix, and the geometric stiffness) and the
+gather/OFF/velocity bookkeeping of `srcoor3_imp`: they are the implicit
+branch's driver, they consume `TRM` and `V` through `transk`, and they belong
+with the dispatch wiring. No numerics path changed and nothing is wired, so no
+`validate_vs_fortran.py parity` run is in scope; the routine-level agreement
+above is the evidence.
+
+**Verification** (2026-10-10, this worktree has no `.venv`; `python3` from
+anaconda3, `OR_SRC` exported to the read-only upstream checkout):
+`tests/test_p2_solid_crimp.py` all pass; `tests/test_p2_tria3_provenance.py`
+(the citation gate, which reads this module) passes. Re-measure the suite with
+`python3 -m pytest -q --collect-only -m "not slow"`; no count is recorded here.
+
 ## 1.20.0 - Task P2.9: Q1NP hexahedra on a B-spline surface; the force path marked `ported-unreachable` (2026-10-10)
 
 `pyradioss/elements/solid_q1np.py` and `tests/test_p2_solid_q1np.py`. No
