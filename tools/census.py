@@ -29,8 +29,9 @@ The three claims the census makes per upstream file:
 ``status``
     Read from ``tools/validation_data/port_status.json`` and **nothing else**.
     An upstream file absent from that allowlist is ``missing``, never
-    ``ported``.  The allowlist ships empty; populating it is a later phase's
-    job, and it is the only thing in this program permitted to promote a row.
+    ``ported``.  The allowlist shipped empty and is populated one cited row at a
+    time (so far only ``q1np_forc3.F90``, as ``ported-unreachable``); it is the
+    only thing in this program permitted to promote a row.
 
 The empty allowlist is deliberate rather than a stub.  ``ported`` is a claim
 about physics, and a false one is invisible: nothing raises, the table simply
@@ -103,8 +104,12 @@ SECTION_CALLED_BY = "called by"
 SECTION_CALLS = "calls"
 SECTION_USES = "uses"
 
-_STATUSES = ("ported", "partial", "stub", "missing")
-Status = Literal["ported", "partial", "stub", "missing"]
+#: ``ported-unreachable`` (P2.9): the file is transcribed, but no deck this port
+#: reads can reach the transcription.  It is a status of its own rather than
+#: ``ported`` because "ported" would claim a reachability nobody delivered; the
+#: reason lives in ``docs/PORT_EXTENSIONS.md``.
+_STATUSES = ("ported", "partial", "stub", "missing", "ported-unreachable")
+Status = Literal["ported", "partial", "stub", "missing", "ported-unreachable"]
 
 #: Where ``main`` puts things by default; the plan's commands use these paths.
 CENSUS_JSON = _REPO_ROOT / "tools" / "validation_data" / "census.json"
@@ -454,8 +459,10 @@ def render(census: Census, area: str | None = None, status: str | None = None) -
     out.append("")
     out.append("`status` comes only from `tools/validation_data/port_status.json`.")
     out.append(
-        "A file absent from that allowlist is `missing`, never `ported` — the "
-        "allowlist ships empty, so no row claims to be ported yet."
+        "A file absent from that allowlist is `missing`, never `ported`; an "
+        "allowlisted row is a cited claim, and `ported-unreachable` means "
+        "transcribed but not reachable from any deck "
+        "(see `docs/PORT_EXTENSIONS.md`)."
     )
     out.append("")
 

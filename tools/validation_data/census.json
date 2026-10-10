@@ -5,7 +5,8 @@
     "ported": 0,
     "partial": 0,
     "stub": 0,
-    "missing": 5887
+    "missing": 5886,
+    "ported-unreachable": 1
   },
   "files": {
     "common_source/comm/compress_nnz.F": {
@@ -9504,7 +9505,7 @@
         "q1np_volume_mod"
       ],
       "area": "common_source/modules",
-      "python_module": null,
+      "python_module": "pyradioss.elements.solid_q1np",
       "status": "missing"
     },
     "common_source/modules/q1np_restart_mod.F90": {
@@ -9544,7 +9545,7 @@
         "wrrestp"
       ],
       "area": "common_source/modules",
-      "python_module": null,
+      "python_module": "pyradioss.elements.solid_q1np",
       "status": "missing"
     },
     "common_source/modules/random_walk_def_mod.F90": {
@@ -24464,8 +24465,8 @@
         "forint"
       ],
       "area": "engine/source/elements/solid/solid_q1np",
-      "python_module": null,
-      "status": "missing"
+      "python_module": "pyradioss.elements.solid_q1np",
+      "status": "ported-unreachable"
     },
     "engine/source/elements/solid/solid_q1np/q1np_nurbs_surface_eval_mod.F90": {
       "path": "engine/source/elements/solid/solid_q1np/q1np_nurbs_surface_eval_mod.F90",
@@ -24476,7 +24477,7 @@
         "q1np_contact_algorithms_mod"
       ],
       "area": "engine/source/elements/solid/solid_q1np",
-      "python_module": null,
+      "python_module": "pyradioss.elements.solid_q1np",
       "status": "missing"
     },
     "engine/source/elements/solid/solide/ajac3.F": {

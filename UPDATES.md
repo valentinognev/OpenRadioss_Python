@@ -13,6 +13,63 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.20.0 - Task P2.9: Q1NP hexahedra on a B-spline surface; the force path marked `ported-unreachable` (2026-10-10)
+
+`pyradioss/elements/solid_q1np.py` and `tests/test_p2_solid_q1np.py`. No
+existing kernel, no engine path and no `elements/__init__.py` export was
+touched; **nothing calls this module, and nothing can** (below).
+
+- **Sources read before any Python:** `q1np_nurbs_surface_eval_mod.F90`,
+  `q1np_forc3.F90`, `q1np_dump_hist_state.F90` (engine), `q1np_geom_mod.F90`,
+  `q1np_restart_mod.F90` (common), and the Starter's `lectur.F` call into
+  `q1np_generate_main.F90`.
+- **The evaluator** (`evaluate_surface`, plan Step 1/3): a tensor-product
+  B-spline point plus any partial derivative, in knot space. The basis is a
+  line-for-line port of `Q1NP_DERS_BASIS_FUNS` (including its `1e-15` knot-
+  difference guards). Checked against `scipy.interpolate.BSpline` on a
+  `p=2, q=3` multi-span patch for position and the `(1,0) (0,1) (1,1) (2,0)
+  (0,2) (0,3)` derivatives, and against the upstream parent-coordinate entry
+  points (`dS/dxi = (span/2) dS/du`). The plan's own test is the first one.
+  RED was `ImportError: cannot import name 'solid_q1np'`; GREEN is the plan
+  test alone, then the 83-test file.
+- **The upstream "NURBS" is not rational.** `Q1NP_WTAB` exists, but no routine
+  in the evaluated files uses a weight, so there is no `weights` argument.
+- **The plan's description of `q1np_forc3.F90` is wrong, and so is half of its
+  reason for the task's shape.** `forc3` has no projection of nodes onto the
+  surface; it is the element force driver (Gauss loop, Jacobian, strain rate,
+  `MMAIN`, nodal force accumulation). The Newton projection is
+  `q1np_contact_project_point_newton` in `interfaces/ists_q1np/` and is *not*
+  ported. And a deck can reach the Fortran kernel: `lectur.F` calls
+  `Q1NP_GENERATE_MAIN`, which fits a B-spline top surface to a mesh `/SURF`
+  named by an `/INTER` `Ists` card. What is missing is the port of that
+  ~6,000-line Starter chain, not a deck syntax. The record is in
+  `docs/PORT_EXTENSIONS.md` §`solid_q1np`.
+- **What `forces` is.** The geometry-and-force core of `Q1NP_FORC3`
+  (`gp_geometry`, `strain_rate`, `char_len`, `accum_fint`, `gauss_1d`), with
+  the stress supplied by a **required** caller callback — `Q1NP_GP_MAT` /
+  `MMAIN` is not ported and no default material was invented. Tested for
+  transcription only: volume, `sum F = 0`, and the isoparametric identity
+  `sum_k F_k x_k^T = -V sigma` on a warped `p=q=2` element, none of which says
+  anything about reachability. Kept-as-upstream oddities: `SPAN_SCALE = 0.2` is
+  a default-real literal (single-precision value kept) times *four* edges, and
+  `Q1NP_GAUSS_1D` above five points is a uniform grid, not Gauss-Legendre.
+- **Census.** `q1np_forc3.F90` is `ported-unreachable`: a new status in
+  `tools/census.py`, one cited row in `tools/validation_data/port_status.json`,
+  `census.json` and `plan/CENSUS.md` regenerated (the markdown gains a column,
+  hence its large diff). Two assertions in `tests/test_p0_census.py` that said
+  "the allowlist is empty / every row is missing"
+  (`test_status_comes_only_from_the_allowlist`,
+  `test_census_claims_nothing_it_cannot_prove`) were realigned *stricter*: the
+  allowlist is now pinned to exactly that one row, `ported` may not appear in
+  it, and every other row must still be `missing`. The evaluator file
+  `q1np_nurbs_surface_eval_mod.F90` is deliberately **not** promoted — no
+  parity run exists for it.
+- **Not done, on purpose:** no deck, keyword reader, `Ists` hook or material
+  lookup; no parity run (the oracle only reaches Q1NP through that Starter
+  chain); `tools/validation_data/solid_routine_status.json` (the P2.0 audit
+  table) still lists the three Q1NP engine rows as `missing` — reconciling it
+  is P2.13's job, as for the other P2 modules.
+
 ## 1.19.0 - Task P2.8: solid thermal strain — `mmain`'s `ETH` block (2026-10-10)
 
 `pyradioss/elements/solid_thermal.py` and `tests/test_p2_solid_thermal.py`.
@@ -138,6 +195,7 @@ No oracle parity run accompanies this task, and that is deliberate rather
 than skipped: the module has no caller, so no deck exercises it and there is
 nothing for the Fortran solver to differ from. The parity case belongs to
 Phase 11 Task P11.15, which is where the code enters a run.
+
 
 ## 1.17.0 - Task P2.6: degeneracy detection, the length correction it buys, and the dim/ind assembly mesh (2026-10-09)
 

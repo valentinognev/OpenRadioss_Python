@@ -99,6 +99,12 @@ _RESOL = "engine/source/engine/resol.F"
 _TH1T = "engine/source/output/th/th1t.F90"
 _TH_OUTPUT = "engine/source/output/th/th_time_output.F"
 
+#: Every promotion the allowlist carries, pinned.  P2.9: ``q1np_forc3.F90`` is
+#: transcribed but unreachable from any deck (``docs/PORT_EXTENSIONS.md``).
+_PROMOTED = {
+    "engine/source/elements/solid/solid_q1np/q1np_forc3.F90": "ported-unreachable",
+}
+
 
 @pytest.fixture(scope="module")
 def census_data():
@@ -290,18 +296,32 @@ def test_status_comes_only_from_the_allowlist(census_data):
 
     This is the rule that makes the ``ported`` row trustworthy, and it is the
     one a future contributor is most likely to break by "just fixing" the
-    default.  With the shipped-empty allowlist every row must be ``missing``.
+    default.  Every row without an allowlist entry must be ``missing``, and the
+    allowlist itself is pinned to the one promotion made so far -- P2.9's
+    ``q1np_forc3.F90`` as ``ported-unreachable`` -- so the next promotion has
+    to edit this test too, in the same commit, where a reviewer sees it.
+
+    Realigned from ``allowlist == {}`` / "every row is missing" when P2.9
+    landed: the pin is *stricter* than silence (an exact dict, and the status
+    is the weakest non-missing one -- never ``ported``), not looser.
     """
     allowlist = census.load_port_status()
-    assert allowlist == {}, "the allowlist must ship empty; phases populate it"
+    assert allowlist == _PROMOTED, "a promotion must be added here, with its citation"
+    assert "ported" not in allowlist.values()
     for path, rec in census_data.files.items():
-        assert rec.status == "missing", f"{path} was promoted without an entry"
+        assert rec.status == _PROMOTED.get(path, "missing"), (
+            f"{path} was promoted without an entry"
+        )
 
 
 def test_census_claims_nothing_it_cannot_prove(census_data):
-    """No ``ported`` or ``stub`` row may exist while the allowlist is empty."""
+    """No ``ported`` or ``stub`` row may exist: only ``missing`` and the one
+    pinned ``ported-unreachable`` promotion (see :data:`_PROMOTED`)."""
     statuses = {r.status for r in census_data.files.values()}
-    assert statuses <= {"missing"}
+    assert statuses <= {"missing", "ported-unreachable"}
+    unreachable = sorted(p for p, r in census_data.files.items()
+                         if r.status == "ported-unreachable")
+    assert unreachable == sorted(_PROMOTED)
 
 
 def test_committed_census_json_agrees_with_a_fresh_scan(census_data):
