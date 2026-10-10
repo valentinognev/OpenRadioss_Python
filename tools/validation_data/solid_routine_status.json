@@ -2,11 +2,11 @@
  {
   "fortran": "engine/source/elements/solid/sconnect/sbilan43.F",
   "routine": "sbilan43",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "PARTSAV per-part booking (internal energy, KE/16, momentum/8, mass) has no implementation: a repo-wide grep for PARTSAV returns only an hourglass comment in shell_qbat.py, and solid_connect.py accumulates eint per element only.",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_connect",
+  "port_symbol": "forces_connect_type43",
+  "status": "partial",
+  "deviation_note": "Two of the five quantities are produced - the internal energy is accumulated per element (st['eint'], line 709) and init_connect_type43 returns the lumped mass FILL*RHO*AREA to the nodal mass array - but nothing books them per part: no PARTSAV(NPSAV,NPART) table exists in pyradioss (grep for PARTSAV/partsav/iparts hits only the EVIS-slot comments at shell_qbat.py:95 and solid_hourglass5.py:122), and the kinetic-energy (VA2/16) and momentum (VXA/8, VYA/8, VZA/8) rows are never computed at all. The P2.0 note still holds.",
+  "parity_case": "tests/test_prop_type43.py::test_energy_conservation_elastic_cycle"
  },
  {
   "fortran": "engine/source/elements/solid/sconnect/sconnect_off.F",
@@ -47,11 +47,11 @@
  {
   "fortran": "engine/source/elements/solid/sconnect/sdet43.F",
   "routine": "sdet43",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "the per-Gauss-point areas AREAP(I,1..4) = J0 +/- J2 -/+ J1 and the NEGATIVE-AREA deletion test are not implemented; solid_connect.py substitutes a uniform area_pg = area/npg for every Gauss point.",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_connect",
+  "port_symbol": "forces_connect_type43",
+  "status": "partial",
+  "deviation_note": "The Gauss-point integration weight exists only in degraded form: area_pg = (area/float(npg))[:, None] (line 672) replaces SDET43's non-uniform AREAP(I,1..4) = J0 +/- J2 -/+ J1 built from the four mid-surface corners, and the NEGATIVE-AREA branch that sets OFF(I) = 0 and prints IOUT/ISTDO is absent (the port's only off = 0 is the rupture criterion at line 701). Parity consequence of the uniform AREAP has not been measured - no TYPE43 case exists in tools/validation_data or VALIDATION.md - so follow-up P2.14 is opened for it.",
+  "parity_case": "tests/test_prop_type43.py::test_pure_normal_elastic_tension"
  },
  {
   "fortran": "engine/source/elements/solid/sconnect/sfint43.F",
@@ -85,35 +85,35 @@
   "routine": "q1np_dump_hist_state",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "debug/post-processing CSV dump of the Q1NP bulk and control-point node coordinates plus the NURBS grid info; nothing in pyradioss references Q1NP state",
+  "status": "refused",
+  "deviation_note": "Dead code upstream: the routine's !|| block lists no caller (q1np_dump_hist_state.F90 lines 26-33), a grep for `CALL Q1NP_DUMP_HIST_STATE` over the whole OpenCourant tree returns nothing, and tools/validation_data/census.json gives it an empty called_by. It is a debug/post-processing CSV dump, which pyradioss has no counterpart for; solid_q1np.py's docstring lists it explicitly under 'What is not ported from q1np_forc3.F90'.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solid_q1np/q1np_forc3.F90",
   "routine": "q1np_forc3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "the force driver (Gauss loop over the NURBS parametric grid, geometry at the GP, the SMALL A3/SMALLB3 coordinate transforms, nodal force accumulation, dt update); no pyradioss module implements it and KERNELS has no Q1NP entry",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_q1np",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "The Gauss loop of Q1NP_FORC3 that needs no material library is implemented - gauss_1d, gp_geometry (Q1NP_GP_GEOM + Q1NP_JACOBIAN), strain_rate (Q1NP_EVAL_DEF), accum_fint, char_len, the (p+1)x(q+1)x2 scheme, the SIG+SVIS-QVIS folding and the off <= 0 gate - but Q1NP_GP_MAT (SROTA3/SRHO3/MMAIN/SSTRA3, replaced by a caller-supplied stress_fn), Q1NP_INIT_NODE_MAP / Q1NP_GET_BULK_NODE_IDS / Q1NP_REBUILD_BULK_*, SMALLA3/SMALLB3, Q1NP_AVG_SIG_BILAN, the Q1NP_ASSEMBLE_FINT scatter into global A/STIFN, PARTSAV and the IDTMIN dt update are not; the module is unreachable from any deck (tools/validation_data/port_status.json: 'ported-unreachable').",
+  "parity_case": "tests/test_p2_solid_q1np.py::test_unit_cube_face_traction_is_minus_sigma_times_area"
  },
  {
   "fortran": "engine/source/elements/solid/solid_q1np/q1np_nurbs_surface_eval_mod.F90",
   "routine": "q1np_nurbs_surface_eval_mod",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "the module's public entry points sum NURBS shape values over control-point IDs at ZETA=+1 to give a surface point and its dS/dXI, dS/dETA tangents. No pyradioss code evaluates a NURBS surface; iga3d.nurbs_3d_basis_and_derivs is a volumetric 3D IGA mapping of a different family (no surface-point/tangent output, no per-element knot-span index).",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_q1np",
+  "port_symbol": "evaluate_top_surface_point_and_derivs",
+  "status": "ported",
+  "deviation_note": "All three PUBLIC routines of the module are transcribed and share _gather, which reproduces the `IF (GID <= 0 .OR. GID > NUMNOD) CYCLE` skip and the XYZ/DXYZ_DXI/DXYZ_DETA accumulation of q1np_nurbs_surface_eval_mod.F90 lines 129-131, 189-192 and 232; evaluate_shape_values returns NVAL(1:NCTRL). Unreachable in practice - upstream's only callers are q1np_contact_algorithms.F90 and genh3d.F, neither of which the port implements.",
+  "parity_case": "tests/test_p2_solid_q1np.py::test_top_point_is_the_knot_space_evaluation_and_tangents_carry_the_span_factor"
  },
  {
   "fortran": "engine/source/elements/solid/solide/ajac3.F",
   "routine": "ajac3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "AJAC3_V (cofactor rows of a 3-vector triple product) has exactly one caller upstream \u2014 amomt3.F, the ALE/Euler momentum-transport force \u2014 and the port has no ALE momentum transport, so it is unreachable there.",
   "parity_case": null
  },
  {
@@ -121,8 +121,8 @@
   "routine": "amass3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE-fluid (law 77) element mass matrix assembly; no pyradioss counterpart",
+  "status": "refused",
+  "deviation_note": "ALE/law-77 element mass-matrix assembly; reached only from sforc3.F:1172 under `IF (JALE == 3 .AND. JLAG == 1 ...)` and from multifluid's multi_fvm2fem.F. No pyradioss routine builds an ALE mass matrix (solid_hexa8.init_group books only the Lagrangian lumped mass).",
   "parity_case": null
  },
  {
@@ -130,8 +130,8 @@
   "routine": "amass3f",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/FVM mass matrix variant",
+  "status": "refused",
+  "deviation_note": "ALE/FVM (law 77 open-cell) mass matrix, called from sforc3.F:1160 under `IF (JALE == 3 .AND. JLAG == 1 .AND. ALE%GLOBAL%INCOMP == 0)` and `IF (IPARIT == 0)`; the port has no ALE-FVM element path at all.",
   "parity_case": null
  },
  {
@@ -139,8 +139,8 @@
   "routine": "amass3p",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/Euler partitioned mass matrix",
+  "status": "refused",
+  "deviation_note": "ALE-FVM22 partitioned mass matrix, called from sforc3.F:1179 in the `ELSE` of `IF (IPARIT == 0)` and from multifluid/multi_fvm2fem.F; the port has neither IPARIT nor the FVM22 partition.",
   "parity_case": null
  },
  {
@@ -148,8 +148,8 @@
   "routine": "amass3pf",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/FVM partitioned mass matrix variant",
+  "status": "refused",
+  "deviation_note": "Partitioned ALE/FVM mass matrix, reached from sforc3.F:1166 in the `IF (IPARIT /= 0)` branch of the JALE==3 mass update; nothing in pyradioss implements that branch.",
   "parity_case": null
  },
  {
@@ -157,8 +157,8 @@
   "routine": "amomt3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/Euler momentum-transport forces for solids; no pyradioss counterpart",
+  "status": "refused",
+  "deviation_note": "ALE/Euler momentum-transport forces for the solid (717 lines, calls AJAC3_V and AMOMTN3); it is called from sforc3.F under `IF (JALE+JALE/=0 ...)` only, and the port's solid cycle has no ALE momentum transport (grep for JALE/JEUL/EMOMT across pyradioss returns only the 2D ale_engine/aflux3 notes).",
   "parity_case": null
  },
  {
@@ -166,8 +166,8 @@
   "routine": "amomtn3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "per-node upwind helper of amomt3",
+  "status": "refused",
+  "deviation_note": "Per-node upwind momentum helper whose only caller is amomt3.F (the ALE force the port does not carry); its UPWM coefficient role is transcribed separately in pyradioss.elements.solid_upwind for a different, unwired path.",
   "parity_case": null
  },
  {
@@ -184,8 +184,8 @@
   "routine": "check_off_ale",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE element deactivation check",
+  "status": "refused",
+  "deviation_note": "ALE element deactivation (OFF from the vanishing ALE flux tensor); called from sforc3.F:1392 under `IF (JEUL+JALE /= 0)` and from ale/bimat/bforc2.F. The port deletes elements only through material /FAIL and geometric criteria, never from an ALE flux.",
   "parity_case": null
  },
  {
@@ -193,8 +193,8 @@
   "routine": "csmall3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "CSMALL3's only callers are thickshell/solide8c, thickshell/solidec and the unimplemented solide8e / solide8s / solide8z families (see its provenance block) \u2014 no caller the port implements. Upstream engine/source/elements/solid/solide/csmall3.F is reached only from ../engine/source/elements/thickshell/solide6c/s6cforc3.F, ../engine/source/elements/thickshell/solide8c/s8cforc3.F, ../engine/source/elements/solid/solide8e/s8eforc3.F, ../engine/source/elements/solid/solide8s/s8sforc3.F (and 2 more); no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -209,10 +209,10 @@
  {
   "fortran": "engine/source/elements/solid/solide/deges4v.F",
   "routine": "deges4v",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "tetra volume of a collapsed hexa (helper of the sdlen_dege chain); no counterpart",
+  "port_module": "pyradioss.elements.solid_degeneracy",
+  "port_symbol": "deges4v",
+  "status": "ported",
+  "deviation_note": "Same construction and the same early exit: nodedege is fed the eight corners in connectivity order until four distinct positions are collected, then tetra4v gives |det|/6, 0 when four are never reached. Only reached from sdlen_dege.F/sldege.F, so it is exercised by solid_degeneracy's own tests, not by an engine cycle.",
   "parity_case": null
  },
  {
@@ -220,8 +220,8 @@
   "routine": "emomt3b",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "Eulerian momentum transport / SUPG-TG upwind for solids",
+  "status": "refused",
+  "deviation_note": "Eulerian (JALE/ALEFVM) momentum transport with the SUPG/TG upwind; called from sforc3.F:1365 inside the ALE/Euler transport block. No pyradioss solid routine computes a transported momentum force.",
   "parity_case": null
  },
  {
@@ -229,8 +229,8 @@
   "routine": "epxle3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "Eulerian characteristic length read from VEUL(13) (no ALE grid in the port)",
+  "status": "refused",
+  "deviation_note": "Eulerian characteristic length read from the mesh-velocity array VEUL(13); called from sforc3.F:704 in the Eulerian-simulation block, and the port has no Eulerian mesh (solid_hexa8._char_length is the Lagrangian V/A_max).",
   "parity_case": null
  },
  {
@@ -238,8 +238,8 @@
   "routine": "fcumu3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/FVM cumulative momentum force bookkeeping",
+  "status": "refused",
+  "deviation_note": "ALE/FVM cumulative momentum bookkeeping (STI/STIFN force accumulation under the ALE block of sforc3.F:1788); the port's only force accumulation is solid_hexa8._post's dndx @ S.",
   "parity_case": null
  },
  {
@@ -247,8 +247,8 @@
   "routine": "fcumu3p",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "parallel variant of fcumu3",
+  "status": "refused",
+  "deviation_note": "Partitioned (IPARIT /= 0) counterpart of FCUMU3, called from sforc3.F:1801; the port has no partitioned ALE momentum storage.",
   "parity_case": null
  },
  {
@@ -256,8 +256,8 @@
   "routine": "fdefo3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/FVM strain rates (the 'F' mirror of sdefo3 for the ALE-fluid law 77)",
+  "status": "refused",
+  "deviation_note": "ALE-FVM strain-rate mirror of sdefo3 (called from sforc3.F:955 inside `IF (JALE == 3) ... JLAG > 0`); the port's only strain rate is solid_hexa8._pre's L = ve.T @ dndx.",
   "parity_case": null
  },
  {
@@ -265,8 +265,8 @@
   "routine": "fderi3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/FVM shape-function derivatives",
+  "status": "refused",
+  "deviation_note": "ALE-FVM shape-function derivatives (the FVM mirror of sderi3), called from sforc3.F:924 in the JALE==3 block; the port's only gradients are solid_hexa8._geometry's centroid dN/dx.",
   "parity_case": null
  },
  {
@@ -274,8 +274,8 @@
   "routine": "fdlen3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/FVM characteristic length",
+  "status": "refused",
+  "deviation_note": "ALE-FVM characteristic length built from SLEN/SLENA on the FVM volumes, called from sforc3.F:940; the port's time step comes from solid_hexa8._char_length on the Lagrangian brick.",
   "parity_case": null
  },
  {
@@ -283,8 +283,8 @@
   "routine": "fe_close",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "/ALE/CLOSE porous closed-volume correction hook",
+  "status": "refused",
+  "deviation_note": "/ALE/CLOSE porous closed-volume hourglass correction, called from sforc3.F:1305 under `IF (JCLOSE /= 0)`; the port reads no /ALE/CLOSE card (grep for JCLOSE in pyradioss returns nothing).",
   "parity_case": null
  },
  {
@@ -292,8 +292,8 @@
   "routine": "ffint3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/FVM internal forces",
+  "status": "refused",
+  "deviation_note": "ALE-FVM internal force assembly (SIGF = SIG + viscous pressure, scattered through FPX* gradients), called from sforc3.F:1532 inside the ALEFVM branch; solid_hexa8._post's fe = -(vol) dndx @ S is the Lagrangian counterpart and does not implement it.",
   "parity_case": null
  },
  {
@@ -301,8 +301,8 @@
   "routine": "fhvis3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/FVM viscous hourglass control",
+  "status": "refused",
+  "deviation_note": "Hourglass control of the ALE-fluid brick (law 77), called from sforc3.F:1280 under `IF (JALE == 3)` on the FVM velocities FVX*, not on the Lagrangian ones; the port's hourglass (solid_hexa8._post viscous FB and solid_hourglass5) is the SHVIS3/S_HG5 branch.",
   "parity_case": null
  },
  {
@@ -310,26 +310,26 @@
   "routine": "frho3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/FVM density update from fluxes",
+  "status": "refused",
+  "deviation_note": "ALE-FVM density update (the FVM mirror of srho3), called from sforc3.F:979 in the `IF (JALE == 3 ... JLAG > 0)` block; no pyradioss routine updates a fluid density from a volumetric divergence.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/idege.F",
   "routine": "idege",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "collapsed-quad edge detector used by sldege; no counterpart",
+  "port_module": "pyradioss.elements.solid_degeneracy",
+  "port_symbol": "idege8_flag",
+  "status": "partial",
+  "deviation_note": "IDEGE's per-edge coincidence test (X12, X23, X34, X41 at exact equality) is transcribed and batched in idege8_flag, and its `IF (A > AMAX) IT = IDE` update in _idege8_scan. Missing: the `IF (IDE(I) == 0) IT4(I) = 0` reset, which only sldege.F consumes, and the N_INDX/INDX gather (the port batches instead).",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/idege8.F",
   "routine": "idege8",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "per-face degenerate area of the sdlen_dege chain; the port scales lc instead of recomputing face areas",
+  "port_module": "pyradioss.elements.solid_degeneracy",
+  "port_symbol": "idege8_area",
+  "status": "ported",
+  "deviation_note": "idege8_area reproduces RX/SX, N = R x S and A = |N|^2 including the Fortran's own factor-of-four comment mismatch; idege8_flag reproduces the four perimeter-edge IDE test with exact equality and _idege8_scan reproduces the in/out AMAX/IT raise-only update and the pass-through of the never-assigned FAC. Only reached upstream from sdlen_dege.F/sdlen_sms.F, so it runs in solid_degeneracy's tests rather than in an engine cycle.",
   "parity_case": null
  },
  {
@@ -337,17 +337,17 @@
   "routine": "mod_close",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "/ALE/CLOSE closed-porous-volume correction",
+  "status": "refused",
+  "deviation_note": "/ALE/CLOSE geometry correction (MOD_CLOSE), called from sforc3.F:642 in the ALE block; the port has no /ALE/CLOSE path and no solid_8-node mesh-filling correction.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/nodedege.F",
   "routine": "nodedege",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "node-level degeneracy deletion helper; no counterpart",
+  "port_module": "pyradioss.elements.solid_degeneracy",
+  "port_symbol": "nodedege",
+  "status": "ported",
+  "deviation_note": "Same exact-equality comparison against the points collected so far and the same RETURN-on-first-coincidence early exit; kept scalar rather than vectorised precisely so deges4v's early GOTO on reaching four distinct corners keeps its order dependence.",
   "parity_case": null
  },
  {
@@ -355,8 +355,8 @@
   "routine": "prelecflow",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALEFLOW pre-pass for porous-media / fluid-element coupling",
+  "status": "refused",
+  "deviation_note": "/ALE/ELEC pre-computation of the fluid conductivity for MLW = 77 open-foam groups (dispatched from forint.F, the multifluid driver); pyradioss has no multifluid group dispatch and no PHI1/PHI2/POR arrays.",
   "parity_case": null
  },
  {
@@ -373,8 +373,8 @@
   "routine": "s11defo3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "silent-boundary strain-rate filter (S11 element group)",
+  "status": "refused",
+  "deviation_note": "Strain rates of the ALE 'silent boundary' elements, gated on ML = 11/51 connectivity through ale_connectivity_mod; called from sforc3.F:747 as the ALE branch's SDEFO3. No pyradioss solid routine reads ALE_CONNECTIVITY.",
   "parity_case": null
  },
  {
@@ -382,17 +382,17 @@
   "routine": "s11fx3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "silent-boundary multi-material flux (no silent-boundary group in the port)",
+  "status": "refused",
+  "deviation_note": "ALE flux/material update for the same silent-boundary elements (takes ALE_CONNECT, BUFMAT, FLUX); called from sforc3.F:785 on the ALE path, which the port does not implement.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/s8dlenmax_sm.F90",
   "routine": "s8dlenmax_sm",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "small-strain (ISMSTR=1/11) L_MAX variant; element_erosion.compute_sdlenmax implements the plain sdlenmax.F formula only",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "compute_sdlenmax",
+  "status": "partial",
+  "deviation_note": "L_MAX is reproduced exactly (R/S/T sums, l_max_sq = max of the three norms, L_MAX = 0.25*sqrt) and is re-exported by solid_hexa8.compute_sdlenmax, which element_erosion.check_solid_geometric_erosion uses. Not carried over: the two post-SDLENMAX steps VOL = VOL0*RHO0/MAX(EM20,RHO) and L_MIN = VOL/L_MAX^2 \u2014 the port forms the collapse ratio from VOL/A_max directly, so L_MIN as upstream defines it is never produced.",
   "parity_case": null
  },
  {
@@ -400,8 +400,8 @@
   "routine": "s8for_distor",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "distortion-driven solid-to-lower-order degeneration; not implemented",
+  "status": "refused",
+  "deviation_note": "The ISCTL>0 distortion-control force storage: it drives SFOR_4N2S4/SFOR_N2S4/SFOR_VISN8 and books E_DISTOR. sforc3.F reaches it only under `IF (ISCTL > 0)` (line 1663) with `IF (JCVT <= 0)`, and the port has no ISCTL at all; solid_degenerate deliberately owns only the topology this routine consumes, not the forces.",
   "parity_case": null
  },
  {
@@ -409,8 +409,8 @@
   "routine": "s8get_x3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Gathers X/XDP (current and convected) coordinates for the distortion-control matrices; sforc3.F calls it only inside `IF (ISCTL > 0)` (line 1671), so with no /DT ISCTL the port never needs it and does not implement it.",
   "parity_case": null
  },
  {
@@ -418,8 +418,8 @@
   "routine": "s8jac_i",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "inverse Jacobian for the ISMSTR=10 co-rotational formulation",
+  "status": "refused",
+  "deviation_note": "Recomputes the four Jacobian invariants JAC_I and the small-strain message for ISMSTR = 12; its only caller is s8upd11t12.F, which sforc3.F reaches only under `IF (ISMSTR == 12 .AND. IDTMIN(1) == 3)`. The port never evaluates ISMSTR 12 (solid_hexa8 does not read prop.ismstr at all).",
   "parity_case": null
  },
  {
@@ -427,26 +427,26 @@
   "routine": "s8sav12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "small-strain SAV history storage (ISMSTR=12); the port keeps no SAV array",
+  "status": "refused",
+  "deviation_note": "ISMSTR = 12 reference save (SMSTR from the current coordinates plus XDP); called from sforc3.F:1110 under `IF (ISMSTR == 12 .AND. IDTMIN(1) == 3)`, a formulation the port does not carry.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/s8sav3.F",
   "routine": "s8sav3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "small-strain SAV history storage; no counterpart",
+  "port_module": "pyradioss.elements.solid_crimp",
+  "port_symbol": "save_reference",
+  "status": "partial",
+  "deviation_note": "The 21-value node-relative reference with the same `ABS(OFFG) <= 1` write guard is written, but with node 1 as origin instead of node 8 (a translation of the reference, geometrically equivalent, not bit-identical), and only the CRIMP co-rotational module writes it \u2014 solid_hexa8 never keeps GBUF%SMSTR, so the explicit cycle has no consumer.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/s8savsr3.F",
   "routine": "s8savsr3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "co-rotational SAV storage (JCVT!=0); no counterpart",
+  "port_module": "pyradioss.elements.solid_crimp",
+  "port_symbol": "save_reference",
+  "status": "partial",
+  "deviation_note": "Identical body to s8sav3.F (same 21 node-8-relative values, same ABS(OFFG)<=1 guard); the port's single save_reference covers both. Same two gaps as the s8sav3 row: node-1 rather than node-8 origin, and no SMSTR state in the explicit solid_hexa8 cycle \u2014 the JCVT /= 0 AND ISORTH /= 0 selector at sforc3.F:844 has no host.",
   "parity_case": null
  },
  {
@@ -454,17 +454,17 @@
   "routine": "s8upd11t12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "small-strain SAV update between ISMSTR 11 and 12; no counterpart",
+  "status": "refused",
+  "deviation_note": "ISMSTR 11-to-12 conversion of SIGL/SIG via the JAC_I invariants, calling s8jac_i.F; reached from sforc3.F:1116 under `IF (ISMSTR == 12 ... ISM12_11 > 0 .AND. ISORTH == 0)`. The port has no ISMSTR 11/12 path.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/s_hg5.F",
   "routine": "s_hg5",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "5-node hourglass control (IINT=3); the port's stiff hourglass is the LAW70-only _phys_hourglass_law70, a different element technology",
+  "port_module": "pyradioss.elements.solid_hourglass5",
+  "port_symbol": "apply",
+  "status": "partial",
+  "deviation_note": "The coefficient ladder (SFAC, F_ET, F_CL, the ISCTL/ISCTL>0 .AND. NU>0.48999 arm), the persistent FHOUR state, the nodal force and the trapezoidal double booking into state['ehour'] and EVIS(8) are all transcribed. Two gaps: the sforc3 `IF (IINT == 3)` dispatch is not wired into solid_hexa8.forces (the module docstring says nothing in the engine calls it), and the fourth column's PX*H correction is the port's own orthogonalization where upstream applies none.",
   "parity_case": null
  },
  {
@@ -472,8 +472,8 @@
   "routine": "sbilan",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "updated-Lagrangian energy bookkeeping of the SRCOOR3/SDEFO3 outputs; the port books its own deint/w_visc/dehour in _post",
+  "status": "refused",
+  "deviation_note": "Per-part (IPARTS) energy booking into PARTSAV plus grelem_sav/sensor_energy_bilan sensor feeds. sforc3.F reaches it under `IF (JLAG+JALE+JEUL == 0)` and `IF (IOUTPRT > 0)` (line 1122-1135), i.e. on the default path, but a repo-wide grep for PARTSAV in pyradioss returns only hourglass comments (shell_qbat.py, solid_hourglass5.py) \u2014 no PARTSAV array exists, and solid_hexa8 books eint per element only.",
   "parity_case": null
  },
  {
@@ -481,17 +481,17 @@
   "routine": "sboltlaw",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "the bolt law called from inside MMAIN (updates SSP/DTEL and the bolt pressure); pyradioss.engine.bolt_preload is the /PRELOAD/AXIAL spring-force path, a different routine",
+  "status": "refused",
+  "deviation_note": "SBOLTLAW is the /MAT/BOLT constitutive update called from mmain.F90; the port has no bolt constitutive law \u2014 dispatch maps MAT_BOLT to the generic read_mat and no law module implements it. The bolt preload itself is instead applied as an external equal-and-opposite nodal force pair (pyradioss.engine.bolt_preload.BoltPreloadEngine), which carries no element state.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/schkjab3.F",
   "routine": "schkjab3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "volume-upwind strain-filter switching predicate; no counterpart",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "The non-positive-Jacobian detection is there (bad = detJ <= EM20 -> vol floored to EM20 and dndx zeroed; forces() then drops the element's time-step claim to EP30), but the correction itself is not: no DET = 1 / OFF = 0 deletion under IMCONV == 1, no MSGID = 166 + MSTOP abort on DET <= 0, and no VOLMIN threshold or IDEL7NOK setting.",
   "parity_case": null
  },
  {
@@ -508,8 +508,8 @@
   "routine": "scre_sig3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "crane/ISCTL signal stress screening",
+  "status": "refused",
+  "deviation_note": "Sets the distortion-control initial stress matrix SCRE from SIG for the ISCTL path; its only caller is sdistor_ini.F, which sforc3.F reaches under `IF (ISCTL > 0)`. The port has no ISCTL distortion control.",
   "parity_case": null
  },
  {
@@ -517,8 +517,8 @@
   "routine": "scumu3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE cumulative momentum force bookkeeping",
+  "status": "refused",
+  "deviation_note": "ALE cumulative force/state update (STI, STI_C, A, the 24-element force rotation) reached from sforc3.F:1744 in the `IF (IPARIT == 0)` ALE branch and from multifluid/multi_fvm2fem.F. solid_hexa8._post is the only force assembly in the port and it is purely Lagrangian.",
   "parity_case": null
  },
  {
@@ -526,8 +526,8 @@
   "routine": "scumu3p",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "parallel variant of scumu3",
+  "status": "refused",
+  "deviation_note": "Partitioned (IPARIT /= 0) counterpart of SCUMU3, called from sforc3.F:1764 and from multifluid/multi_fvm2fem.F; the port has no partitioned ALE state.",
   "parity_case": null
  },
  {
@@ -544,8 +544,8 @@
   "routine": "sdefot3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "total-strain (ISMSTR=10/12) strain rates; the port has no small-strain/total-strain switch",
+  "status": "refused",
+  "deviation_note": "Strain rates of the total-strain formulation, computed on the INITIAL coordinates X0/Y0/Z0; sforc3.F:612 reaches it inside `IF ((ISMSTR >= 10 .AND. ISMSTR <= 12) .AND. JLAG > 0)`, a formulation the port does not carry (solid_hexa8 never reads prop.ismstr; prop_reader.py maps ISMSTR 10 to 4).",
   "parity_case": null
  },
  {
@@ -562,8 +562,8 @@
   "routine": "sderit3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "shape-function derivatives for the total-strain (initial-coordinate) formulation",
+  "status": "refused",
+  "deviation_note": "Shape-function partial derivatives of the total-strain formulation (from the saved X0/Y0/Z0, with the JAC1..JAC6 and JLAG path); called from sforc3.F:576 inside the `IF ((ISMSTR >= 10 .AND. ISMSTR <= 12) .AND. JLAG > 0)` block.",
   "parity_case": null
  },
  {
@@ -571,8 +571,8 @@
   "routine": "sderito3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "shape-function derivatives for the ISMSTR=10 co-rotational formulation",
+  "status": "refused",
+  "deviation_note": "Gradients in global coordinates via the inverse-Jacobian path for ISMSTR = 10 only, called from sforc3.F:605; the port's prop_reader.py:1535-1536 rewrites ISMSTR 10 to 4, so no deck can reach it.",
   "parity_case": null
  },
  {
@@ -580,8 +580,8 @@
   "routine": "sdistror_ini",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ISCTL distortion-stabilization initialisation",
+  "status": "refused",
+  "deviation_note": "Initialises the ISCTL distortion-control stiffness matrices STI/STI_C (calling scre_sig3); sforc3.F reaches it only under `IF (ISCTL > 0)`. pyradioss has no ISCTL: grep for ISCTL across pyradioss returns only solid_hourglass5's transcription of s_hg5's own F_ET arm.",
   "parity_case": null
  },
  {
@@ -607,8 +607,8 @@
   "routine": "sdlen_sm11",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ISMSTR=11 small-strain cap DELTAX = MIN(DELTAX, 16*VOLG*SMAX); no counterpart",
+  "status": "refused",
+  "deviation_note": "Erosion characteristic length for the ISMSTR = 11 formulation; its only callers are s8eforc3.F and s8zforc3.F, i.e. the unimplemented solide8e / solide8z families.",
   "parity_case": null
  },
  {
@@ -625,8 +625,8 @@
   "routine": "sfillopt",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE fluid-fill force on the solid boundary",
+  "status": "refused",
+  "deviation_note": "Scales STI and all 24 force components by the element's FILL factor for deformed-shape visualisation; sforc3.F calls it under `IF (NFILSOL /= 0)` and the other callers are thickshell/8e/8s/8z plus user_interface/suforc3.F. The port has no FILL array and no /ANIM/FILL.",
   "parity_case": null
  },
  {
@@ -652,35 +652,35 @@
   "routine": "sfint_reg",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "non-local (regularised) damage virtual internal forces",
+  "status": "refused",
+  "deviation_note": "Regularized non-local internal forces (NLOC_DMG/VAR_REG over the element's material laws); sforc3.F reaches it under `IF (INLOC > 0)` (line 1597) and the port has no /REG non-local variable (grep for nloc_reg/VAR_REG finds nothing).",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/sfor_4n2s4.F90",
   "routine": "sfor_4n2s4",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "4-node -> 2-node solid degeneration; not implemented",
+  "port_module": "pyradioss.elements.solid_degenerate",
+  "port_symbol": "four_to_four_striking",
+  "status": "partial",
+  "deviation_note": "The four independent ns = n1..n4 passes with their own IFC2, the ITGSUB gate, the unit-normal construction and the IFDE ladder are transcribed. Missing: everything after the weights \u2014 the FN force build, the E_DISTOR booking and the scatter into FOR_T/FORC_N that the module docstring explicitly excludes as 'the distortion-energy path'.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/sfor_n2s4.F",
   "routine": "sfor_n2s4",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "solid -> 2-node line degeneration; not implemented",
+  "port_module": "pyradioss.elements.solid_degenerate",
+  "port_symbol": "four_to_four_striking",
+  "status": "partial",
+  "deviation_note": "The node gather, the ssort_n4 call and the four-node striking loop are all present (ssort_n4 and four_to_four_striking). Missing: the FN force build, the E_DISTOR booking and the FOR_T/FORC_N scatter, and the STIF/MARGE/TOL_V bookkeeping that reads the element's stiffness history \u2014 all explicitly out of scope for the port module. It is also a distortion-control (ISCTL) routine, so sforc3.F reaches it only under `IF (ISCTL > 0)`.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/sfor_ns2s4.F90",
   "routine": "sfor_ns2s4",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "n-node -> 2-node degeneration; not implemented",
+  "port_module": "pyradioss.elements.solid_degenerate",
+  "port_symbol": "triangle_nodes",
+  "status": "partial",
+  "deviation_note": "The per-code (XB, XC, XA) triangle selection, the barycentric coordinates and the negative-barycentric clamp are transcribed branch for branch; _barycentric keeps upstream's edge-cross sign convention. Missing: the force and weight application itself, and one deliberate deviation \u2014 the port divides by max(EM20, S2) where upstream divides by S2 unguarded.",
   "parity_case": null
  },
  {
@@ -688,8 +688,8 @@
   "routine": "sfor_visn8",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "distortion visibility for the degeneration paths",
+  "status": "refused",
+  "deviation_note": "Visualisation/stiffness trigger of the distortion control (sets IFCTL and rescales FOR_T by 1 + 2*MU); its only caller is s8for_distor.F, which the port does not carry.",
   "parity_case": null
  },
  {
@@ -706,8 +706,8 @@
   "routine": "sgcoor3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "initial-coordinate gather for the total-strain (ISMSTR>=10) formulation",
+  "status": "refused",
+  "deviation_note": "Gathers the initial coordinates and velocities of the total-strain (JLAG) formulation; sforc3.F:545 calls it inside `IF ((ISMSTR >= 10 .AND. ISMSTR <= 12) .AND. JLAG > 0)`, a formulation the port does not carry.",
   "parity_case": null
  },
  {
@@ -724,8 +724,8 @@
   "routine": "sgparav3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "parametric-variation signal geometry",
+  "status": "refused",
+  "deviation_note": "SGPRAV3's only callers are thickshell/solide6c, thickshell/solide8c and thickshell/solidec \u2014 all thickshell, which the port implements only as a separate composite/wedge family, not through this routine. Upstream engine/source/elements/solid/solide/sgparav3.F is reached only from ../engine/source/elements/thickshell/solide6c/s6cforc3.F, ../engine/source/elements/thickshell/solide8c/s8cforc3.F, ../engine/source/elements/thickshell/solidec/scforc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -740,10 +740,10 @@
  {
   "fortran": "engine/source/elements/solid/solide/sldege.F",
   "routine": "sldege",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "IDTS6 face-area correction for degenerate elements inside SDLEN3; the port's _char_length has no such correction",
+  "port_module": "pyradioss.elements.solid_degeneracy",
+  "port_symbol": "degeneracy_factors",
+  "status": "partial",
+  "deviation_note": "The job \u2014 give a degenerating brick a finite characteristic length \u2014 is done: AREAM seeded at EM20, the six IDEGE8 face scans in _HEXA_FACES order, AREAM = FAC*AREAM when the winning face is not degenerate, and DELTAX = 4*V_G/sqrt(AREAM) in characteristic_length. Deviations: the degeneracy test is the connectivity-duplicate IDEGE rather than sldege's `AREA(I,J) < EM30` count, the FAC ladder is one notch different (1/9, 1/4, 1 vs sldege's >=2 -> 1/9 else 1/4), and sldege's IDET4-triggered DEGES4V arm with FAC = THIRD*VOLG/V_G squared is absent \u2014 the port triggers deges4v on IDEGE > 3 instead.",
   "parity_case": null
  },
  {
@@ -760,8 +760,8 @@
   "routine": "slena",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE facet-area variant used by the ICAA/ISFINT>=2 branch of sdlen3; no ALE grid in the port",
+  "status": "refused",
+  "deviation_note": "SLENA (average-face-area length for ALE/FVM cells) is reached from fdlen3.F and sdlen3.F on the ALE characteristic-length path; the port's solid_hexa8._char_length is the Lagrangian V/A_max and never calls it.",
   "parity_case": null
  },
  {
@@ -769,8 +769,8 @@
   "routine": "smalla3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "the solid_hexa8 docstring claim 'smalla3.F / mmain.F call the material law' is WRONG: smalla3's whole body rotates the SAV small-strain displacement history by the spin increment. The port keeps no SAV array at all, so nothing implements it; the material dispatch the docstring means is MMAIN, which is not in this directory",
+  "status": "refused",
+  "deviation_note": "Rotates the SAV reference coordinates by the spin increment (the small-strain reference update) for ISMSTR = 11 or ISMSTR <= 4 with JLAG > 0. The port keeps no SAV/GBUF%SMSTR state in the explicit cycle \u2014 solid_hexa8.init_group's state keys are sig/epsp/vol0/mass/eint/ehour/off/qvw_pend/hgq/hgqex/dtfac/lc_scale \u2014 so this rotation has no host. Upstream engine/source/elements/solid/solide/smalla3.F is reached only from ../engine/source/elements/solid/solid_q1np/q1np_forc3.F90, ../engine/source/elements/thickshell/solide16/s16forc3.F, ../engine/source/elements/solid/solide20/s20forc3.F, ../engine/source/elements/thickshell/solide8c/s8cforc3.F (and 1 more); no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -787,8 +787,8 @@
   "routine": "smallg3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "SMALLG3's only callers are s8eforc3.F, s8sforc3.F and s8zforc3.F \u2014 the unimplemented solide8e / solide8s / solide8z families.",
   "parity_case": null
  },
  {
@@ -796,8 +796,8 @@
   "routine": "smallgeo3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "switches ISMSTR=2/12 elements to small strain when TET_COLLA drops below the /DT thresholds; the port has no small-strain formulation switch at all",
+  "status": "refused",
+  "deviation_note": "The /DT/BRICK CST test (DT%BRICK_CST_COL_MIN, BRICK_CST_DEFV_MIN, ISMSTR 2 or 12 only, setting OFFG = 2 with an ANCMSG). The port's /DT/<ELEM> reader stores card 2 into DELBRICK-style col_min/defv_min/asp_max/defv_max for element_erosion.check_solid_geometric_erosion and never into the CST keys, so a /DT/BRICK CST card changes nothing. Upstream engine/source/elements/solid/solide/smallgeo3.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F, ../engine/source/elements/solid/solide4/s4forc3.F, ../engine/source/elements/solid/solide6z/s6zforc3.F90, ../engine/source/elements/solid/solide8e/s8eforc3.F (and 3 more); no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -805,8 +805,8 @@
   "routine": "sorthdir3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "co-rotational direction frame called by SCOOR3/SRCOOR3; the plain brick has no convected frame (the frames live in solid_hexa8z._corotational_frame, which uses srepiso3+sortho3, not sorthdir3)",
+  "status": "refused",
+  "deviation_note": "Projects the material orthotropy directions GAMA0 onto the element frame RX/SX/TX and normalises/orthogonalises them (the IREP > 0 branch; IREP == 0 is a straight copy). The port reads the orthotropy frame straight off the property (solid_orthotropic.material_frame) and solid_orthotropic.py contains no IREP branch at all \u2014 only gettransv/mmodul/sordeft3/sroto3/szordef3 \u2014 and solid_hexa8 never builds a GAMA. Upstream engine/source/elements/solid/solide/sorthdir3.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F, ../engine/source/elements/solid/solide10/s10ke3.F, ../engine/source/elements/solid/solide20/s20ke3.F, ../engine/source/elements/solid/solide4/s4forc3.F (and 5 more); no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -814,8 +814,8 @@
   "routine": "sortho12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "orthogonalisation variant for the ISMSTR=12 frame; no counterpart",
+  "status": "refused",
+  "deviation_note": "SORTHO12's only caller is srcoor12.F, which sforc3.F reaches only under `IF (IDTMIN(1) == 3 .AND. ISMSTR == 12 .AND. JCVT == 0 .AND. ISM12_11 == 0)` \u2014 the ISMSTR 12 local reference frame, which the port does not carry.",
   "parity_case": null
  },
  {
@@ -832,8 +832,8 @@
   "routine": "sortho31",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "orthogonalisation variant for the ISMSTR=12/13 frame; no counterpart",
+  "status": "refused",
+  "deviation_note": "SORTHO31's callers are all animation/output: output/anim/generate/srota6.F, elements/solid/srotorth.F and output/th/thsol.F (its slice keyword_flags are anim_visu). The port has no ANIM/VISU tensor writer for solids.",
   "parity_case": null
  },
  {
@@ -841,8 +841,8 @@
   "routine": "srbilan",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "co-rotational energy bookkeeping of the SRCOOR3 outputs (VGAX..VGA2); no counterpart",
+  "status": "refused",
+  "deviation_note": "The JCVT /= 0 sibling of sbilan: per-part PARTSAV booking plus grelem_sav/sensor_energy_bilan feeds from the convected-frame velocities VGXA/VGYA/VGZA. The port has no PARTSAV array and no convected-frame energy path. Upstream engine/source/elements/solid/solide/srbilan.F is reached only from ../engine/source/elements/thickshell/solide8c/s8cforc3.F, ../engine/source/elements/solid/solide8e/s8eforc3.F, ../engine/source/elements/solid/solide8s/s8sforc3.F, ../engine/source/elements/solid/solide8z/s8zforc3.F (and 3 more); no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -850,8 +850,8 @@
   "routine": "srcoor12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "local reference frame R11..R33 for ISMSTR=12 (OFFG>1); no counterpart",
+  "status": "refused",
+  "deviation_note": "Builds the ISMSTR = 12 local reference frame R11..R33 (calling sortho12 and srepiso12) for OFFG > 1 elements; sforc3.F:596 calls it under `IF (IDTMIN(1) == 3 .AND. ISMSTR == 12 .AND. JCVT == 0 .AND. ISM12_11 == 0)`. The port has no ISMSTR 12 path even though it does implement srepiso12's frame construction standalone.",
   "parity_case": null
  },
  {
@@ -866,10 +866,10 @@
  {
   "fortran": "engine/source/elements/solid/solide/srepiso12.F",
   "routine": "srepiso12",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "isotropic frame variant for ISMSTR=12; no counterpart",
+  "port_module": "pyradioss.elements.solid_remesh",
+  "port_symbol": "local_frame",
+  "status": "ported",
+  "deviation_note": "Same construction (X17/X28/X35/X46 diagonals, A17/A28, R = X17+X28-X35-X46, S = A17+A28, T = A17-A28) and the same `IF (OFF <= 1) CYCLE` guard, which local_frame reproduces by zeroing the frame where off <= 1. It is only reached upstream from srcoor12.F (ISMSTR = 12), so in the port it is a standalone frame builder exercised by tests/test_p2_solid_remesh.py.",
   "parity_case": null
  },
  {
@@ -886,35 +886,35 @@
   "routine": "srepisot3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "remeshing remap isotropic frame; no counterpart",
+  "status": "refused",
+  "deviation_note": "SREPISOT3's callers are output/anim/generate/tensor6.F, solid/solide8/sr8coor3.F, solid/solide8z/srcoork.F, sph/srep2glo.F and output/h3d/h3d_results/h3d_skin_tensor.F \u2014 animation, H3D, SPH and the unimplemented solide8/solide8z, none of which the port reaches from the solid cycle. (solid_remesh.local_frame implements the DIFFERENT routine srepiso3.F, not this one.)",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/sreploc3.F",
   "routine": "sreploc3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "remeshing remap local frame; no counterpart",
+  "port_module": "pyradioss.elements.solid_remesh",
+  "port_symbol": "local_frame",
+  "status": "ported",
+  "deviation_note": "The normalisation is reproduced including upstream's exact-zero behaviour (`IF (SUMA > ZERO) SUMA = ONE/SUMA`, so a zero vector stays zero rather than being clamped), then E1 = R/|R|, E3 = (E1 x S)/|..|, E2 = E3 x E1; local_frame vectorises it over an element batch and never reads T, as upstream does not.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/srho3.F",
   "routine": "srho3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE density update from the volume flux; the port derives rho = mass/V per cycle but not this ALE balance",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "The Lagrangian mass-conservation density rho = mass/vol is computed each cycle and the /EOS elements get their J_prev / dV / pressure / energy update in the law loop, so the routine's core job is present. Missing: the ALE%GLOBAL%INCOMP .AND. JEUL+JALE == 1 divergence branch, the MTN /= 115 branches (RHO0, MTN == 115 tabulated-gas EOS), the INTER22 cut-cell volume averaging and the DVOL/EINT bookkeeping under DT%IDEL_BRICK.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/srmall3.F",
   "routine": "srmall3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "co-rotational SAV/stress bookkeeping by OFF/ISMSTR; the port keeps no SAV state",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_pre",
+  "status": "ported",
+  "deviation_note": "SRMALLA3 now only copies the six SIG components into S1..S6 (the co-rotation it once did was moved to SRHO3 upstream too); in the port SIG is a single (n,6) Voigt array and _pre indexes sig[:,0..5] in place of S1..S6, so the extraction is structural. Nothing else is in the file.",
   "parity_case": null
  },
  {
@@ -922,8 +922,8 @@
   "routine": "srmalla11",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "small-strain rotation of the SAV history into the local frame for ISMSTR=11/12; no counterpart",
+  "status": "refused",
+  "deviation_note": "Rotates SIG into the ISMSTR 11/12 local reference frame R11..R33 for the OFFG11-degenerate brick; called from sforc3.F:833 under `IF (ISMSTR == 11 .OR. ISMSTR == 12)` in the JCVT /= 0 branch, a formulation the port does not carry.",
   "parity_case": null
  },
  {
@@ -949,17 +949,17 @@
   "routine": "srrotadp",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "co-rotational velocity/frame update for the JCVT!=0 formulation; no counterpart",
+  "status": "refused",
+  "deviation_note": "Advances the ISMSTR = 11 reference frame by the reference velocities X0/Y0/Z0; called from sforc3.F:554 under `IF (ISMSTR == 11)` inside the total-strain block, and the port has no ISMSTR 11 path or X0/VX0 state.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/ssort_n4.F",
   "routine": "ssort_n4",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "node re-ordering helper of the 4-node degeneration; not implemented",
+  "port_module": "pyradioss.elements.solid_degenerate",
+  "port_symbol": "ssort_n4",
+  "status": "ported",
+  "deviation_note": "Both loops transcribed in the Fortran's own order: loop 1's MARGE flattening test with the STIF > ZERO gate, then loop 2's pair ladder testing X4==X3, X2==X1, X4==X1, X3==X2 in that order, with the exact DMIN == ZERO coincidence test (no tolerance) and the IFC1 > 0 CYCLE skip. line_pair additionally resolves the pair that the code 0 alone cannot name.",
   "parity_case": null
  },
  {
@@ -967,8 +967,8 @@
   "routine": "sstra3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "post-material cumulative strain output for the ISMSTR=10/12 branch",
+  "status": "refused",
+  "deviation_note": "Accumulates the element strain tensor LBUF%STRA with the Jaumann co-rotation of the strain (JCVT <= 0) or plainly (JCVT > 0). sforc3.F:1071 reaches it only under `IF (ISTRAIN == 1)`, and the port keeps no LBUF%STRA: solid_hexa8's state has no strain tensor and _pre rotates the STRESS (srota3) instead, so neither branch has a host.",
   "parity_case": null
  },
  {
@@ -976,17 +976,17 @@
   "routine": "stherm",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "thermal_solver.py names stherm.F in prose but its conduction is a 1-D bar or a preassembled K matrix; the solid-element conduction (PHI = sum_i T_i gradN_i, KC = (AS+BS*T)*VOL*DT*THEACCFACT, the nodal FPHI(I,1..8) and the RHOCP*VOL0*(TEMPEL-T0)+HEAT ledger) is absent",
+  "status": "refused",
+  "deviation_note": "The 8-node solid heat-conduction source (PHIX/PHIY/PHIZ from the paired PX/PY/PZ terms, KC = (AS + BS*TEMPEL)*VOL*DT1*THEACCFACT, the FPHI distribution with A = HEAT/8, and the PARTSAV(28) booking), called from sforc3.F:1612/1622 under `IF (JTHE < 0)` and `HEAT_FLAG == 1`. The port's thermal_solver.apply_conduction implements only the 1D-bar and preassembled-K_cond paths, never the element flux, and solid_thermal.py's docstring names stherm.F as the heat-conduction source term it deliberately does not implement.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/tetra4v.F",
   "routine": "tetra4v",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "tetra volume of the first four nodes (helper of DEGES4V in the sdlen_dege chain); no counterpart",
+  "port_module": "pyradioss.elements.solid_degeneracy",
+  "port_symbol": "tetra4v",
+  "status": "ported",
+  "deviation_note": "RX/SX/TX = -(X4-X1), -(X4-X2), -(X4-X3) and TS = (X4-X3) x (X4-X2), returning |dot|/6 exactly as the Fortran's triple product does.",
   "parity_case": null
  },
  {
@@ -994,17 +994,17 @@
   "routine": "upwind",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE volume-upwind strain filter (GAM from the element Peclet number); no counterpart",
+  "status": "refused",
+  "deviation_note": "The 2-D ALE upwind coefficient; its only callers are ale/ale2d/amomt2.F and ale/euler2d/emomt2.F, i.e. the 2-D ALE families the port does not implement. pyradioss.elements.solid_upwind cites upwind.F as an origin but transcribes only upwind_v.F's UPWM 2/3 ladder.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide/upwind_v.F",
   "routine": "upwind_v",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "velocity-based variant of the ALE volume-upwind filter; no counterpart",
+  "port_module": "pyradioss.elements.solid_upwind",
+  "port_symbol": "_rates",
+  "status": "partial",
+  "deviation_note": "The GAM ladder is transcribed with both constants, both thresholds (EM3, THREE) and the branch order, gated by should_upwind on UPWM >= 2 exactly as upstream leaves levels 0 and 1 alone. Two gaps: the application is a reformulation (filter_rate relaxes the volumetric strain rate towards the group mean instead of letting GAM scale the ALE transportation force inside AMOMT3, which the port does not carry), and nothing in the solid kernels calls the module \u2014 its docstring says so explicitly.",
   "parity_case": null
  },
  {
@@ -1012,8 +1012,8 @@
   "routine": "vfluid",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "fluid-element (porous/law 77) coupling hook",
+  "status": "refused",
+  "deviation_note": "VFLUID's only caller is prelecflow.F, the MLW = 77 open-foam /ALE/ELEC pre-computation; the port has neither the multifluid group dispatch nor the PHI1/PHI2/POR conductivity arrays.",
   "parity_case": null
  },
  {
@@ -1021,8 +1021,8 @@
   "routine": "m1tot_stab_p",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "MAT001 total-stress stabilisation (FACD = 1.2*sqrt(FF/G2) capping the pressure and scaling C1); its only caller is engine/source/materials/mat/mat001/m1lawtot.F and the port has no MAT001 multi-material cycle (pyradioss/materials/law01_elastic.py:4 is the LAW1 sigeps01 port) \u2014 no port routine calls it.",
   "parity_case": null
  },
  {
@@ -1030,8 +1030,8 @@
   "routine": "nsvis_sm12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "non-symmetric (SFEM) viscosity accumulated into the SVIS(6) stress array under JAC = VOL/VOL0 < 1-EM02; a repo-wide grep for svis/SVIS in pyradioss returns nothing, and neither solid_tetra10.py nor solid_tetra4_sfem.py carries it, so no such routine exists in the port. Upstream engine/source/elements/solid/solide10/nsvis_sm12.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F, ../engine/source/elements/solid/solide8e/s8eforc3.F, ../engine/source/elements/solid/solidez/szforc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1039,36 +1039,36 @@
   "routine": "nsvis_stab",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "MAT001 stress stabilisation (CNS2 = FACG*MU*AL*RHOSSP added to SIG plus the G time-step factor 1+2*FACG*MU); sole caller m1lawtot.F, and the port has no MAT001 material cycle, so nothing reaches it.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide10/s10bilan.F",
   "routine": "s10bilan",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the per-element internal-energy booking (stress work + trapezoidal viscous term, st['eint'] += deint0) is ported; absent are the center-of-mass / inertia-tensor / mass table, the PARTSAV and GRESAV records and the sensor_energy_bilan / grelem_sav output \u2014 the port's generic engine ledger sums st['eint'] instead. Same verdict as the existing s20bilan row.",
+  "parity_case": "tests/test_m507_tetra10.py::test_tetra10_energy_accounting_elastic_cycle"
  },
  {
   "fortran": "engine/source/elements/solid/solide10/s10cndf.F",
   "routine": "s10cndf",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "the TETRA10 second-node INTERNAL CONTACT force (S10CNDF1/S10CNDF2/S10CNDI2_INI, driven from resol.F:4984/5613 over the ITAGND interface list built by starter/source/elements/solid/solide10/dim_s10edg.F). The port has no NS10E second-node interface list and no such routine in pyradioss/elements \u2014 it is deliberately not carried.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide10/s10cndv.F",
   "routine": "s10cndv",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "the same kinematic relation is applied, but element-locally and only for mid-side nodes ABSENT from the connectivity: ve[virt,4+m] = 0.5*(ve[virt,n1]+ve[virt,n2]). Missing: upstream overwrites the GLOBAL velocity of EVERY second node (resol.F:9008, unconditional over I=1..NS10E), so a real mid-side node is a slave there whereas the port gives it its own DOF, lumped mass and force; the VND store/restore and S10MVND/S10PRTV/S10GETVDM/S10CNDI2A bookkeeping are absent.",
+  "parity_case": "tests/test_m507_tetra10.py::test_tetra10_virtual_midside_nodes_reconstruction"
  },
  {
   "fortran": "engine/source/elements/solid/solide10/s10coor3.F",
@@ -1156,26 +1156,26 @@
   "routine": "s10divde12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "DIVDE = (1-FACP)*DIVDE + FACP*DVM*dt1 \u2014 the blend that feeds SRHO3's EOS density update at the single call site s10forc3.F:606. The port has no DIVDE, no DVM and no FACP state (solid_tetra10.forces derives rho = st['mass']/vol_tot each cycle), so no such routine exists.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide10/s10dvm12.F",
   "routine": "s10dvm12",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_pre",
+  "status": "partial",
+  "deviation_note": "the quantity DVM estimates \u2014 the Gauss-averaged volumetric strain rate tr(D) = sum_i v_i.gradN_i \u2014 is computed per integration point by _pre (trD, with the same round-off trace flush), and _post gates QVIS on it. Missing: the (n,10,5) PX..PZ contraction over the 10 nodes, the unweighted NPT average that defines DVM, the IPLAY1>0 gate of s10forc3.F:491-495, and the DVM array itself.",
+  "parity_case": "tests/test_m507_tetra10.py::test_tetra10_hydrostatic_compression_analytical"
  },
  {
   "fortran": "engine/source/elements/solid/solide10/s10eoff.F",
   "routine": "s10eoff",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "OFF(IEL) = product of the ETAG flags of the four corner nodes and of every present mid-side node. The port has no ETAG array (a repo-wide grep for etag/ETAG in pyradioss returns nothing) and init_group seeds off=np.ones(n); off is only ever cleared by failure.solid_step, so the node-tag deletion protocol is not carried. Same verdict as the existing s20eoff row. Upstream engine/source/elements/solid/solide10/s10eoff.F is reached only from ../engine/source/elements/solid/solide10/s10ke3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1192,8 +1192,8 @@
   "routine": "s10for_distor",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "the ISTAB distortion control: velocity/edge/node sorts feeding extra traction, STI stiffness growth and the E_DISTOR energy. The port has no distortion control at all \u2014 a repo-wide grep for e_distor/ISTAB in pyradioss finds only solid_degenerate.py:50-53 stating the E_DISTOR path \"is a different task\" \u2014 and solid_tetra10.forces ends at the internal force, so no such routine exists. Upstream engine/source/elements/solid/solide10/s10for_distor.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1201,8 +1201,8 @@
   "routine": "s10for_edgec",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "the edge half of the ISTAB distortion control (per-edge tension test writing FOR_T1..FOR_T10, the STI growth and E_DISTOR). It has no counterpart in pyradioss: it lives only inside the absent s10for_distor path, which solid_degenerate.py:50-53 documents as not implemented. Upstream engine/source/elements/solid/solide10/s10for_edgec.F is reached only from ../engine/source/elements/solid/solide10/s10for_distor.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1253,19 +1253,19 @@
  {
   "fortran": "engine/source/elements/solid/solide10/s10jacobnel.F",
   "routine": "s10jacobnel",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "the s10pij12 internal-pressure path only",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "the same P-matrix entries and volumes are produced (dndx = dN/dx at the four Gauss points, vol = detJ/6) but through the cofactor/J-inverse route instead of the A4/B4-scaled double-precision expansion, and in float64 rather than DOUBLE PRECISION; the EM30 determinant guard is reproduced as the 1e-12 safe-det floor, while the A4/B4 inputs, the VOLDP double write and the s10pij12-only W = NINE_OVER_20 fifth point have no counterpart.",
+  "parity_case": "tests/test_m507_tetra10.py::test_tetra10_constant_strain_gradient_operator"
  },
  {
   "fortran": "engine/source/elements/solid/solide10/s10jacobt.F",
   "routine": "s10jacobt",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "implicit-branch entry point taking a precomputed JAC_I(10); the port has no such signature",
+  "status": "refused",
+  "deviation_note": "no caller anywhere under OpenCourant/engine/source \u2014 a grep for S10JACOBT returns only its own definition at s10jacobt.F:27, so it is dead code. The port takes no precomputed JAC_I(10) argument either, so even the signature has no counterpart.",
   "parity_case": null
  },
  {
@@ -1300,8 +1300,8 @@
   "routine": "s10malla3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "WXXG/WYYG/WZZG += WIP*WXX/WYY/WZZ \u2014 the spin-increment rotation of the small-strain (ISMSTR<=4 or 11, JLAG>0) weight history. The port has no small-strain frame and no W-spin state: solid_tetra10._pre applies only the Jaumann stress commutator, so this branch has no counterpart. Upstream engine/source/elements/solid/solide10/s10malla3.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1309,8 +1309,8 @@
   "routine": "s10mallb3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "rotates the SAV(30) coordinate history by the spin increment under the OFFG=2 / OFFG>1 small-strain protocol. The port keeps no SAV array (init_group records only state['vol0']) and uses a single 0/1 off flag rather than s10mallb3's OFFG=2 marker, so neither the rotation nor the flag protocol is carried. Upstream engine/source/elements/solid/solide10/s10mallb3.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1325,37 +1325,37 @@
  {
   "fortran": "engine/source/elements/solid/solide10/s10nx3.F",
   "routine": "s10nx3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "upstream fills NX(10,5) from AA=(2a-1)a, BB=(2b-1)b, B2=4b^2, AB=4ab; those entries sum to 1 so NX is not the derivative array, and the port stores its own literal _DN_DXI instead",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_DN_DXI",
+  "status": "partial",
+  "deviation_note": "the port tabulates the shape-function GRADIENTS at the same four Gauss points (_DN_DXI, 10x3x4, with _WIP = 0.25) instead of the NX nodal VALUES that s10nx3 fills from AA=(2a-1)a, BB=(2b-1)b, B2=4b^2, AB=4ab. The two are different quantities (the NX entries sum to 1) and the NPT==5 zeroing is absent \u2014 but no downstream port code needs NX because every integral is gradient/determinant based.",
+  "parity_case": "tests/test_m507_tetra10.py::test_tetra10_constant_strain_gradient_operator"
  },
  {
   "fortran": "engine/source/elements/solid/solide10/s10nxt4.F",
   "routine": "s10nxt4",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "the TETRA4 4-corner NX table (BETA/ALPH), not built by the tet10 module",
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "_DN_DXI",
+  "status": "partial",
+  "deviation_note": "the TETRA4 four-corner NX table (BETA/BETA/BETA/ALPH at the four-point rule) is not built; the tetra4 kernel carries its own constant-Jacobian gradient table _DN_DXI and integrates with the exact tet volume. Upstream it is reached from eloff.F (the element-deletion/time-step routine, not ported) and from s10forc3.F.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide10/s10pij12.F",
   "routine": "s10pij12",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_tetra10",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "the four-point branch's job \u2014 PX/PY/PZ = dN/dx and VOL at the four Gauss points \u2014 is done by _geometry through the J-inverse route instead of the A4/B4 algebraic expansion; the NPT==5 fifth point (corner coordinates zeroed, W = NINE_OVER_20 then -FOUR_OVER_5) is absent because _WIP and _DN_DXI are fixed at four points.",
+  "parity_case": "tests/test_m507_tetra10.py::test_tetra10_constant_strain_gradient_operator"
  },
  {
   "fortran": "engine/source/elements/solid/solide10/s10pijsav12.F",
   "routine": "s10pijsav12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "writes PX/PY/PZ and SIGL into the element buffer (LBUF%PIJ, LBUF%SIGL) for the elements whose OFF changed. The port has no PIJ/SIGL buffer \u2014 solid_tetra10 recomputes dndx from the nodal coordinates every cycle in _pre \u2014 so the routine and the buffer it writes have no counterpart. Upstream engine/source/elements/solid/solide10/s10pijsav12.F is reached only from ../engine/source/elements/solid/solide10/s10upd11t12.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1363,8 +1363,8 @@
   "routine": "s10pijto3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "the unpack PIJ(NEL,3,10) -> PX/PY/PZ(MVSIZ,10). The port never materialises a PIJ array \u2014 forces() passes dndx straight from _pre to _post \u2014 so both the routine and the buffer it drains are absent. It is a buffer unpack, not a mid-side condensation. Upstream engine/source/elements/solid/solide10/s10pijto3.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F, ../engine/source/elements/solid/solide4_sfem/s10volnodt3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1372,8 +1372,8 @@
   "routine": "s10rcoor12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "builds the convected local frame R11..R33 from the four corner coordinates via SMORTHO3 (or the XDP double-precision coordinates when IRESP==1). The tetra10 kernel has no local frame at all \u2014 it works in global updated-Lagrangian coordinates and applies only the Jaumann stress rotation \u2014 so neither the IRESP==1 gather nor SMORTHO3 is reachable in the port. Upstream engine/source/elements/solid/solide10/s10rcoor12.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1381,8 +1381,8 @@
   "routine": "s10rrota10",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "no caller anywhere under OpenCourant/engine/source \u2014 a grep for S10RROTA10 returns only its own definition at s10rrota10.F:27 \u2014 so it is dead code. The port has no frame matrix R with which to rotate the element coordinates in any case.",
   "parity_case": null
  },
  {
@@ -1390,8 +1390,8 @@
   "routine": "s10sav12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "stores the current coordinates into SAV(I,1..30) when OFFG changes and ABS(OFFG)>1 (element re-initialisation). The port keeps no SAV array \u2014 init_group records only state['vol0'] and forces() has no OFFG/OFFG0 transition test \u2014 so the small-strain reference-coordinate history is not carried. Upstream engine/source/elements/solid/solide10/s10sav12.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1399,8 +1399,8 @@
   "routine": "s10sav3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "the complementary SAV store for the inactive branch ABS(OFFG)<=1; the port has no SAV array and a single 0/1 off flag instead of upstream's OFFG two-level protocol, so nothing implements it. Upstream engine/source/elements/solid/solide10/s10sav3.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1408,8 +1408,8 @@
   "routine": "s10therm",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "the heat-conduction source term: PHI = sum_N T_N gradN_N, KC = (CA + CB*TEL)*dt*VOL*THEACCFACT, FPHI = HEAT*NI - PHI.PX... pyradioss/elements/solid_thermal.py:60-67 states explicitly that the conduction routines (stherm.F / s4therm.F and this one) are NOT ported \u2014 only the thermal STRAIN (thermal_strain, effective_strain_increment) exists \u2014 and solid_tetra10.forces contains no conduction block.",
   "parity_case": null
  },
  {
@@ -1417,8 +1417,8 @@
   "routine": "s10upd11t12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "recomputes PIJ and SIGL for the elements whose OFF changed (the INDEX gather of OFFG/=OFFG0 && |OFFG|>1, then S10PIJ12 + S10PIJSAV12 into ELBUF) \u2014 the element re-initialisation at restart. The port has no PIJ/SIGL element buffer and no OFF-transition gather, so this path does not exist. Upstream engine/source/elements/solid/solide10/s10upd11t12.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1426,8 +1426,8 @@
   "routine": "sfor_n2stria2",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "the 4-node -> 3-node (triangle) degeneration that carries the ISTAB distortion traction of s10for_distor. pyradioss/elements/solid_degenerate.py ports only the n->2-node topology (ssort_n4, four_to_four_striking) and documents at :50-53 that the force build and E_DISTOR booking are a different task; there is no tetra/tetra10 degeneration module in the port. Upstream engine/source/elements/solid/solide10/sfor_n2stria2.F is reached only from ../engine/source/elements/solid/solide10/s10for_distor.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1435,8 +1435,8 @@
   "routine": "sfor_visn10",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "despite the name this is NOT a visualisation routine: 'visn' is visibility of distortion, the entry test of the ISTAB control (V2MAX vs TOL_V^2*min corner V^2 selects the reference corner velocity, then FOR_Tn -= FLD*(V - VREF) on all ten nodes with STIF *= 1+2*MU). No port routine computes it \u2014 it is part of the absent distortion path recorded at solid_degenerate.py:50-53. Upstream engine/source/elements/solid/solide10/sfor_visn10.F is reached only from ../engine/source/elements/solid/solide10/s10for_distor.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1444,8 +1444,8 @@
   "routine": "sgcoor10",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "recovers the element reference coordinates from SAV and forms VX0/VY0/VZ0 displacements (with the ISMSTR==12 & IDTMIN(1)==3 / MTN==1 branch). The port has no SAV array and never needs a stored configuration \u2014 it reads model.x0 once in init_group \u2014 so the routine has no counterpart. Upstream engine/source/elements/solid/solide10/sgcoor10.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1453,8 +1453,8 @@
   "routine": "sxfillopt",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "STI *= FILL and FX/FY/FZ *= FILL, the multi-strap in-strap force scaling. The port has no FILL array and solid_tetra10.forces/_post apply no such scaling; the other two callers (s16forc3.F thickshell, s20forc3.F) are separate families, so only s10forc3.F would reach it and nothing in the port does.",
   "parity_case": null
  },
  {
@@ -1462,8 +1462,8 @@
   "routine": "tetra_for_trac",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "the four-corner extra-traction sort of the ISTAB distortion control (largest-tension corner lambda^2 test against tol_t2/tol_d/tol_dm, fn = (fac+1)*k0*e_e*l0, the one-third coupling to the other three corners and the STI growth). No port module implements it: the tetra10 kernel ends at the internal force and _char_length, and pyradioss/elements/solid_degenerate.py:50-53 records the distortion-energy path as not implemented. Upstream engine/source/elements/solid/solide10/tetra_for_trac.F90 is reached only from ../engine/source/elements/solid/solide10/s10for_distor.F, ../engine/source/elements/solid/solide10/tetra_for_trac.F90, ../engine/source/elements/solid/solide10/s10for_distor.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1487,11 +1487,11 @@
  {
   "fortran": "engine/source/elements/solid/solide20/s20coork.F",
   "routine": "s20coork",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "no corotational geometry frame / rotation of the K basis for BRIC20; implicit_internal_forces(nlgeom=True) falls back to a stress-based total-Lagrangian force, not a corotational tangent.",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_bric20",
+  "port_symbol": "tangent",
+  "status": "partial",
+  "deviation_note": "The gather is ported and extended: tangent() fills all 20 coordinates from conn, reconstructing virtual midside nodes as 0.5*(n1+n2) where the connectivity is absent. Not ported: the NC/NGEO/MXT extraction, the ISMSTR SAV restore with OFF=ABS(OFFG)-1, and the explicit zero-fill of the 210 K blocks (the port builds the whole 60x60 tangent in one einsum).",
+  "parity_case": "tests/test_m614_implicit_elements_solids.py::test_penta6_tangent_kgeo_mass"
  },
  {
   "fortran": "engine/source/elements/solid/solide20/s20cumg3.F",
@@ -1543,8 +1543,8 @@
   "routine": "s20eoff",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "the ETAG node-product element OFF (min over the 20 node ETAGs) is not implemented; the port's st['off'] comes only from failure criteria.",
+  "status": "refused",
+  "deviation_note": "OFF = MIN(1, product of ETAG over the element's 20 nodes, the 8 corners from IXS and the 12 midsides from IXS20). No ETAG array exists in pyradioss (grep 'etag' returns nothing), and solid_bric20.tangent has no node-activity term. Upstream engine/source/elements/solid/solide20/s20eoff.F is reached only from ../engine/source/elements/solid/solide20/s20ke3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1597,8 +1597,8 @@
   "routine": "s20tempcg",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "integration-point temperature interpolation; no element-level thermal state exists for BRIC20 (thermal_solver covers only 1-D bar conduction).",
+  "status": "refused",
+  "deviation_note": "Integration-point temperature TEMPEL = sum_J NI(J)*TEMP(NC(I,J)); solid_bric20 stores no temperature at all. The only nodal->element temperature reduction in the port is np.mean(t_arr[conn], axis=1) inside compute_thermal_dt's brick-scan fallback \u2014 a node average, not the Gauss-point interpolation, and not in the element cycle. Upstream engine/source/elements/solid/solide20/s20tempcg.F is reached only from ../engine/source/elements/thickshell/solide16/s16forc3.F, ../engine/source/elements/solid/solide20/s20forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1606,8 +1606,8 @@
   "routine": "s20therm",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "thermal dilatation nodal force FPHI with CA/CB temperature-dependent conductivity; not implemented for solids.",
+  "status": "refused",
+  "deviation_note": "Heat-conduction source for the 20-node brick: PHI = KC*sum_N TEMPNC(NC)*PX with KC=(CA+CB*TEMPEL)*DT1*VOL*THEACCFACT, accumulated into FPHI(I,N). No solid-element conduction or FPHI array exists; solid_thermal.py:34-46 records the five conduction routines (including this family) as not started. Upstream engine/source/elements/solid/solide20/s20therm.F is reached only from ../engine/source/elements/thickshell/solide16/s16forc3.F, ../engine/source/elements/solid/solide20/s20forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1633,8 +1633,8 @@
   "routine": "a4momt3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE/multi-fluid transport force at the element centre; no ALE grid-velocity path in the port",
+  "status": "refused",
+  "deviation_note": "ALE/Euler transport force at the element centre (A4MOMT3, called from s4forc3.F's Itetra=1 branch); solid_tetra4.forces books only elastic/EOS internal force, and pyradioss/elements/solid_upwind.py transcribes upwind.F/upwind_v.F's strain-rate GAM, not this transportation force.",
   "parity_case": null
  },
  {
@@ -1642,8 +1642,8 @@
   "routine": "a4momtn3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE upwind transport force (calls UPWIND4)",
+  "status": "refused",
+  "deviation_note": "Per-node ALE transport force, called only by a4momt3.F, which the port does not implement; no pyradioss counterpart of the A4MOMTN3 momentum residual exists.",
   "parity_case": null
  },
  {
@@ -1651,8 +1651,8 @@
   "routine": "e4pxle3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "unpacks ALE grid velocities VEUL into element quantities; the port is purely Lagrangian",
+  "status": "refused",
+  "deviation_note": "ALE multiphysics gather (VEUL -> PX1..PZ4, DELTAX, DET) reached only from s4forc3.F; the port has no VEUL/multiphysics element pressure array, only the Lagrangian x[conn] gather.",
   "parity_case": null
  },
  {
@@ -1660,8 +1660,8 @@
   "routine": "morthlock3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "orthotropic GAMA frame lock for the implicit stiffness; the tet4 kernel has no orthotropic local-frame machinery",
+  "status": "refused",
+  "deviation_note": "Re-projects GAMA onto the element's own orthonormal triad SREPLOC3 frame; upstream reaches it only at s4ke3.F:177 inside the ELSE of IF(ISORTH==0), and solid_orthotropic.py documents ISORTH==0 as the dispatch to solid_hexa8 and exposes no lock routine.",
   "parity_case": null
  },
  {
@@ -1685,11 +1685,11 @@
  {
   "fortran": "engine/source/elements/solid/solide4/s4coork.F",
   "routine": "s4coork",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "implicit-path gather that also stores and rotates the 9-value saved configuration; the port has no SAV array",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "tangent",
+  "status": "partial",
+  "deviation_note": "The coordinate/connectivity gather is ported (tangent() reads x_geom[conn] and builds the 20 node pairs directly), but the NC1..NC4/NGEO/NGL/MXT extraction, the ISMSTR==1/2 SAV restore branch with OFF=ABS(OFFG)-1, and the explicit zero-fill of the nine K blocks are absent \u2014 the port never pre-zeroes a K array and has no ISMSTR-dependent geometry substitution.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_material_tangent_stiffness_nullspace"
  },
  {
   "fortran": "engine/source/elements/solid/solide4/s4cumg3.F",
@@ -1703,19 +1703,19 @@
  {
   "fortran": "engine/source/elements/solid/solide4/s4cumu3.F",
   "routine": "s4cumu3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "scatters the element thermal conduction result and zeroes inactive elements; the port has no solid-element conduction",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_tetra4",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "The force half is ported (fe = -vol*sigma.gradN_i scattered with scatter_add3, and the deleted-element fe=0 rule). Not ported: the nodal internal-energy ledger E(1:3,NCn) += F1n, the STI=STI/2 nodal-stiffness accumulation for /DT/NODA, and the FTHE/CONDN/CONDE nodal heat assembly \u2014 forces() books per-element state['eint'] only.",
+  "parity_case": "tests/test_m506_tetra4.py::test_tetra4_linear_momentum_conservation_arbitrary_3d"
  },
  {
   "fortran": "engine/source/elements/solid/solide4/s4cumu3p.F",
   "routine": "s4cumu3p",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "implicit (FSKYV) counterpart of s4cumu3; depends on the absent element conduction",
+  "status": "refused",
+  "deviation_note": "Same nodal scatter but into the multiphysics arrays FSKY/FSKYV/FTHESKY/CONDNSKY with the IADS offset; the port has no FSKY/IADS multiphysics state, and the routine's second caller, multifluid/multi_fvm2fem.F, is an unimplemented family.",
   "parity_case": null
  },
  {
@@ -1777,8 +1777,8 @@
   "routine": "s4fillopt",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "scales the element arrays by the FILL factor; the port has no FILL array",
+  "status": "refused",
+  "deviation_note": "Scales STI and the twelve force components by the per-element FILL factor (partial deactivation ramp); the port has no FILL state \u2014 solid_tetra4.forces freezes deps and zeroes sig for st['off']<=0 elements, which is the binary deletion, not the FILL ramp. Upstream engine/source/elements/solid/solide4/s4fillopt.F is reached only from ../engine/source/elements/solid/solide4/s4forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1795,8 +1795,8 @@
   "routine": "s4fint_reg",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "non-local regularisation force (NLOC_DMG diffusion of the cumulated plastic strain); /NONLOCAL is parsed but never solved or applied",
+  "status": "refused",
+  "deviation_note": "Non-local damage regularised internal force (NLOC_DMG%MASS/MASS0/L_NLOC, VAR_REG, the BTB/SM block solve and the NODADT nodal stiffness). pyradioss has only non-local MATERIAL readers and laws (materials.py read_mat_nonlocal, law130_nonlocal_damage); no element-side non-local kernel exists. Upstream engine/source/elements/solid/solide4/s4fint_reg.F is reached only from ../engine/source/elements/solid/solide4/s4forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1804,8 +1804,8 @@
   "routine": "s4for_distor",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "FLD anti-distortion stabilisation forces and energy; the tet4 kernel applies no element stabilisation",
+  "status": "refused",
+  "deviation_note": "Anti-distortion stabilisation: four S4RCOOR12-style face passes plus SFOR_VISN4 building FOR_T1..T4, FORC_N and E_DISTOR, with STI=MAX(STI,STIF). pyradioss/elements/solid_degenerate.py:50-53 states the sfor_4n2s4/sfor_ns2s4 path 'reads the element's stiffness history and is a different task' \u2014 the distortion-energy force path is deliberately not carried. Upstream engine/source/elements/solid/solide4/s4for_distor.F is reached only from ../engine/source/elements/solid/solide4/s4forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1858,8 +1858,8 @@
   "routine": "s4mall3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "rotates the SAV 9-coordinate array by the spin increments for ISMSTR=11 or JLAG>0; the port keeps no SAV array",
+  "status": "refused",
+  "deviation_note": "Rotates the SAV 9-coordinate array by the spin increments for ISMSTR==11 or (ISMSTR<=4 AND JLAG>0); the port keeps no SAV array \u2014 solid_tetra4.init_group stores only state['vol0'] and state['dndx0'] from model.x0. Upstream engine/source/elements/solid/solide4/s4mall3.F is reached only from ../engine/source/elements/solid/solide4/s4forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1867,8 +1867,8 @@
   "routine": "s4rcoor12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "builds the orthotropic rotation matrix R11..R33 for the ISMSTR=10->11 switch; no orthotropic element frame in the port",
+  "status": "refused",
+  "deviation_note": "Builds the convected local frame R11..R33 from the three edge vectors of deleted/IRESP=1 elements and rotates into it with SMORTHO3; the port's only element frame is solid_remesh.local_frame (srepiso3+sreploc3), documented for 8-node hexa coordinates, and solid_tetra4 has no frame at all. Upstream engine/source/elements/solid/solide4/s4rcoor12.F is reached only from ../engine/source/elements/solid/solide4/s4forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1876,8 +1876,8 @@
   "routine": "s4sav12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "stores the SAV 9-coordinate array on an OFFG transition; no SAV state in the port",
+  "status": "refused",
+  "deviation_note": "Stores SAV = (x_i - x_4) for elements whose OFFG just changed with ABS(OFFG)>1; no SAV/deletion-time geometry snapshot exists in the port (init_group keeps only the initial-geometry vol0/dndx0) and no routine consumes one. Upstream engine/source/elements/solid/solide4/s4sav12.F is reached only from ../engine/source/elements/solid/solide4/s4forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1885,8 +1885,8 @@
   "routine": "s4sav3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "stores the SAV 9-coordinate array when |OFFG|<=1; no SAV state in the port",
+  "status": "refused",
+  "deviation_note": "Stores SAV = (x_i - x_4) for every element with ABS(OFFG)<=1 (the default small-strain geometry snapshot); the port keeps no SAV array \u2014 init_group stores vol0 and dndx0 instead, and nothing implements the ISMSTR=1/2 restore in s4coork. Upstream engine/source/elements/solid/solide4/s4sav3.F is reached only from ../engine/source/elements/solid/solide4/s4forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1894,8 +1894,8 @@
   "routine": "s4therm-itet1",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "solid-element thermal conduction forces for the itetra1 (SFEM) tet; the port has no solid-element conduction at all. Named by phase task P2.8, but unimplemented today.",
+  "status": "refused",
+  "deviation_note": "Heat-conduction source KC=(CA+CB*TEL)*DT1*VOL*THEACCFACT with its own PX/PY/PZ from XX/YY/ZZ, accumulating FPHI; solid_thermal.py:34-46 reads this routine and states the conduction routines 'are a separate piece of work on the heat side of the coupling and are not started here' (only mmain's thermal STRAIN is ported). Upstream engine/source/elements/solid/solide4/s4therm-itet1.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1903,8 +1903,8 @@
   "routine": "s4therm",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "Fourier conduction nodal thermal forces FPHI for /TETRA4; no solid-element conduction exists in the port. Named by phase task P2.8, but unimplemented today.",
+  "status": "refused",
+  "deviation_note": "Fourier conduction nodal thermal forces FPHI(I,1..4) = HEAT/4 - flux, the only caller being s4forc3.F; the port has no solid-element conduction and no FPHI array \u2014 solid_thermal.py:34-46 records the omission explicitly.",
   "parity_case": null
  },
  {
@@ -1912,8 +1912,8 @@
   "routine": "s4upd11t12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "refreshes JAC_1 and SIGL for elements whose OFFG changed; depends on the absent JAC_1/SAV state",
+  "status": "refused",
+  "deviation_note": "Refreshes JAC_1(1:10) via S4JAC_I and SIGL=SIG for elements whose OFFG changed with ABS(OFFG)>1; the port stores neither JAC_1 nor SIGL and zeroes SIG on deletion, so nothing in solid_tetra4.forces reaches this branch. Upstream engine/source/elements/solid/solide4/s4upd11t12.F is reached only from ../engine/source/elements/solid/solide4/s4forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1939,8 +1939,8 @@
   "routine": "sfor_n2s3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "normal/tangential stabilisation force on a triangular element face (FLD chain)",
+  "status": "refused",
+  "deviation_note": "Normal/tangential spurious-force stabilisation on a triangle (PENE, FX/FY/FZ, FORC_N, E_DISTOR); it is the E_DISTOR force path solid_degenerate.py:50-53 explicitly leaves to a different task, and its callers (sfor_n2stria, sfor_n2stria2, sfor_3n2s3) are all in that unported chain. Upstream engine/source/elements/solid/solide4/sfor_n2s3.F is reached only from ../engine/source/elements/solid/solide/sfor_4n2s4.F90, ../engine/source/elements/solid/solide4/sfor_n2stria.F, ../engine/source/elements/solid/solide10/sfor_n2stria2.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1948,8 +1948,8 @@
   "routine": "sfor_n2stria",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "stiffness-based dispatch of sfor_n2s3 for the element centre node; part of the FLD chain",
+  "status": "refused",
+  "deviation_note": "Stiffness-gated dispatch (IFC2=0 when STIF0==0) of SFOR_N2S3 for one element-centre node, with STIF=MAX(STIF,FKT*STIF0); the port owns none of the FLD force chain \u2014 solid_degenerate.py:50-53. Upstream engine/source/elements/solid/solide4/sfor_n2stria.F is reached only from ../engine/source/elements/solid/solide4/s4for_distor.F, ../engine/source/elements/thickshell/solide6c/s6for_distor.F90; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -1957,8 +1957,8 @@
   "routine": "sfor_visn4",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "viscous/normal stabilisation force of the FLD chain; absent",
+  "status": "refused",
+  "deviation_note": "Velocity-projection part of the same FLD chain (FOR_T1..T4 and E_DISTOR from the element-centre velocity); only caller is s4for_distor.F, itself unported per solid_degenerate.py:50-53.",
   "parity_case": null
  },
  {
@@ -1966,8 +1966,8 @@
   "routine": "smortho3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "Gram-Schmidt construction of the orthotropic element basis used by s4rcoor12; no orthotropic element frame in the port",
+  "status": "refused",
+  "deviation_note": "Three-iteration Gram-Schmidt (e1=VxW+U, e2=WxU+V, e3=UxV+W) of the convected edge triad into an orthonormal frame, acting only on elements with OFF>1; its only callers are s4rcoor12.F and s10rcoor12.F, neither of which is ported, and no port routine performs this construction.",
   "parity_case": null
  },
  {
@@ -1975,8 +1975,8 @@
   "routine": "ssort_n3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "face-normal penetration test selecting control nodes for the FLD stabilisation",
+  "status": "refused",
+  "deviation_note": "Triangle sort setting IFC1=2 when |PENE|<MARGE and STIF>0; its only caller is sfor_n2stria2.F in the FLD chain, and solid_degenerate.py exposes ssort_n4 (the quad4 ladder) only \u2014 there is no n3 variant.",
   "parity_case": null
  },
  {
@@ -1984,8 +1984,8 @@
   "routine": "upwind4",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ALE upwind weight (/UPWM/TG, /UPWM/SUPG); the port has no ALE grid-velocity/upwind parameterisation",
+  "status": "refused",
+  "deviation_note": "UPWM ladder for the ALE transportation force: GAM=CUPWM*HALF*DT1 for TG, and max(|R\u00b7V|,|S\u00b7V|,|T\u00b7V|) scaled by HALF*RHO/MAX(EM20,VIS) for SUPG. Its only callers are a4momt3.F/a4momtn3.F (both refused); pyradioss/elements/solid_upwind.py computes the UPWM 2/3 GAM from the volumetric strain rate and the element volume instead, a different quantity, and is itself documented as not wired into any engine path.",
   "parity_case": null
  },
  {
@@ -1993,8 +1993,8 @@
   "routine": "s10_icp",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "10-node SFEM incompressible-plasticity volume/gradient log-scaling (ICPRE=1 tetra10 path); pyradioss has no tetra10 SFEM smoothing at all",
+  "status": "refused",
+  "deviation_note": "SFEM incompressible internal pressure: for ISMSTR==10 JFAC=(JACG/JAC)^(2*NU/3) applied to every strain-rate component and VOLN, else the FACP blend of VOLN/VOLDP. The port has no JACG/JAC or FACP/NU element pressure path \u2014 solid_tetra4's Itetra4=3 block does the S4VOLN_M divde correction and solid_tetra4_sfem.forces has no such term. Upstream engine/source/elements/solid/solide4_sfem/s10_icp.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2002,8 +2002,8 @@
   "routine": "s10sigp3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "10-node radial-return triaxiality factor FAC=exp((1/15)*ln(DEFP/DEFT)); its only caller is s10forc3, which has no SFEM branch in solid_tetra10.py",
+  "status": "refused",
+  "deviation_note": "SFEM plastic-volume relaxation FAC=MIN(0.995, (DEFP/DEFT)^(1/15)) with DEFT=SQRT(SIGY)/E0+DEFP; the constants 0.995/1/15 appear nowhere in pyradioss/elements (grep for 0.995 and FIFTEEN returns nothing) and solid_tetra4_sfem.forces calls materials.solid_update with no such pre-scaling. Upstream engine/source/elements/solid/solide4_sfem/s10sigp3.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2011,26 +2011,26 @@
   "routine": "s10volj",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "quadratic sub-tetra Jacobian volume for the 10-node SFEM; not implemented",
+  "status": "refused",
+  "deviation_note": "Signed volume from the 10-corner (4 A-points / 6 B-points) ALPH-BETA construction, VOLDP = W*DET/6. The port computes volume as det[x2-x1, x3-x1, x4-x1]/6 in solid_tetra4._geometry (reused by solid_tetra4_sfem.init_group), so this routine and its decomposition have no counterpart. Upstream engine/source/elements/solid/solide4_sfem/s10volj.F is reached only from ../engine/source/elements/solid/solide4_sfem/s10volnod3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide4_sfem/s10volnod3.F",
   "routine": "s10volnod3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "builds the 4 IPERM-subdivided tetra10 volumes into sfem%tetra_fsky; tetra10 SFEM path absent",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_tetra4_sfem",
+  "port_symbol": "_smooth_gradients",
+  "status": "partial",
+  "deviation_note": "The nodal smoothing volume V_nod = sum_{e in S_k} V_e/4 and the normalized nodal gradient are computed (np.add.at of 0.25*vol to v_nod, then grad_nod/safe_vnod gathered back per element). Missing: upstream's IPERM 4-point construction with ALPH=0.5854102 / BETA=0.1381966 and the (4a-1)/(4b-1) A/B corner split, the ISMSTR==1/11 early RETURN, the IRESP==1 XDP convected-coordinate gather, the OFFG deletion filter, and the storage into sfem%tetra_fsky (the port recomputes v_nod every cycle instead).",
+  "parity_case": "tests/test_fe_solids_advanced.py::test_tetra4_sfem_smoothing"
  },
  {
   "fortran": "engine/source/elements/solid/solide4_sfem/s10volnodt3.F",
   "routine": "s10volnodt3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "ISMSTR=10 nodal/Gauss-point Fsky volumes for tetra10; tetra10 SFEM path absent",
+  "status": "refused",
+  "deviation_note": "Total-Lagrangian nodal smoothing-domain volumes from SAV (initial) and the current X, deformed through JACOB_J33/S10DEFOT3/S10PIJTO3 and written into sfem%tetra_fsky; pyradioss has no sfem_ structure, no SAV state and no TL nodal-domain volume array. Upstream engine/source/elements/solid/solide4_sfem/s10volnodt3.F is reached only from ../engine/source/elements/solid/solide4_sfem/s4lagsfem.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2092,8 +2092,8 @@
   "routine": "sfem_init_spmd",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "no SFEM halo send/recv index construction; pyradioss/spmd/domdec.py instead flags tetras_sfem as unsupported ('SFEM tetra: nodal smoothing buffer').",
+  "status": "refused",
+  "deviation_note": "SPMD initialisation of sfem_: sfem%tetra_fsky/local_elm_nb/local_elm_list sizing, myqsort_int ordering and the spmd_isend/irecv/waitall/barrier halo exchange, called from sfem_init.F90. The port is serial and allocates no such structure, so the routine is unreached.",
   "parity_case": null
  },
  {
@@ -2101,18 +2101,18 @@
   "routine": "s6fint_reg",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Non-local damage regularised internal force for the wedge (NLOC_DMG, VAR_REG, BTB block, NODADT nodal stiffness) \u2014 the same unimplemented element-side non-local machinery as s4fint_reg; only material-level non-local readers/laws exist in pyradioss. Upstream engine/source/elements/solid/solide6z/s6fint_reg.F90 is reached only from ../engine/source/elements/solid/solide6z/s6zforc3.F90, ../engine/source/elements/solid/solide6z/s6fint_reg.F90, ../engine/source/elements/solid/solide6z/s6zforc3.F90; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide6z/s6zcoor_cp2sp.F90",
   "routine": "s6zcoor_cp2sp",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_penta6",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "The split's job \u2014 handing the cycle per-node element coordinates in working precision \u2014 is done by the single vectorised gather xe = x[conn] (n,6,3), which every downstream routine (_geometry, _pre, _post) consumes; the routine's only other content, the double->single precision promotion, is a no-op in the port's uniform float64 layout.",
+  "parity_case": "tests/test_m590_penta6.py::test_penta6_volume_and_mass"
  },
  {
   "fortran": "engine/source/elements/solid/solide6z/s6zdefc3.F90",
@@ -2200,8 +2200,8 @@
   "routine": "s6zhourg3_or",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "ORTHOTROPIC hourglass force for the wedge (GFHOUR_OR/MMDAMA24/MMODUL/SZETFAC/SZSVM_OR over CC/CG/G33). The port's only wedge stabilization is the isotropic HEPH stiffness in solid_penta6_heph._wedge_hg_modes; solid_orthotropic's mmodul/mstiforthv/sordeft3 chain is solidz-only and dispatches ISORTH==0 away. Upstream engine/source/elements/solid/solide6z/s6zhourg3_or.F90 is reached only from ../engine/source/elements/solid/solide6z/s6zforc3.F90, ../engine/source/elements/solid/solide6z/s6zhourg3_or.F90, ../engine/source/elements/solid/solide6z/s6zforc3.F90; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2218,8 +2218,8 @@
   "routine": "s6zrcoor3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The wedge's local-coordinate driver: gathers X/V, builds the co-rotational frame through SREPISO3/SORTHO3/SRROTA3/SORTHDIR3 and emits local coordinates/velocities, the GAMA remap, the ISMSTR/JLAG/erosion bookkeeping and the R11..R33 matrix. solid_penta6.forces keeps everything in global coordinates and solid_remesh.local_frame is documented for 8-node hexa only. Upstream engine/source/elements/solid/solide6z/s6zrcoor3.F90 is reached only from ../engine/source/elements/solid/solide6z/s6zforc3.F90, ../engine/source/elements/solid/solide6z/s6zrcoor3.F90, ../engine/source/elements/solid/solide6z/s6zforc3.F90; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2227,26 +2227,26 @@
   "routine": "s6zrmalla11",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Rotates the SAV(nel,15) double-precision array by the spin (WXX/WYY/WZZ first taken to global through R11..R33) for ISMSTR==11 and for deleted elements at ISMSTR==12; the port keeps no SAV array and no ISMSTR-dependent geometry substitution. Upstream engine/source/elements/solid/solide6z/s6zrmalla11.F90 is reached only from ../engine/source/elements/solid/solide6z/s6zforc3.F90, ../engine/source/elements/solid/solide6z/s6zrmalla11.F90; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide6z/s6zrrota3.F90",
   "routine": "s6zrrota3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_penta6",
+  "port_symbol": "_pre",
+  "status": "partial",
+  "deviation_note": "The objective part is ported \u2014 _pre applies the same Jaumann commutator to SIG at both Gauss points \u2014 but the routine's actual job, rotating the six nodal coordinates into the co-rotational frame as x_local = R x_global (and S6ZFORC3's rotation back), has no counterpart: the port never forms R11..R33 and works throughout in global coordinates.",
+  "parity_case": "tests/test_m590_penta6.py::test_penta6_rigid_body_rotation"
  },
  {
   "fortran": "engine/source/elements/solid/solide6z/s6zrrotadp.F90",
   "routine": "s6zrrotadp",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Double-precision twin of s6zrrota3 applied to the deleted-element coordinate set; the port has no deleted-element coordinate set at all (no SAV), so this branch has no counterpart. Upstream engine/source/elements/solid/solide6z/s6zrrotadp.F90 is reached only from ../engine/source/elements/solid/solide6z/s6zforc3.F90, ../engine/source/elements/solid/solide6z/s6zrrotadp.F90, ../engine/source/elements/solid/solide6z/s6zforc3.F90; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2254,8 +2254,8 @@
   "routine": "s6zsav12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Stores the 15-value SAV = (x_i - x_6) snapshot for elements whose OFFG just changed with ABS(OFFG)>1; solid_penta6.init_group keeps only vol_g0/vol0 from model.x0 and no routine consumes a deletion-time snapshot. Upstream engine/source/elements/solid/solide6z/s6zsav12.F90 is reached only from ../engine/source/elements/solid/solide6z/s6zforc3.F90, ../engine/source/elements/solid/solide6z/s6zsav12.F90, ../engine/source/elements/solid/solide6z/s6zforc3.F90; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2263,8 +2263,8 @@
   "routine": "s6zsav3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The ABS(OFFG)<=1 branch of the same SAV snapshot (sav(i,1..15) = x_i - x_6); the port has no SAV state and no S6ZJAC_I/S6ZCOOR2SP consumer of it. Upstream engine/source/elements/solid/solide6z/s6zsav3.F90 is reached only from ../engine/source/elements/solid/solide6z/s6zforc3.F90, ../engine/source/elements/solid/solide6z/s6zsav3.F90, ../engine/source/elements/solid/solide6z/s6zforc3.F90; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2272,8 +2272,8 @@
   "routine": "s6zupd11t12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "For elements whose OFFG changed with ABS(OFFG)>1, gathers the 6 coordinates (X or the IRESP==1 XDP set), calls S6ZJAC_I and refreshes JAC_1(1:10) and SIGL; solid_penta6 stores neither JAC_1 nor SIGL and zeroes SIG for deleted elements. Upstream engine/source/elements/solid/solide6z/s6zupd11t12.F90 is reached only from ../engine/source/elements/solid/solide6z/s6zforc3.F90, ../engine/source/elements/solid/solide6z/s6zupd11t12.F90, ../engine/source/elements/solid/solide6z/s6zforc3.F90; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2315,11 +2315,11 @@
  {
   "fortran": "engine/source/elements/solid/solide8/s8cumu3.F",
   "routine": "s8cumu3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "accumulation of the element force arrays into the global external force A and of STI into nodal STIFN is not ported; forces() scatters internal forces into fint only.",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_hexa8_full",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "The internal-force scatter is ported (fe assembled over the 8 Gauss points in _post and scattered with scatter_add3, with zero force for dead elements). Not ported: the nodal internal-energy ledger E(1:3,NCn) += F1n, the STI=STI/2 nodal stiffness for /DT/NODA, and the FTHE/CONDN/CONDE nodal heat assembly \u2014 the port books per-element state['eint'] only.",
+  "parity_case": "tests/test_fe_solids_advanced.py::test_hexa8_full_init_and_rigid_body"
  },
  {
   "fortran": "engine/source/elements/solid/solide8/s8defo3.F",
@@ -2344,8 +2344,8 @@
   "routine": "s8eoff",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "OFF from the ETAG node-activity product is not ported; element death in the port comes from the engine erosion/failure module and solid_hexa8_full only reads st['off'].",
+  "status": "refused",
+  "deviation_note": "OFF = MIN(1, product of ETAG over the element's 8 nodes) \u2014 the node-activity factor that deactivates an element whose nodes are deactivated. A grep for 'etag' over pyradioss returns nothing; solid_hexa8_full.tangent only zeroes ke where st['off']<=0 or the material is void, so this term is absent. Upstream engine/source/elements/solid/solide8/s8eoff.F is reached only from ../engine/source/elements/solid/solide4/s4ke3.F, ../engine/source/elements/thickshell/solide6c/s6cke3.F, ../engine/source/elements/thickshell/solide8c/s8cke3.F, ../engine/source/elements/solid/solide8s/s8ske3.F (and 1 more); no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2389,18 +2389,18 @@
   "routine": "sr8bilan",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "rotating-element (JCVT=1) energy balance using the element rotational DOFs; no rotating-solid group exists in pyradioss.",
+  "status": "refused",
+  "deviation_note": "Per-part energy/kinetic/momentum balance: PARTSAV(1..6) += EI, EK, XM, YM, ZM, XMAS with the /8 velocity scaling, plus GRESAV/GRTH bookkeeping and the grelem_sav / sensor_energy_bilan hooks. solid_hexa8_full has no PARTSAV ledger (only per-element state['eint']) and pyradioss/engine/sensors.py computes energies from the model, not from S8FORC3. Upstream engine/source/elements/solid/solide8/sr8bilan.F is reached only from ../engine/source/elements/solid/solide8/s8forc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8/sr8coor3.F",
   "routine": "sr8coor3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "rotating-element frame gather (calls sortho3/srepisot3 and projects X, V and the inertia tensor into the element frame); solid_hexa8z._corotational_frame is the s8zforc3 port of srepisot3/sortho3, a different family.",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_remesh",
+  "port_symbol": "local_frame",
+  "status": "partial",
+  "deviation_note": "The frame and the isotropic remap rule are ported: solid_remesh.local_frame is srepiso3+sreploc3 for 8-node HEXA-ordered coordinates (remap_isotropic is the R M R^T rule the module docstring attributes to srcoor3/scoor3_fvm). Missing: the IRESP/JCVT branches, the X0/XDP convected-frame outputs, the orthotropic GAMA/GAMA_R rotation and the per-part IOUTPRT arrays, and the remap is not dispatched into any element cycle (solid_remesh.py:25-27).",
+  "parity_case": "tests/test_p2_solid_remesh.py::test_local_frame_of_the_axis_aligned_unit_brick"
  },
  {
   "fortran": "engine/source/elements/solid/solide8e/jacob_f0.F",
@@ -2414,10 +2414,10 @@
  {
   "fortran": "engine/source/elements/solid/solide8e/jacob_j33.F",
   "routine": "jacob_j33",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "_geometry (solid_hexa8_eas.py:52-73) forms a 3x3 cell Jacobian and its determinant every cycle and uses it for the GP volumes, but the port never assembles an incremental deformation gradient, so det([AJ]+I) and the JFAC volume-ratio rescaling of the strain increment (s8edefot3.F:340-361) are absent; deps is the plain small-strain rate*dt.",
   "parity_case": null
  },
  {
@@ -2425,8 +2425,8 @@
   "routine": "m1tot_stab11",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The FACG hydrostatic-tension cut-off is reached upstream only from engine/source/materials/mat/mat001/m1lawtot.F, and the port's LAW1 path has no such term (pyradioss/materials/law01_elastic.py contains no stab/G2/FACG code; materials/__init__.py:3181 solid_update has no stabilisation hook), so nothing carries it.",
   "parity_case": null
  },
  {
@@ -2434,8 +2434,8 @@
   "routine": "m1tot_stab18",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Same MAT001 Isolid=18 stabilisation as m1tot_stab11, plus the ISMSTR==12 incremental loop on SIGL; upstream's only caller is engine/source/materials/mat/mat001/m1lawtot.F and the port's law01_elastic update has neither the FACG shear scaling nor the FACD deviatoric split.",
   "parity_case": null
  },
  {
@@ -2443,8 +2443,8 @@
   "routine": "nsvis_stab18",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The CNS2/CNS3 pressure-dependent viscous stabiliser (SSP1, RHOSSP = sqrt(SSP1*RHOREF), AL = (NPG*VOL)^(1/3)) is called only from engine/source/materials/mat/mat001/m1lawtot.F; the port's bulk viscosity in solid_hexa8_eas.forces is the plain Q2 form and no material-level C1/G2 hook exists.",
   "parity_case": null
  },
  {
@@ -2452,17 +2452,17 @@
   "routine": "s8_is17jac_i",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "It rebuilds JAC_I/PIJ/SIG for elements whose OFFG has flipped to the large-strain value, but the port has no OFFG small/large-strain protocol (init_group sets off=ones and forces() only tests off>0), so the guard in its only caller s8fupd11t12.F:70-76 can never fire and it is unreached.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8e/s8bicp11.F",
   "routine": "s8bicp11",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "tangent",
+  "status": "approximate",
+  "deviation_note": "The port builds K_uu/K_ua/K_aa from a static 6x9 M(xi) table (_M_EAS, line 49) and condenses it, instead of the EAS-coupled BXY/BYX/BXZ/BZX/BYZ/BZY/BXX/BYY/BZZ coefficients S8BICP11 derives from PX and the bubble fields, and it carries 9 modes where upstream carries 24 PIJ. Parity consequence NOT measured (the only Isolid=18 deck, HEXAP14_18, is SKIPS(1)/NO-CHANNELS in tools/validation_data/parity_m41.json) \u2014 follow-up P2.14: quantify the bubble-coupling error against an Isolid=17/18 oracle deck.",
   "parity_case": null
  },
  {
@@ -2470,8 +2470,8 @@
   "routine": "s8e_sig",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "S8E_SIGP scans PLA over the layers, picks the integration point of minimum accumulated plastic strain per element and copies its SIG; the port keeps no PLA/EPMIN state and consumes st['sig'] per Gauss point directly (solid_hexa8_eas.py:246-252), so the element-level stress selection does not exist. Upstream engine/source/elements/solid/solide8e/s8e_sig.F is reached only from ../engine/source/elements/solid/solide10/s10forc3.F, ../engine/source/elements/solid/solide8e/s8eforc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2488,8 +2488,8 @@
   "routine": "s8ea2bp8",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "A pure copy of the saved EAS coefficient block (PX=P0X). Upstream's caller s8ederish2.F materialises P0X only inside the Isolid=11 large-strain EAS derivative path, and the port never materialises either array (_geometry builds dndx from the coordinates every cycle), so nothing carries it.",
   "parity_case": null
  },
  {
@@ -2504,37 +2504,37 @@
  {
   "fortran": "engine/source/elements/solid/solide8e/s8edefoc3.F",
   "routine": "s8edefoc3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "forces() forms the velocity divergence trD at the 8 Gauss points (line 204) and weights it by vol_g, but never the single centre-weighted DVCA scalar built from PXC/PYC/PZC, nor its use in the ICP==1/2 branch of s8edefot3.F; only the Q2 bulk-viscosity test consumes the trace in the port.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8e/s8edefot12.F",
   "routine": "s8edefot12",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "The incremental strain components are produced (L = v (x) dndx, deps = sym(L)*dt, lines 202-216) but only as an infinitesimal increment at the 8 fixed Gauss points; the R11..R33 polar-rotation terms, the I_SH>1 bubble contributions and the ICP/ISMSTR=11/12/IDEGE/MTN branching of S8EDEFOT12 are absent.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8e/s8edefot3.F",
   "routine": "s8edefot3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Same physical quantity as upstream (Dxx..Dzz from the velocity contraction) but formed per Gauss point from the rate with no incremental F, no JFAC volume correction and no ICP/ISMSTR/IDEGE/MTN dispatch; JACOB_J33, which supplies the JFAC denominator, is never called in the port.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8e/s8edefw3.F",
   "routine": "s8edefw3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "forces() computes the full spin W = 0.5(L-L^T) at the 8 Gauss points and uses it for the Jaumann stress rotation (lines 207, 227-236), but the reduced 3-scalar WXX/WYY/WZZ of S8EDEFW3 \u2014 built from the first four nodes' PXC/PYC/PZC as the opposite-corner velocity differences \u2014 and its consumer path in the selective-mean rotation correction are absent.",
   "parity_case": null
  },
  {
@@ -2569,44 +2569,44 @@
   "routine": "s8edericm3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "It restores negative-volume elements' coordinates from the SAV backup (node 8 zeroed, ISMSTR-dependent unscrambling) and rebuilds their derivatives inside the NNEGA loop. The port keeps no SAV array \u2014 init_group only logs an error on vol0 <= EM20 (lines 103-107) \u2014 so the caller s8eforc3.F never reaches it.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8e/s8ederict3.F",
   "routine": "s8ederict3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "The Jacobian, its determinant and its cofactor inverse are computed at the 8 Gauss points by _geometry (lines 57-71), but the four HX/HY/HZ mode vectors, the SMAX surface-median inverse, the ANCMSG 173 report and the SCHKJAB3 small-strain flag call are absent.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8e/s8edericto3.F",
   "routine": "s8edericto3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "The same cofactor expansion of the inverse Jacobian into the PX1..PZ4 derivative coefficients is performed by det_inv33 plus dndx = _DN_DXI . Jinv in _geometry (lines 62-69), vectorised over elements; the only difference is that the port recomputes J from the coordinates instead of reading a stored JAC_I buffer, and evaluates the 8 fixed Gauss points.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8e/s8ederig3.F",
   "routine": "s8ederig3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "ported",
+  "deviation_note": "The 24 per-node Cartesian derivative coefficients PX/PY/PZ are exactly dN_n/dx_j = sum_k dN_n/dxi_k * Jinv_kj, which _geometry produces in a single einsum (line 69); the PR/PS/PT tables it multiplies in are algebraically the same 2-D shape products, replaced by the port's literal _DN_DXI, at the same 8 Gauss stations.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8e/s8ederipr3.F",
   "routine": "s8ederipr3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "The 8-GP volumes and the total are ported and init_group errors on a zero or negative volume, but the ONE_OVER_512 parametric-centre determinant, the three /NEGVOL branches (stop with ANCMSG 320, delete with ANCMSG 319, or switch the element to small strain with OFFG=2) and the implicit IMPL_S EM20 guard are absent.",
   "parity_case": null
  },
  {
@@ -2657,10 +2657,10 @@
  {
   "fortran": "engine/source/elements/solid/solide8e/s8egetpij.F",
   "routine": "s8egetpij",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_eas_enhanced_strains",
+  "status": "partial",
+  "deviation_note": "The port does expand its stored EAS parameters into the Gauss points (_eas_enhanced_strains, lines 138-164, called at line 220), but from 9 natural-coordinate modes (st['pij'], shape (n,9)) rather than the 24 global-basis PIJ components S8EGETPIJ unpacks for Isolid=18 (LLPIJ=24).",
   "parity_case": null
  },
  {
@@ -2684,10 +2684,10 @@
  {
   "fortran": "engine/source/elements/solid/solide8e/s8eprst_ini.F",
   "routine": "s8eprst_ini",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8_eas",
+  "port_symbol": "_build_eas_m",
+  "status": "partial",
+  "deviation_note": "The once-only precomputation of the constant shape-coefficient tables is carried, but with a different table: _build_eas_m builds the (8,6,9) EAS mode matrix _M_EAS at import (lines 34-49) and the port uses the closed-form _DN_DXI derivative table (imported line 31) in place of the 3x8x8 PR/PS/PT selective-mean arrays, so no PR/PS/PT state exists.",
   "parity_case": null
  },
  {
@@ -2695,8 +2695,8 @@
   "routine": "s8eselecsh",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "This is the ISELECT>0 selective-mean step of s8eforc3.F:1186-1200, averaging the P coefficient arrays over the four-node quartets IXY/IXZ/IYZ into P0XY/P0XZ/P0YZ; the port has no selective mean (forces() consumes the raw per-Gauss-point arrays throughout) and no ISELECT branch, so nothing carries it.",
   "parity_case": null
  },
  {
@@ -2704,8 +2704,8 @@
   "routine": "s8eselecsht",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The stress-side selective mean (ISELECT>0, s8eforc3.F:928-935): it averages the MF shear components over the three directions and, for ISMSTR/=11, the BXY/BXZ/BYZ products. The port has neither the ISELECT branch nor any averaging of the Gauss-point strain-rate components, so nothing carries it.",
   "parity_case": null
  },
  {
@@ -2713,8 +2713,8 @@
   "routine": "s8esigp3i",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "It is the conditional copy that completes S8E_SIGP's minimum-plastic-strain selection; the port has no EPSIP/EPMIN scan for it to act on (no PLA state, st['sig'] is consumed per Gauss point), so its only caller path s8e_sig.F is unreached.",
   "parity_case": null
  },
  {
@@ -2722,8 +2722,8 @@
   "routine": "s8etemper",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The /TH integration-point temperature gather, whose only caller is engine/source/elements/eloff.F. The port has no TEMPEL array at all \u2014 its only element temperature is the nodal arithmetic mean built in pyradioss/starter/initemp.py:600-601 \u2014 so the Gauss-station shape-function interpolation for the 2x2x2..9x9x9 rules is absent.",
   "parity_case": null
  },
  {
@@ -2731,8 +2731,8 @@
   "routine": "s8etherm",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The heat-conduction source term (PHI = sum_i TEMPNC_i gradN_i, KC = (AS+BS*TEL)*DT1*VOL*THEACCFACT, the nodal FPHI(I,1..8) and the PARTSAV(28) RHOCP*VOL0*(TEL-T0)+HEAT ledger). pyradioss/elements/solid_thermal.py:36-52 states the conduction routines are 'a separate piece of work ... not started here', and thermal_solver.py:908 apply_conduction is a 1-D bar or a preassembled K matrix, so nothing carries it. Upstream engine/source/elements/solid/solide8e/s8etherm.F is reached only from ../engine/source/elements/thickshell/solide8c/s8cforc3.F, ../engine/source/elements/solid/solide8e/s8eforc3.F, ../engine/source/elements/solid/solide8z/s8zforc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2740,8 +2740,8 @@
   "routine": "s8etotsh10",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "It packs the layer mean stress BXX..BYZ into GBUF%ETOTSH under ISMSTR==10/12 (s8eforc3.F:1323-1327). The port's EAS group state has no 'etotsh' key (init_group, lines 117-131) and no per-integration-point stress averaging, so the output array does not exist.",
   "parity_case": null
  },
  {
@@ -2749,8 +2749,8 @@
   "routine": "s8evis3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "read in full, this is the HOURGLASS viscous force (NFHOUR/NU), not bulk viscosity; no pyradioss module implements it (the port's qa/qb bulk viscosity is a different routine, mmain/mqviscb).",
+  "status": "refused",
+  "deviation_note": "The ALE/VISU visualisation force path (F11..F38, the PX1H1.. hourglass display modes, FLD/FLD cut), guarded upstream by IF (IINT==2 .AND. MTN==1 .AND. ISMSTR/=1 .AND. ISMSTR/=11) at s8eforc3.F:1881. The port's solid_hexa8_eas.forces has no IINT branch and no ALE grid velocity, so it is unreached.",
   "parity_case": null
  },
  {
@@ -2767,8 +2767,8 @@
   "routine": "s8fupd11t12",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Its whole body is the guard IF (OFFG/=OFFG0 .AND. ABS(OFFG)>ONE) (s8fupd11t12.F:70-76) that re-initialises the Jacobian/PIJ of elements that have just switched to the large-strain form. The port has no OFFG protocol (off is set to ones in init_group and only tested >0), so this branch never fires and the routine is unreached.",
   "parity_case": null
  },
  {
@@ -2794,36 +2794,36 @@
   "routine": "sordeftb",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The ISELECT>1 projection of the layer B-components onto the element rotation axes (s8eforc3.F:914-916, FXX = MXX*G1X^2 + MYY*G1Y^2 + MZZ*G1Z^2). The port has no ISELECT branch and no element rotation matrix \u2014 _geometry's J0 is the mean Jacobian, not R \u2014 so nothing carries it.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8s/crframe_imp.F",
   "routine": "crframe_imp",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "crimp/imperfection frame construction; the crimp path (Iframe) is not routed in pyradioss",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_crimp",
+  "port_symbol": "crframe",
+  "status": "ported",
+  "deviation_note": "Read the Python: crframe() = reference_inverse_jacobian (unscaled corner sums, DETM1 = 8/DETJ0, the nine INVJ entries) + deformation_gradient (current sums /8 -> FMAT) + _inverse_stretch (IC/I2C/I3C, B = MAX(B,0), the A == 0 branch, UM) + R = F @ UM, i.e. statement-for-statement crframe_imp.F lines 103-221. Not yet dispatched: nothing outside tests/test_p2_solid_crimp.py calls the module (wiring is P2.11, UPDATES.md:20).",
+  "parity_case": "tests/test_p2_solid_crimp.py::test_frame_matches_the_unmodified_fortran_on_a_general_deformation"
  },
  {
   "fortran": "engine/source/elements/solid/solide8s/crtrans_imp.F",
   "routine": "crtrans_imp",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "crimp transform kernel (1,123 lines); no reference to it anywhere in pyradioss",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_crimp",
+  "port_symbol": "corotational_transform",
+  "status": "ported",
+  "deviation_note": "_shape_gradients gives DNk_D/J = (+-INVJ(1) +- INVJ(2) +- INVJ(3))/8, S_j[a,:] = column a of R x (x_j - x_1), B/BBI with the `IF (BB /= ZERO) BB = ONE/BB` guard, V_k = -(BI @ (DNk x R)), TRM block (j,k) = sum_c S_j[a,c] V_k[c,b], the zeroed node-1 rows and the final += R(b,a) on the diagonal blocks - the whole of crtrans_imp.F lines 137-1120, vectorised.",
+  "parity_case": "tests/test_p2_solid_crimp.py::test_trm_matches_the_unmodified_fortran_on_a_general_deformation"
  },
  {
   "fortran": "engine/source/elements/solid/solide8s/getuloc.F",
   "routine": "getuloc",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "projects the 8-node increment UL* onto the local direction cosines R; called only from srcoor3_imp",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_crimp",
+  "port_symbol": "local_displacements",
+  "status": "ported",
+  "deviation_note": "local_coordinates computes R^T (x_k - x_1) by the same UL/VL/WL = R(.,j) . (X_k - X_1) contraction, local_displacements subtracts the 21 SAV components and forces node 1 to zero, exactly as GETULOC lines 80-165. Not dispatched from the engine (P2.11).",
+  "parity_case": "tests/test_p2_solid_crimp.py::test_local_displacement_of_a_stretch_is_the_stretch_in_the_local_axes"
  },
  {
   "fortran": "engine/source/elements/solid/solide8s/s8sansb.F",
@@ -2837,11 +2837,11 @@
  {
   "fortran": "engine/source/elements/solid/solide8s/s8sav3_imp.F",
   "routine": "s8sav3_imp",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "saves the 21-component SAV geometry vector for OFF=0 elements; crimp path absent",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_crimp",
+  "port_symbol": "save_reference",
+  "status": "ported",
+  "deviation_note": "SAV(n,21) = X_k - X_1 for k = 2..8 written only where ABS(OFFG) <= 1, with the previous SAV retained otherwise - identical to the 21 guarded assignments of s8sav3_imp.F lines 65-88. Not dispatched from the engine (P2.11).",
+  "parity_case": "tests/test_p2_solid_crimp.py::test_save_reference_is_guarded_by_abs_offg_le_one"
  },
  {
   "fortran": "engine/source/elements/solid/solide8s/s8sbdefo3.F",
@@ -2873,11 +2873,11 @@
  {
   "fortran": "engine/source/elements/solid/solide8s/s8sfint3_crimp.F",
   "routine": "s8sfint3_crimp",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "crimp nodal force from TRM/COR_NF/COR_FR; crimp path not routed",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_crimp",
+  "port_symbol": "internal_force_to_global",
+  "status": "ported",
+  "deviation_note": "QF(e,k,i) = -(R f_local) and T = TRM^T f_local, matching the 24 QF rows and the T(J) = sum_k TRM(I,k,J) F_k of s8sfint3_crimp.F lines 55-105; the port returns both (f_global, QF) instead of overwriting F in place. Not dispatched from the engine (P2.11).",
+  "parity_case": "tests/test_p2_solid_crimp.py::test_internal_force_to_global_is_trm_transpose_f_and_stores_minus_r_f"
  },
  {
   "fortran": "engine/source/elements/solid/solide8s/s8sforc3.F",
@@ -2902,8 +2902,8 @@
   "routine": "s8sksig",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "skew/non-linear stiffness from COR_NF and the local frames V1..V8; COR_NF appears nowhere in pyradioss. solid_shell_ha8.kgeo is the initial-stress geometric stiffness, a different quantity.",
+  "status": "refused",
+  "deviation_note": "No skew operator exists anywhere in pyradioss: `grep -i 's8sksig|COR_NF|QF' pyradioss` returns only the solid_crimp docstring, and solid_shell_ha8 has no COR_NF input (its kgeo is the initial-stress stiffness, a different quantity). Its only caller is s8ske3.F, and the routine's inputs - the QF written by S8SFINT3_CRIMP and the V1..V8 written by CRTRANS_IMP - exist only inside solid_crimp.py, which no engine path imports (UPDATES.md:20, wiring P2.11), so it is unreached in the port.",
   "parity_case": null
  },
  {
@@ -2918,11 +2918,11 @@
  {
   "fortran": "engine/source/elements/solid/solide8s/s8xref_imp.F",
   "routine": "s8xref_imp",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "updates the COR_XR reference geometry when INCONV=1; no INCONV/COR_XR state in pyradioss",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_crimp",
+  "port_symbol": "local_reference",
+  "status": "ported",
+  "deviation_note": "XREF(n,21) = R^T (x_k - x_1) for k = 2..8 with the same UL/VL/WL contraction, and correctly no OFFG guard because upstream's is commented out (s8xref_imp.F line 72). Not dispatched from the engine (P2.11).",
+  "parity_case": "tests/test_p2_solid_crimp.py::test_local_reference_of_a_quarter_turn"
  },
  {
   "fortran": "engine/source/elements/solid/solide8s/srcoor3_imp.F",
@@ -2936,28 +2936,28 @@
  {
   "fortran": "engine/source/elements/solid/solide8s/srcoork_imp.F",
   "routine": "srcoork_imp",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "builds the element local frames V1..V8 and the 24x24 local/global transform TRM for the implicit route; solid_hexa8z._corotational_frame is a different frame (srepiso3/sortho3, a different family)",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_crimp",
+  "port_symbol": "reference_inverse_jacobian",
+  "status": "partial",
+  "deviation_note": "The two numerical blocks S8SCOORK_IMP exists for are ported - reference_inverse_jacobian reproduces its lines 177-201 verbatim (its own docstring says so) and corotational_transform is its CRTRANS_IMP call - but there is no routine for the driver: the NC1..NC8 / NGEO / NGL / MXT gather from IXS, the X1..X8 = SAV restore, the OFF = MIN(ONE,OFFG) update and the K11..K88 / KL(24,24) zeroing are absent, and the module docstring (lines 85-90) explicitly excludes the implicit stiffness operators.",
+  "parity_case": "tests/test_p2_solid_crimp.py::test_trm_matches_the_unmodified_fortran_on_a_general_deformation"
  },
  {
   "fortran": "engine/source/elements/solid/solide8s/transk.F",
   "routine": "transk",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "transforms the accumulated local 24x24 KL to global through TRM; the port builds the HA8 stiffness directly in global Cartesian DOFs and has no TRM",
-  "parity_case": null
+  "port_module": "pyradioss.elements.solid_crimp",
+  "port_symbol": "transk",
+  "status": "ported",
+  "deviation_note": "ktemp = KL @ TRM then K = TRM^T @ ktemp, the exact triple loop of TRANSK (KL(L,M) = sum_N TRM(I,N,L) KTEMP(N,M)); the only difference is that the port returns a new array instead of overwriting KL in place. Not dispatched from the engine (P2.11).",
+  "parity_case": "tests/test_p2_solid_crimp.py::test_transk_is_trm_transpose_k_trm_and_not_the_other_way_round"
  },
  {
   "fortran": "engine/source/elements/solid/solide8z/get_etfac_s.F",
   "routine": "get_etfac_s",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Reads IMP_KTAN's KTBUF_STR(NG_IMP)%ETFAC, the per-element implicit convergence time-step factor that scales the material tangent. The port has no implicit material-tangent buffer at all and no place to store it: pyradioss/implicit/assembly.py:67 raises NotImplementedError for any kernel without tangent(), and solid_hexa8z exposes only init_group/forces. Upstream engine/source/elements/solid/solide8z/get_etfac_s.F is reached only from ../engine/source/elements/shell/coqueba/cmatc3.F, ../engine/source/elements/shell/coqueba/cmatc3.F, ../engine/source/elements/solid/solide8z/mmats.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -2965,8 +2965,8 @@
   "routine": "gethkt3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Copies the radial-return alpha KTBUF_STR(KTBUFEP(IR,IS,IT))%A_KT into HT for the hourglass tangent; its only caller is mmstifs.F (implicit). The port has no A_KT/SIGE element buffer and no tangent path for this element, so the routine is unreached.",
   "parity_case": null
  },
  {
@@ -2974,8 +2974,8 @@
   "routine": "gettrans",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Builds the QC/QCG/QGC/QG cosine transforms of the material frame GAMA consumed by MMATS; its only caller is mmats.F (implicit, unported). solid_orthotropic.gettransv is NOT this routine \u2014 it ports gettransv.F of the szforc3/sztke3 orthotropic family.",
   "parity_case": null
  },
  {
@@ -2983,8 +2983,8 @@
   "routine": "mmat_h1",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Splits the hourglass moduli HH into the pressure/dilatation pair HH1 and sets IPREDU/IFP for the implicit tangent; callers are q4ke2.F, the thickshell s8cke3.F and this family's s8zke3.F, none of which has a port counterpart. solid_hexa8z has no hourglass-modulus array at all (its Flanagan-Belytschko force is built from hcoef/rho/c/vol inside forces()).",
   "parity_case": null
  },
  {
@@ -2992,8 +2992,8 @@
   "routine": "mmats",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Fills the material tangent tensors CC/CG/G33 from PM/UPARAM for the implicit assembly; every caller is an implicit *ke2/*cke3 routine (q4ke2, s10ke3, s20ke3, s4ke3, s6cke3, s8cke3, s8zke3) that the port does not provide. solid_orthotropic.mmodul/mstiforthv port mmodul.F/mstiforthv.F of a different family, not MMATS.",
   "parity_case": null
  },
  {
@@ -3001,8 +3001,8 @@
   "routine": "mmstifs",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Builds the DD/DG/GG/DM/GM hourglass stiffness scalings from the IKT material-tangent buffer; callers are the same seven unported implicit *ke2/*cke3 routines. No port routine builds a DD/DG/DM/GM block for this element. Upstream engine/source/elements/solid/solide8z/mmstifs.F is reached only from ../engine/source/elements/solid_2d/quad4/q4ke2.F, ../engine/source/elements/solid/solide10/s10ke3.F, ../engine/source/elements/solid/solide20/s20ke3.F, ../engine/source/elements/solid/solide4/s4ke3.F (and 3 more); no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -3010,8 +3010,8 @@
   "routine": "mstiforth",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Rotates CC and G3 into the (CC, CG, G33) triple through CBATRAN3; its only caller is mmats.F. solid_orthotropic.mstiforthv is a different routine from a different file (mstiforthv.F) and must not be credited here.",
   "parity_case": null
  },
  {
@@ -3019,8 +3019,8 @@
   "routine": "put_etfac",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "MIN/MAX-accumulates the element time step into KTBUF_STR(NG_IMP)%ETFAC (the /IMPL/NONLIN etfac); callers are cmain3.F, mmain.F90 and mmain8.F. The port has no ETFAC store and no implicit convergence buffer at all.",
   "parity_case": null
  },
  {
@@ -3028,8 +3028,8 @@
   "routine": "putsignor3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Stores A_KT and the normalized deviatoric stress SIGE(1..6) into KTBUF_STR(KTBUFEP) for the implicit radial return; its only caller is mmain.F90. The port's forces() keeps sig in group.state and never writes a SIGE/A_KT buffer.",
   "parity_case": null
  },
  {
@@ -3037,8 +3037,8 @@
   "routine": "s8zcumg3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Rotates the 36 element stiffness 3x3 blocks K11..K88 from the corotational frame Q(R11..R33) back into global coordinates; callers are s8zke3.F (this family's implicit tangent, unported) and the thickshell s8cke3.F. The port rotates the internal FORCE by R in forces() but never assembles or rotates a stiffness for this element.",
   "parity_case": null
  },
  {
@@ -3055,8 +3055,8 @@
   "routine": "s8zdefot3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Its defining job is the ICP==1 volumetric scaling JFAC = EXP((2/3)*NU*LOG(DET0/DET)) applied to Dxx..Dzz through JACOB_J33; upstream reaches it only inside the block s8zforc3.F:592 `IF (ISMSTR >= 10 .AND. ISMSTR <= 12)`. solid_hexa8z.forces has no ISMSTR flag, no DET0/NU/JFAC term, and its Dxx..Dzz are used raw to build deps.",
   "parity_case": null
  },
  {
@@ -3071,10 +3071,10 @@
  {
   "fortran": "engine/source/elements/solid/solide8z/s8zderic3.F",
   "routine": "s8zderic3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "The NDVCA contraction is evaluated (sum over the first four nodes of dndx*d v_loc) but the result is assigned to trD, which feeds ONLY the bulk-viscosity pressure and dt_crit \u2014 it never replaces Dxx..Dzz in deps, so the assumed volumetric dilatation does not reach the constitutive update. The contraction also uses the single centroid dndx from _geometry instead of the per-node assumed-strain PX1..PZ4, and the X17/X28/X35/X46 diagonals, HX/HY/HZ hourglass vectors, IDEG/JLAG branches and the SCHKJABT3 negative-Jacobian stop are absent.",
   "parity_case": null
  },
  {
@@ -3082,8 +3082,8 @@
   "routine": "s8zdericm3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The negative-volume repair: upstream reaches it only at s8zforc3.F:865 `IF (NNEGA > 0)`, i.e. when at least one Gauss point came back with VOL <= 0. solid_hexa8z._geometry instead clamps detJ <= EM20 to a zero gradient and logs, and never maintains NNEGA/INDEX, so this repair is unreached.",
   "parity_case": null
  },
  {
@@ -3091,8 +3091,8 @@
   "routine": "s8zderict3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Reached only from s8zforc3.F:593 `IF (ISMSTR == 11)` \u2014 the total-strain-rate (small-strain / Ismstr=11) derivative set on the X0/Y0/Z0 geometry. solid_hexa8z.forces has no ISMSTR flag and no separate small-strain kinematics, so this branch is unreached.",
   "parity_case": null
  },
  {
@@ -3100,8 +3100,8 @@
   "routine": "s8zdericto3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The ELSE (ISMSTR 10 or 12) sibling of S8ZDERICT3, still inside the s8zforc3.F:592 `ISMSTR >= 10 .AND. ISMSTR <= 12` block, and it is the variant that also writes GBUF%JAC_I. solid_hexa8z has neither ISMSTR nor a JAC_I buffer, so the branch is unreached.",
   "parity_case": null
  },
  {
@@ -3109,17 +3109,17 @@
   "routine": "s8zderii3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The inverse-Jacobian derivative set used only to build the implicit element stiffness; its sole caller is s8zke3.F. The port has no tangent() for this element, so the routine is unreached.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8z/s8zderim3.F",
   "routine": "s8zderim3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "forces",
+  "status": "approximate",
+  "deviation_note": "The port forms L_ab = sum_i ve_loc[i,a]*dndx[i,b] with the single centroid-Jacobian dndx from _geometry \u2014 a one-point, non-assumed-strain B \u2014 where S8ZDERIM3 builds the full per-node PXY/PYX/PXZ/PZX/PYZ/PZY assumed-strain B over the Gauss loop. MEASURED PARITY CONSEQUENCE: none \u2014 no parity case exists (SOLID_ISOLID_GROUPS has no Isolid key 14, so nothing routes to \"bricks_hexa8z\"; parity_m36.json lists RD_V_0240/Modele_HEXA_P14_Isolid24 as PYRADIOSS-FAIL). Follow-up task P2.14: build a /BRICK Isolid=14 corpus case and quantify the volumetric-locking error against upstream before calling this acceptable.",
   "parity_case": null
  },
  {
@@ -3127,17 +3127,17 @@
   "routine": "s8zderims3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Recomputes the Jacobian and its inverse in double precision for the negative-volume elements only; upstream reaches it at s8zforc3.F:897 inside the `IF (NNEGA > 0)` block (inside S8ZDERICM3). The port has no NNEGA/INDEX machinery and no double-precision VOLDP store, so it is unreached.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8z/s8zderipr3.F",
   "routine": "s8zderipr3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "_geometry",
+  "status": "partial",
+  "deviation_note": "_geometry covers only the plain per-element part: the Jacobian built from CJ1..CJ9, its cofactor inverse and the volume. Absent are the HX/HY/HZ hourglass-vector contributions to JAC1..JAC9, the Gauss-point loop with A_GAUSS/WI, the double-precision VOLDP bookkeeping, and the NNEGA negative-volume detection with its /NEGVOL/STOP and MSTOP ANCMSG error path.",
   "parity_case": null
  },
  {
@@ -3145,8 +3145,8 @@
   "routine": "s8zderit3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Reached only at s8zforc3.F:695, inside the `IF (ISMSTR >= 10 .AND. ISMSTR <= 12)` block, and driven by the JACOB_F0 centroid gradients PXC/PYC/PZC with the A_GAUSS(IR,NPTR) weights. solid_hexa8z.forces has no ISMSTR and no PXC/PYC/PZC/A_GAUSS equivalent, so the routine is unreached.",
   "parity_case": null
  },
  {
@@ -3163,8 +3163,8 @@
   "routine": "s8zfint_reg",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The non-local (INLOC/NLOC_DMG) regularized internal force over the 8 Gauss points, reached from s8zforc3.F:1361 inside `IF (INLOC > 0)`. No pyradioss module implements non-local damage for this element \u2014 solid_hexa8z.forces has no INLOC/NLOC_DMG/VAR_REG input and no nlocal_reg equivalent \u2014 so it is unreached.",
   "parity_case": null
  },
  {
@@ -3172,8 +3172,8 @@
   "routine": "s8zfintp3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Adds the ICP==1 volumetric 'pressure pair' force PP*VOL*(PX,PY,PZ) to the four opposite node pairs, gated at s8zforc3.F:1441 on `ICP == 1 .AND. ISMSTR /= 10 .AND. ISMSTR /= 12`. The port computes no volumetric pressure PP (its S goes straight from sig to f = -vol*gradN . S) and has no ICP flag, so it is unreached.",
   "parity_case": null
  },
  {
@@ -3190,8 +3190,8 @@
   "routine": "s8zke3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The complete corotational element-stiffness assembly (SRCOORK frame, MMATS/MMSTIFS, S8ZDERII3, S8ZLKE3/S8ZLKEP3, S8ZKGEI3/S8ZKGEO3, S8ZCUMG3, ASSEM_S8). The port's solid_hexa8z exposes only init_group and forces, and pyradioss/implicit/assembly.py:67 raises NotImplementedError('element group has no implicit tangent()') for it \u2014 an /IMPL/NONLIN run with a /BRICK Isolid=14 part cannot be served. Upstream engine/source/elements/solid/solide8z/s8zke3.F is reached only from ../engine/source/implicit/imp_glob_k.F, ../engine/source/implicit/imp_glob_k.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -3199,8 +3199,8 @@
   "routine": "s8zkeb3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Assembles the DD (material) x hourglass-B 3x3 block KIJ for the element stiffness; its callers are s8zlke3.F (this family's unported implicit tangent) and the thickshell s6clke3.F. The port has no hourglass stiffness block for this element.",
   "parity_case": null
  },
  {
@@ -3208,8 +3208,8 @@
   "routine": "s8zkebg1",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Its only callers are s4cumg3.F, s10cumg3.F and s20cumg3.F \u2014 the implicit assembly routines of the tetra4, tetra10 and tetra20 families. The port's solid_tetra4.tangent and solid_bric20.tangent are their own derivations, not ports of s4ke3/s20ke3, so S8ZKEBG1 is never called anywhere in pyradioss.",
   "parity_case": null
  },
  {
@@ -3217,8 +3217,8 @@
   "routine": "s8zkebg3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The DG (dilatation gradient) x hourglass-B stiffness block, reachable only from s8zlke3.F \u2014 this family's implicit tangent, which the port does not implement.",
   "parity_case": null
  },
  {
@@ -3226,8 +3226,8 @@
   "routine": "s8zked3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Accumulates the DD (diagonal B) material-stiffness block KIJ; callers are s8zlke3.F, s8zlkep3.F and the unported s4cumg3/s10cumg3/s20cumg3. The port has no element stiffness for this family.",
   "parity_case": null
  },
  {
@@ -3235,8 +3235,8 @@
   "routine": "s8zkeg3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Accumulates the isotropic hourglass stiffness block G*sum(PXY*PXY + PXZ*PXZ); callers are s8zlke3.F and the unported s4cumg3/s10cumg3/s20cumg3. solid_hexa8z.forces builds an hourglass FORCE (gamma . qdot) but never the matching G stiffness block.",
   "parity_case": null
  },
  {
@@ -3244,8 +3244,8 @@
   "routine": "s8zkeg33",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The orthotropic G33 hourglass stiffness block (BI*G33*BJ); callers are s8zlke3.F and the unported s4cumg3/s10cumg3/s20cumg3. solid_hexa8z.forces uses a single isotropic hourglass coefficient hcoef \u2014 there is no G33 matrix anywhere in the module.",
   "parity_case": null
  },
  {
@@ -3253,8 +3253,8 @@
   "routine": "s8zkeh3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "HIJ = F:(P_i (x) P_j) helper for the geometric stiffness; its callers are s8zkgeo3.F (this family's unported implicit tangent) and s4keh3.F in the tetra family. No port routine forms this contraction.",
   "parity_case": null
  },
  {
@@ -3262,8 +3262,8 @@
   "routine": "s8zkehij",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The 3x3 sibling of S8ZKEH3 (writes KIJ(J,J) += HIJ instead of returning HIJ); its only caller is s8zkgei3.F, itself reached solely from the unported s8zke3.F and the thickshell s8cke3.F.",
   "parity_case": null
  },
  {
@@ -3271,8 +3271,8 @@
   "routine": "s8zkgei3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The corotational-frame geometric (initial-stress) stiffness F*VOL . gradN gradN over all 8 nodes; callers are s8zke3.F and the thickshell s8cke3.F. The port has no kgeo() for this element \u2014 pyradioss/implicit/assembly.py:73-75 would call kernel.kgeo and cannot.",
   "parity_case": null
  },
  {
@@ -3280,8 +3280,8 @@
   "routine": "s8zkgeo3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The 4-node geometric stiffness with hourglass cross-terms (K11/K17/K77 ...), called only from the unported s8zke3.F and the thickshell s8cke3.F. No port routine assembles this 36-block element geometric stiffness for solid_hexa8z.",
   "parity_case": null
  },
  {
@@ -3289,8 +3289,8 @@
   "routine": "s8zlke3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Builds the full local stiffness K11..K88 from DD/GG/DG/G33 including the hourglass blocks; its only callers are s8zke3.F (unported implicit tangent for this family) and the thickshell s8cke3.F. The 628-line core of the element's implicit behaviour has no counterpart in pyradioss.",
   "parity_case": null
  },
  {
@@ -3298,8 +3298,8 @@
   "routine": "s8zlkep3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The ICP volumetric-pressure stiffness block (HH/VOL/FAC -> DD -> K via S8ZKED3), reached only from the unported s8zke3.F and s8cke3.F; the port never forms PP or its stiffness.",
   "parity_case": null
  },
  {
@@ -3307,8 +3307,8 @@
   "routine": "s8zsigp3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Computes the ICP==2 plastic-work fraction FAC = DEFP/(sqrt(SIGY)/E0 + DEFP) that shifts NU before the volumetric correction. Upstream reaches it from s8zforc3.F:933 `IF (ICP == 2)`; solid_hexa8z.forces has no ICP branch at all (no ICP==1 JFAC path either) and never asks the constitutive law for a plastic-work return, so it is unreached.",
   "parity_case": null
  },
  {
@@ -3316,17 +3316,17 @@
   "routine": "s8ztempel",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Interpolates the 8 nodal temperatures to the element centroid (TEMPEL = sum NI_k*TEMP(NCk)) for the S8Z thermal strain; upstream reaches it from s8zforc3.F:1186 `IF (JTHE < 0)`. solid_hexa8z.forces has no JTHE, no TEMP and no thermal term. solid_thermal.forces is NOT this routine \u2014 it is the mmain.F90:778 fully-constrained group thermal path on solid_hexa8._geometry.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8z/s8zzero3.F",
   "routine": "s8zzero3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "The deleted-element half is covered: forces() masks fe_glob with np.where(alive[:,None,None], fe_glob, 0.0) before scattering, which is the F11..F38 zeroing. The state-buffer half is not: there is no once-per-cycle reset of SIGM/EINTM/RHOM/QM/STIN/PP/EINTTHM/DEFPM/EPSDM/CONDEN, and the port has no PP (volumetric pressure), no STIN (initial-stress) and no per-cycle CONDEN term at all \u2014 it simply overwrites sig/eint each cycle.",
   "parity_case": null
  },
  {
@@ -3334,8 +3334,8 @@
   "routine": "sktcons2",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "IKT==4 branch of MMSTIFS: builds the hourglass stiffness (DD, CG, G33) from the implicit buffer's normalized deviatoric stress SIGE and radial-return alpha A_KT. Its only caller is mmstifs.F, which exists only for the unported implicit stiffness of this family; the port has no SIGE/A_KT store to read.",
   "parity_case": null
  },
  {
@@ -3343,8 +3343,8 @@
   "routine": "sktvonm3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "IKT==3 branch of MMSTIFS: the von-Mises hourglass derivative DD1/GT/HT built from SIG and the implicit A_KT factor HT. Its only caller is mmstifs.F; the port has no A_KT buffer, and its single isotropic hourglass coefficient (hcoef in forces()) is not derived from the deviatoric stress this routine needs.",
   "parity_case": null
  },
  {
@@ -3352,8 +3352,8 @@
   "routine": "sktvonm4",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The rank-one deviatoric correction DD -= s.s, GT -= st.st applied by SKTCONS2 (IKT==4); its only caller is sktcons2.F, which itself exists only inside MMSTIFS for the unported implicit stiffness of this family. The chain is unreached from any ported routine.",
   "parity_case": null
  },
  {
@@ -3361,17 +3361,17 @@
   "routine": "sorthdir17",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Re-orthogonalizes the material GAMA directions into the global frame after the sortho3 iteration; srcoork.F:219-220 calls it only under `ISORTH > 0 .AND. KHBE == 17`. solid_hexa8z has neither an ISORTH nor a KHBE flag and _corotational_frame never touches GAMA, so the routine is unreached.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solide8z/srcoork.F",
   "routine": "srcoork",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8z",
+  "port_symbol": "_corotational_frame",
+  "status": "partial",
+  "deviation_note": "The srepisot3 + sortho3 core (the R11..R33 orthonormal frame, including the KHBE==17/24 argument swap) is transcribed; the SRCOORK job around it is not. Missing: the X/V gather and projection into the frame beyond the plain einsum in forces(), the NGL/MXT integration bookkeeping, the 36 K11..K88 blocks built in the frame, the GAMA/GAMA0 hourglass vectors, the IREP/IGTYP/ISORTH/JCVT branches, and the REMESH path. Both upstream callers (s8zke3.F, s8cke3.F) are unported.",
   "parity_case": null
  },
  {
@@ -3379,8 +3379,8 @@
   "routine": "systran3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The 3x3 similarity transform K <- Q K Q^T used by S8ZCUMG3 to rotate element stiffness blocks out of the corotational frame; its callers are s8zcumg3.F and the thickshell s6ccumg3.F, both implicit-assembly routines the port does not implement. solid_orthotropic.cbatran3v ports cbatran3v.F of the szforc3 family, not SYSTRAN3, and must not be credited here.",
   "parity_case": null
  },
  {
@@ -3388,26 +3388,26 @@
   "routine": "c33stif2el",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "No counterpart in pyradioss: C33STIF2EL is reachable only from mmodul.F's MTN==24 branch (PM(50), PM(53..55) armature), and solid_orthotropic.mmodul (solid_orthotropic.py:687-712) omits MTN 24 entirely, so the routine is unreachable in the port.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/cbatran3v.F",
   "routine": "cbatran3v",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "cbatran3v",
+  "status": "ported",
+  "deviation_note": "Body implements K(I,J) = sum_pq VQI(p,I) KK(p,q) VQJ(q,J) with the transpose on the LEFT, and reproduces the ISYM==1 upper-triangle-only write (out = kk.copy() with only the strict/upper triangle replaced) exactly as the Fortran leaves the lower triangle untouched.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/gettransv.F",
   "routine": "gettransv",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "gettransv",
+  "status": "ported",
+  "deviation_note": "E1/E2/E3 = GAMA(:,1:3)/GAMA(:,4:6)/E1xE2 and the four cosine products QC/QGC/QG/QCG are transcribed index for index, including the Fortran's cyclic K = J+1 (3 -> 1) via nxt = [1,2,0].",
   "parity_case": null
  },
  {
@@ -3415,8 +3415,8 @@
   "routine": "gfhour_or",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The CC/CG/G33 -> NFHOUR orthotropic hourglass stress has no counterpart in pyradioss; it is reached upstream only from szhour3_or.F, which the port explicitly declares absent (solid_orthotropic.py:57-59 names szhour3_or.F, szsvm_or.F and gfhour_or.F as not transcribed).",
   "parity_case": null
  },
  {
@@ -3424,8 +3424,8 @@
   "routine": "m1tot_stab24",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Only caller is materials/mat/mat001/m1lawtot.F, and m1lawtot itself is not ported: pyradioss/materials/law01_elastic.py transcribes sigeps01.F only and contains neither m1lawtot nor this MAT001 stabilisation, so the routine is unreached in the port.",
   "parity_case": null
  },
  {
@@ -3433,26 +3433,26 @@
   "routine": "mdama24",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The Isolid=24 (HEPH) damaged-element moduli have no counterpart; MDAMA24 is called only from szhour3.F / szhour3_or.F / s6zhourg3.F90, none of which is ported, and pyradioss has no HEPH element at all (solid_hexa8.py:617 records that gap explicitly).",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/mmod_norm.F",
   "routine": "mmod_norm",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "mmod_norm",
+  "status": "ported",
+  "deviation_note": "Body divides CC, G33 and CG by GG, mirroring the strict-lower triangle exactly as the Fortran's DO K=J,3 then CC(I,K,J)=CC(I,J,K) does; CG is divided over all nine entries as upstream.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/mmodul.F",
   "routine": "mmodul",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "mmodul",
+  "status": "partial",
+  "deviation_note": "Every MTN branch is transcribed (12/14, 25/107/112 Poisson, 28/68/50/53/93/122/123/125/127/130 diagonal, 128 bulk/shear, and the ELSE 3E/(1+nu) form with G33(J,J)=GG/2 and CG=0) except MTN==24, the reinforced branch that blends PM(50)/PM(53..55) through C33STIF2EL \u2014 an Isolid=24 HEPH path the port has no element for.",
   "parity_case": null
  },
  {
@@ -3460,17 +3460,17 @@
   "routine": "mmodul24c",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The damage-modified Hook matrix DE1..DE6/DEN of the Isolid=24 HEPH concrete has no counterpart; its only caller is mdama24.F, itself unreached (see row mdama24.F), and the module states outright that mmodul24c.F belongs to solid_heph and none of it appears in this kernel.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/mstiforthv.F",
   "routine": "mstiforthv",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "mstiforthv",
+  "status": "ported",
+  "deviation_note": "All three sandwiches are reproduced with the right ISYM and weights: CG = HALF*QC.CC.QCG + 2*QGC.G.QG (ISYM=0), G33 = FOURTH*QCG.CC.QCG + QG.G.QG, CC = QC.CC.QC + 4*QGC.G.QGC (both ISYM=1, the Fortran never resetting ISYM), then the closing mirror of CC and G33.",
   "parity_case": null
  },
  {
@@ -3478,26 +3478,26 @@
   "routine": "nsvis_stab11",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The MAT001 non-linear-viscosity stress addition CNS2/CNS3 is not ported: its only caller is materials/mat/mat001/m1lawtot.F, which does not exist in pyradioss (law01_elastic.py carries sigeps01.F only), so the routine is unreached.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/scoor_cp2sp.F",
   "routine": "scoor_cp2sp",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "scoor_cp2sp",
+  "status": "ported",
+  "deviation_note": "Body is exactly the coordinate split the Fortran performs - X0(I,1..8)/Y0/Z0 into the 24 single-node columns - returned in the Fortran's own order X1..X8, Y1..Y8, Z1..Z8; no rotation, no strain rate.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/sdlen8.F",
   "routine": "sdlen8",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hexa8",
+  "port_symbol": "_char_length",
+  "status": "approximate",
+  "deviation_note": "Upstream is DELTAX = 128*min(VLINC(1..8))/sqrt(SMAX) with HUNDRED28=128 (constant_mod.F:619) - a MINIMUM over the eight sub-block volumes, which equals V/8 only for a regular hexa - and its SDLEN_DEGE branch for IDTS6>0. The port computes the coarser lc = V/max(face area) from the exact volume, so on a distorted or degenerate hexa the element time step differs from upstream's; the parity consequence of that difference has NOT been measured - follow-up task P2.14.",
   "parity_case": null
  },
  {
@@ -3505,98 +3505,98 @@
   "routine": "sdlen_sms",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The solid/multi-surface (self-contact, TAGPRT_SMS) characteristic length is not ported; szforc3.F calls it only for SMS parts and pyradioss has no self-contact solid element, so it is unreached in the port.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/shour_ctl.F90",
   "routine": "shour_ctl",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_hourglass5",
+  "port_symbol": "_coefficients",
+  "status": "partial",
+  "deviation_note": "The SELECT CASE (MTN) coefficient ladder is transcribed branch for branch (cases 70, 42/69, 62, 88, 90, the default arm, the law-1/62 hourglass-strain stiffening and the IF (ISCTL==0) F_ET=ONE reset), but the routine's own control body is not: shour_ctl's FCL = FVL*rho*c*ll*ll viscous coefficient and its FHOUR/force block are served by s_hg5.F's transcription in solid_hourglass5.apply, which uses the different FCL = F_ET*CAQ*vol**(1/3).",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/sordef12.F",
   "routine": "sordef12",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "szordef3",
+  "status": "partial",
+  "deviation_note": "The rotation is implemented but the engineering-shear rescale is not: SORDEF12 halves D4/D5/D6 into tensor shear before SROTO12 and doubles them back afterwards, while solid_orthotropic.szordef3 is a plain alias of sroto3, so a strain increment stored as gamma_xy leaves with its shear components 2x too large unless the caller pre-halves them.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/sordeft12.F",
   "routine": "sordeft12",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "sordeft3",
+  "status": "ported",
+  "deviation_note": "SORDEFT12's operator is F_ab = sum_cd R_ac M_cd R_bd on the nine MXX..MZZ components, which is exactly what sordeft3 computes (R M R^T with the frame rows) on the same nine values held as a 3x3 tensor; the only difference is the Fortran's separate-array layout.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/sordeft3.F",
   "routine": "sordeft3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "sordeft3",
+  "status": "ported",
+  "deviation_note": "Verified term for term: SORDEFT3's SX/SY/SZ/FXX block is F = R M R^T with R's ROWS the material directions, which is what np.einsum(r, m, r.swapaxes) evaluates; the cycle calls it after converting the engineering-Voigt rate to a tensor strain (_voigt_to_tensor), which is the correct reading of MFXX..MFZZ.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/sroto12.F",
   "routine": "sroto12",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "sroto3",
+  "status": "partial",
+  "deviation_note": "The 6-component stress rotation is present but applied as the INVERSE R^T sigma R, not the Fortran's R sigma R^T; this is a deliberate documented port decision (the port rotates the stress itself rather than leaving it to MMAIN) and the Fortran's exact form is not available from any symbol.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/sroto12_sig.F",
   "routine": "sroto12_sig",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "sroto3",
+  "status": "partial",
+  "deviation_note": "Byte-identical body to sroto12.F apart from the NEL argument; the port's sroto3 carries the same core but as the inverse R^T sigma R, so the upstream direction is not reproduced.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/sroto3.F",
   "routine": "sroto3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "sroto3",
+  "status": "partial",
+  "deviation_note": "sroto3.F writes SIGN_ab = sum_cd R_ac SIG_cd R_bd (R sigma R^T); the port deliberately applies the inverse R^T sigma R, as stated in its own docstring and pinned by the test suite. The consequence is confined to the sign of the frame: for an isotropic material the two agree, for an anisotropic one the rotated moduli come out transposed.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/sroto3v.F",
   "routine": "sroto3v",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "sroto3",
+  "status": "partial",
+  "deviation_note": "The vectorised SROTO3 core over the 6-component stress Voigt is what solid_orthotropic.sroto3 computes, but the port has no separate write-to-SIGN entry point and applies the inverse rotation; the shear HALF/TWO that SROTO3V's caller SZORDEF3 applies is likewise absent here.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/storth3.F",
   "routine": "storth3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "_frame_rows",
+  "status": "ported",
+  "deviation_note": "G1 = GAMA(:,1:3), G2 = GAMA(:,4:6), G3 = G1 x G2 as the frame ROWS, with the identity frame supplied by material_frame when iorth == 0 - the same pair of branches STORTH3 selects. The gate is written `orthtrop > 0` rather than the Fortran's `ISORTH == 1`, which coincides for the 0/1 values the starter writes.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/sz_dt1.F90",
   "routine": "sz_dt1",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "MISATTRIBUTION: upstream sz_dt1.F90 is a B-matrix hourglass characteristic length DELTAX1 = 1/sqrt(d) gated on gfac = G/BULK < 1; solid_cohesive.py and solid_connect.py cite it for an eigenvalue dt bound instead, which is a different quantity.",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "sz_dt1",
+  "status": "partial",
+  "deviation_note": "The arithmetic is verbatim (pxx..pyz, aa, bb, p, d, DELTAX1 = 1/sqrt(d), and the gfac >= 1 -> exactly zero branch), but the only port caller, dt_claim, feeds it the eight shape-function gradients dndx[:,:,k] where szforc3.F:615-618 passes SZDERITO3's four sub-block gradients PX1..PX4 - so DELTAX1, and hence the orthotropic element time step, is computed from a different B-matrix than upstream's. Not measured against the oracle.",
   "parity_case": null
  },
  {
@@ -3613,17 +3613,17 @@
   "routine": "szetfac",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The IKT/MTN viscous-limiting ladder that rescales G(I) by FAC is not ported; its only callers are szhour3.F, szhour3_or.F and s6zhourg3.F90, none of which exists in pyradioss, so it is unreached.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/szforc3.F",
   "routine": "szforc3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "MISATTRIBUTION: upstream szforc3 is the Isolid=11/12 orthotropic solid continuum driver (srcoor3 -> mmain -> szderi3 -> sordeft3/szordef3 -> szsvm/szsvm_or/szsigpara -> szhour3 -> sfint3 -> srrota3). pyradioss/elements/solid_cohesive.py cites szforc3.F but implements a bilinear traction-separation cohesive element that exists nowhere under engine/source/elements/, and the port has no orthotropic solid kernel at all (/PROP/SOL_ORTH is parsed but its isolid defaults to 14, which routes to the tshells group).",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "The cycle is a reduced szforc3: geometry/lumping from solid_hexa8, Jaumann rotation of the old stress, the material-frame rate (sordeft3) and its inverse on the stress, sfint3 force assembly, the energy ledger and the dt claim are all present, but the ALE/JCVT paths (SZTORTH3, STORTH3, SZORDEF3, SRROTA3), the thermal coupling (stherm/visc_et), the 12-component DEF path (SORDEFT12/SROTO12_SIG), the Belytschko hourglass layer, erosion/sms (sdlen_sms), distortion control (szhour_ctl) and the sensor/timer bookkeeping are not.",
   "parity_case": null
  },
  {
@@ -3631,8 +3631,8 @@
   "routine": "szhour3",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "This is the Belytschko-style stiffness hourglass (GG, FHOUR, NFHOUR, HQ13P/HQ24N, SZSTRAINHG/SZSVM/SZETFAC), and no such routine exists in pyradioss: solid_orthotropic.forces runs the isotropic Flanagan-Belytschko VELOCITY damper from solid_hexa8._post (the shour3.F block, solid_hexa8.py:549-560), which is a different law, and the module docstring declares szhour3_or/szsvm_or/szhour_ctl/gfhour_or/szstrainhg absent.",
   "parity_case": null
  },
  {
@@ -3640,8 +3640,8 @@
   "routine": "szhour3_or",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The orthotropic hourglass law has no counterpart; only its INPUTS are ported and exposed (hourglass_moduli builds CC/CG/G33 via mmodul + gettransv + mstiforthv), and the module says so explicitly - the routine that reads them is not part of the module. Upstream engine/source/elements/solid/solidez/szhour3_or.F is reached only from ../engine/source/elements/solid/solidez/szforc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -3649,17 +3649,17 @@
   "routine": "szhour_ctl",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The ISCTL > 0 distortion-control wrapper is not ported: szforc3.F:911-925 is its only call site, its worker shour_ctl.F90 is only half transcribed (solid_hourglass5._coefficients covers the ladder, not the control body) and its SZSTRAINHG coupling is absent; the port reads an `icontrol` property flag but never dispatches on it.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/szordef3.F",
   "routine": "szordef3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "szordef3",
+  "status": "partial",
+  "deviation_note": "The HALF/TWO engineering-shear packing around the rotation is missing: SZORDEF3 stores HALF*D4..D6 as tensor shear, rotates with SROTO3V and writes back TWO*DEFN(4..6), while the port's szordef3 is a bare alias of sroto3, so shear components are off by a factor of two unless the caller pre-halves. The routine is also currently unused by the cycle, which takes the JCVT==2 branch nowhere.",
   "parity_case": null
  },
  {
@@ -3667,8 +3667,8 @@
   "routine": "szsigpara",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Output-only upstream: its only callers are output/h3d/h3d_results/strs_tenscor3.F and output/anim/generate/tensor6.F, and neither the H3D nor the ANIM/VISU backend is ported, so it is unreached.",
   "parity_case": null
  },
  {
@@ -3676,8 +3676,8 @@
   "routine": "szstraingps",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "Output-only upstream: its only callers are output/anim/generate/tensgpstrain.F (ANIM GPS) and output/h3d/h3d_results/h3d_strn_tenscor3.F, both unimplemented, and it needs the STRHG hourglass strain that szhour3/szstrainhg never produce in the port. Unreached.",
   "parity_case": null
  },
  {
@@ -3685,8 +3685,8 @@
   "routine": "szstrainhg",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The STRHG plasticity-coupling accumulator is not ported; its only callers are szhour3.F, szhour3_or.F and szhour_ctl.F, none of which exists in pyradioss, and the module docstring lists szstrainhg.F among the routines deliberately not transcribed.",
   "parity_case": null
  },
  {
@@ -3694,8 +3694,8 @@
   "routine": "szsvm",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The SVM1/SVM2 plastic-work scale built from FHOUR is not ported; its only callers are szhour3.F and s6zhourg3.F90, neither of which exists in pyradioss. _isotropic_hourglass_moduli cites szsvm.F in prose only - it supplies the moduli, never the SVM1/SVM2 evaluation.",
   "parity_case": null
  },
  {
@@ -3703,17 +3703,17 @@
   "routine": "szsvm_or",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "The orthotropic SVM1/SVM2 built from the CC/CG/G33 triple is not ported; its only callers are szhour3_or.F and s6zhourg3_or.F90, neither ported. hourglass_moduli builds and stores the CC/CG/G33 inputs for it but nothing consumes them.",
   "parity_case": null
  },
  {
   "fortran": "engine/source/elements/solid/solidez/sztorth3.F",
   "routine": "sztorth3",
-  "port_module": null,
-  "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "port_module": "pyradioss.elements.solid_orthotropic",
+  "port_symbol": "_frame_rows",
+  "status": "partial",
+  "deviation_note": "G1/G2/G3 are produced but the composition G_a = R . E_a with the element local axes E1X..E3Z (and the ISORTH>0 vs ELSE branch that selects it) is absent - the port takes GAMA as already being in element coordinates. material_frame additionally synthesises DIR2 at phi=0 because PropType6 (/PROP/SOL_ORTH) has no `phi` field, and applies none of SORTHDIR3's global-to-element rotation, per-direction normalisation or Dir1/Dir2 orthogonalisation, so any deck with a non-default second direction or IREP/=0 gets a different material frame. Consequence unmeasured - follow-up task P2.14.",
   "parity_case": null
  },
  {
@@ -3721,8 +3721,8 @@
   "routine": "visc_et",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "",
+  "status": "refused",
+  "deviation_note": "No counterpart exists: the ET returned by the Prony bulk viscosity (VISC_PARAM_%IPARAM(1)/UPARAM, i.e. /VISCO and /VISCP) is never formed - solid_orthotropic.forces uses only the Flanagan-Belytschko qa/qb shock term - and the port's keyword reader has no VISC_PARAM_ reader at all (input/keywords/misc.py's VISCO is an unrelated failure criterion). Upstream engine/source/elements/solid/solidez/visc_et.F is reached only from ../engine/source/elements/solid/solidez/szforc3.F; no caller of that list is a path this port runs.",
   "parity_case": null
  },
  {
@@ -3730,8 +3730,8 @@
   "routine": "srotorth",
   "port_module": null,
   "port_symbol": null,
-  "status": "missing",
-  "deviation_note": "output/anim helper called by dfunc6.F, h3d_solid_scalar_1.F and stat_s_ortho.F: it builds the global-to-orthotropic passage matrix from the element frame (sortho31/scortho31) and the material direction cosines GAMA(1:6). No pyradioss module performs this solid 4th-order frame transform; shell_ortho.py is the SHELL planar in-plane fiber frame (corthdir.F), a different quantity.",
+  "status": "refused",
+  "deviation_note": "Its only callers are three output/visualization routines this port does not implement - dfunc6.F (engine/source/output/anim/generate/dfunc6.F), h3d_solid_scalar_1.F (engine/source/output/h3d/h3d_results/) and stat_s_ortho.F (engine/source/output/sta/) - so the global-to-orthotropic passage matrix T = R*G is unreachable; `grep -i srotorth pyradioss` has no match and the only orthotropy code there is shell_ortho.py (corthdir.F, the SHELL planar in-plane fiber frame) and solid_hexa8z._corotational_frame (srepiso3/sortho3), both different quantities.",
   "parity_case": null
  }
 ]

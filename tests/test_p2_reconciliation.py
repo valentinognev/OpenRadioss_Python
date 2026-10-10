@@ -64,7 +64,12 @@ CENSUS_JSON = ROOT / "tools" / "validation_data" / "census.json"
 PHASE_PLAN = ROOT / "plan" / "03_phase2_elements_solid.md"
 
 SOLID_PREFIX = "engine/source/elements/solid/"
-STATUSES = {"ported", "partial", "approximate", "missing"}
+#: P2.13 added `refused`: a row whose upstream file this port does not carry.
+#: It names no port module — a refusal is the absence of an implementation —
+#: so `test_port_module_is_never_invented` exempts it the same way it exempts
+#: `missing`. `missing` stays in the set only so the P2.0 gate still fails if a
+#: row is ever left open again.
+STATUSES = {"ported", "partial", "approximate", "refused", "missing"}
 ROW_KEYS = {
     "fortran",
     "routine",
@@ -177,13 +182,20 @@ def test_routine_name_matches_the_file():
 
 
 def test_port_module_is_never_invented():
-    """A `ported` row must point at a module this repository really has."""
+    """A row that claims a port must point at a module this repository has.
+
+    `refused` is exempt for the same reason `missing` is: a refusal is the
+    absence of an implementation, so naming a module for one would be the
+    invention this test exists to catch.
+    """
     import importlib
 
     for row in _rows():
         module = row["port_module"]
-        if row["status"] == "missing":
-            assert module is None, f"{row['fortran']} is missing but names {module}"
+        if row["status"] in ("missing", "refused"):
+            assert module is None, (
+                f"{row['fortran']} is {row['status']} but names {module}"
+            )
             assert row["port_symbol"] is None
             continue
         assert module, f"{row['fortran']} is {row['status']} with no port_module"

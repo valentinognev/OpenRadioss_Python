@@ -30,6 +30,12 @@ from ..starter.checks import (
 # re-exported here because that is where a caller looks for a refusal gate.
 from .idsolid import (UNSUPPORTED_ISOLID, unsupported_isolid,
                       unsupported_isolid_reason, warn_unsupported_def_solid_isolid)
+# The P2.13 solid reconciliation registry (the `refused`/`ported` rows of the
+# per-routine audit) lives in solid_routines.py; it is re-exported here for the
+# same reason idsolid is: this is where a caller looks for a refusal gate.
+from .solid_routines import (ported_solid_routines,
+                             refused_solid_routine_reason,
+                             refused_solid_routines)
 
 check_all = check_model
 
