@@ -1,0 +1,2732 @@
+[
+  {
+    "family": "common",
+    "fortran": "engine/source/elements/shell/coqini.F",
+    "routine": "coqini",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Startup shell-basis table Z01 (11x11) built once by radioss2.F; it drives the higher-order shell formulations. No port counterpart; P3.4 owns it.",
+    "parity_case": null,
+    "parity": {
+      "family": "common",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "The four routines under elements/shell/ are Startup/driver level (shell basis table, thick-shell error check, force-equilibrium check, warping-membrane offset init); no RD-E-1000 case isolates them, so no channel is attributed to this family."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "common",
+    "fortran": "engine/source/elements/shell/err_thk.F",
+    "routine": "err_thk",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Thick-shell error check (element thickness/geometry sanity), run per cycle over the shell tables. No port counterpart; P3.4 owns it.",
+    "parity_case": null,
+    "parity": {
+      "family": "common",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "The four routines under elements/shell/ are Startup/driver level (shell basis table, thick-shell error check, force-equilibrium check, warping-membrane offset init); no RD-E-1000 case isolates them, so no channel is attributed to this family."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "common",
+    "fortran": "engine/source/elements/shell/fequilibre.F",
+    "routine": "fequilibre",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Residual-force equilibrium check over the shell family at run time. No port counterpart; P3.4 owns it.",
+    "parity_case": null,
+    "parity": {
+      "family": "common",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "The four routines under elements/shell/ are Startup/driver level (shell basis table, thick-shell error check, force-equilibrium check, warping-membrane offset init); no RD-E-1000 case isolates them, so no channel is attributed to this family."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "common",
+    "fortran": "engine/source/elements/shell/shell_offset_wm_ini.F90",
+    "routine": "shell_offset_wm_ini",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Warping-membrane offset initialisation (WMI) for the shell_offset stack. The port has no shell-offset initialisation at all; P3.8 owns it.",
+    "parity_case": null,
+    "parity": {
+      "family": "common",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "The four routines under elements/shell/ are Startup/driver level (shell basis table, thick-shell error check, force-equilibrium check, warping-membrane offset init); no RD-E-1000 case isolates them, so no channel is attributed to this family."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/c4eoff.F",
+    "routine": "c4eoff",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "OFF = ETAG(N1)*ETAG(N2)*ETAG(N3)*ETAG(N4): an element dies when any of its four nodes is deleted. The port has no node-tag deletion state at all (a repo-wide grep for ETAG in pyradioss/ returns one unrelated hit in materials/law101_plas_poly.py); the element deletion it does have, shell_bt4._element_deletion, is the per-Gauss-point layer-deletion rule, a different mechanism.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cbilan.F",
+    "routine": "cbilan",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "init_group",
+    "status": "partial",
+    "deviation_note": "The energy/mass half is ported: init_group builds the lumped mass and the rotational inertia, forces() books the per-layer internal energy 0.5*(sig_n+sig_{n+1}).deps and the hourglass work into st['eint']. Not carried: the PARTSAV per-part ledger (internal energy, KE/16, momentum/8), GRESAV/GRTH element-time save, IGRTH and NFT1 bookkeeping.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/ccoef3.F",
+    "routine": "ccoef3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The layer coefficients the port needs (G, YM, A11=E/(1-nu^2), A12=nu*A11, SSP, RHO, ALPE, GS) are read straight off the material object per slice in forces(). Not carried: the MTN dispatch, ITHK=1 thickness update, KFTS, the ISUBSTACK/DRAPE sub-stack stack, and the HFOR/HMOR orthotropic-moduli legs.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/ccoor3.F",
+    "routine": "ccoor3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "_local_geometry",
+    "status": "ported",
+    "deviation_note": "Same formulation: corotational triad from the diagonals, AREA from the cross product, local corner coordinates, velocity and rotational-velocity gather, projected to the local frame before any rate is taken. Not carried over: the NGL velocity-gather switch and the SIGY stabilisation signal (neither appears in shell_bt4.py).",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/ccurv3.F",
+    "routine": "ccurv3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The three curvature rates KXX/KYY/KXY are formed in forces() from B1/B2 and the rotational velocities, exactly as the module docstring derives them. Not carried: the second surface-curvature mode Z2 and the WXY/IEEE coupling terms, which is exactly the state P3.2's c45 Z2 warp correction needs.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cdefo3.F",
+    "routine": "cdefo3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The general membrane velocity-strain branch is ported, including the M41 second-order rot2 correction TMP1A=(dt/4)(VZ13-VZ24)^2/(PY1+PY2) into VX13/VX24 and TMP2B=(dt/4)(VZ13+VZ24)^2/(PX2-PX1) into VY13/VY24 with the SIGN(MAX(ABS,EM20)) guards and the IMPL_S>0 disable. Not carried: the IHBE=3 node-1-relative velocity branch and the IHBE=4 Z2 warp branch, which VALIDATION.md 7 item 1 names as the two concrete unported targets and which P3.1/P3.2 own.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cderi3.F",
+    "routine": "cderi3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "_local_geometry",
+    "status": "ported",
+    "deviation_note": "Same formulation and the same area scaling: _local_geometry builds B1=[y2-y4, y3-y1, y4-y2, y1-y3]/(2A) and B2=[x4-x2, x1-x3, x2-x4, x3-x1]/(2A), i.e. upstream's area-scaled PX1/PY1/PX2/PY2 (cderi3.F line 172).",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cdlen3.F",
+    "routine": "cdlen3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "_char_length",
+    "status": "ported",
+    "deviation_note": "Same quantity: the condensed characteristic length ALDT used by the element time-step claim. _exact_dt_factor adds the eigenvalue of both stiffness branches on top, which upstream performs in cdt3/cinmass, not here.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cdt3.F",
+    "routine": "cdt3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The element time-step claim is ported: forces() returns dtfac * ALDT * (sqrt(1+amu^2)-amu) / SSP for a live element and EP30 otherwise, which is upstream's VISCMX viscous factor on the condensed length. Not carried inside the element: the IOFC force-cut-off scaling, the MSC/JSMS/DMELC mixed-thick-shell sound-speed blend, and the A11 addition term for very thick shells (mass scaling is applied globally in pyradioss/engine/mass_scaling.py).",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cevec3.F",
+    "routine": "cevec3",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Per-element rotation of the material frame (DIR_A/DIR_B, IREP, NLAY) for the fabric/anisotropic reorientation legs. pyradioss/elements/shell_ortho.py documents IREP 1/2 as a deliberate cut, so neither this routine nor cnvec3.F has a counterpart.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cfint3.F",
+    "routine": "cfint3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "_post",
+    "status": "ported",
+    "deviation_note": "Same formulation: the layer resultants N=sum_k w_k sig_k, M=sum_k w_k z_k sig_k and the elastic transverse shear resultant are scattered with the exact transpose of the rate operators, so each B-term in a rate produces the matching force term.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cfint_reg.F",
+    "routine": "cfint_reg",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Non-local (regularised) damage internal forces for the BT quad, guarded upstream by INLOC>0 (IPARG(78), cforc3.F) and driven by its own DOF numbering NLOC_DMG%POSI. The port has no element-level non-local path: pyradioss/materials/law130_nonlocal_damage.py is the local damage LAW130 law at the Gauss point only, and the internal-length averaging this routine performs has no counterpart. Same gap as solid/solide/sfint_reg.F in the P2.0 table.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cforc3.F",
+    "routine": "cforc3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same driver: gather, corotational frame, derivatives, membrane and curvature rates, per-layer material update, hourglass, scatter into fint/mint, time-step claim. Not carried over: the ISUBSTACK/DRAPE stack legs, the thermal load branch, the cpxpy3 solid-coupling leg and the c4eoff node-tag deletion leg (their own rows).",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/chsti3.F",
+    "routine": "chsti3",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "The pure-stiffness hourglass branch (Ishell=2, plastic FMAX caps) as opposed to chvis3.F's viscous law. SHELL_ISHELL_GROUPS (pyradioss/elements/__init__.py:99) sends every Ishell that is not 12/22/23/24 to the BT kernel, and that kernel implements chvis3 only: a deck asking for Ishell=2 silently runs the viscous hourglass. Documented cut, not a silent gap.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/chvis3.F",
+    "routine": "chvis3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation and the M39 recalibration the module docstring records line by line: Flanagan-Belytschko orthogonalisation of h=(1,-1,1,-1), hh1 = hm E t/8, hh2 = hf E SHFPR3 t^3/(8(B1+B2)), the three quadratic dampers, and modes 3/4 purely viscous on the RAW h pattern (chvis3 lines 327-334). Not carried: the LINEAR sound-speed branch (HVLIN=0 is pinned by radioss2.F, so it vanishes identically) and the triangle zeroing (chvis3 lines 181-192), which shell_tri3.py honours structurally by having no hourglass block.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cnvec3.F",
+    "routine": "cnvec3",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Normal-vector reorientation of the material frame for the IREP/NLAY fabric legs. Same deliberate IREP 1/2 cut as cevec3.F.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cortdir3.F",
+    "routine": "cortdir3",
+    "port_module": "pyradioss.elements.shell_ortho",
+    "port_symbol": "compute_ortho_cosines",
+    "status": "partial",
+    "deviation_note": "The IGTYP=9/16 part is ported: shell_ortho builds the direction-1 fiber cosines by projecting the property vector V onto the element corotational axes and rotating by Phi, which the module docstring states is identical to cortdir3.F's VR/SUMA for IREP>=1. Not carried: the IREP 1/2 fabric-shear reorientations, an explicit documented cut.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cpxpy3.F",
+    "routine": "cpxpy3",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Shell/solid stiffness coupling: it feeds the solid shell's SMSTR gradient operators into PX1..PY2 and Z2. The port has no shell-to-solid coupling path at all, so neither the coupling nor its Z2 leg exists.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/csens3.F",
+    "routine": "csens3",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "User-sensor sensitivity output (get_u_sens_fpar / set_u_sens_value on EPSP). The port has no usensor module; a repo-wide grep for 'sens' in pyradioss/ returns only input-card keyword tables.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cstra3.F",
+    "routine": "cstra3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The strain increment itself is ported: forces() builds deps = [exx + z*kxx, eyy + z*kyy, exy + z*kxy] per layer and feeds the plane-stress law, which is what this routine exists for. Not carried: the EPSDOT(4:6) curvature-rate slots, the IEPSDOT/ISTRAIN GSTR and GSTRPG animation book-keeping, and the WXY/GSTRW warping output, so /ANIM strain output for BT shells is thinner than upstream's.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cupdt3.F",
+    "routine": "cupdt3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The force/moment accumulation into the global arrays is ported as two np.subtract.at scatters in forces() (F(1,N1) = F(1,N1) - F11, the sign convention cupdt3.F line 133 uses). Not carried: the thermal leg (NVC/JTHE/FTHE), the PARTSAV per-part booking and the I8F/I8M offset bookkeeping, which upstream keeps because it also fills the part energy/momentum ledgers.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/cupdtn3.F",
+    "routine": "cupdtn3",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "Same accumulation ported inline as for cupdt3.F. Not carried: the STIFN/STIFR derivative leg and the solid-coupling offsets, which exist upstream to feed the implicit/kinetic coupling the port does not build for this family.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/layini.F",
+    "routine": "layini",
+    "port_module": "pyradioss.elements.shell_bt4",
+    "port_symbol": "init_group",
+    "status": "partial",
+    "deviation_note": "The layer set-up the port needs is ported: init_group walks group.state['slices'] to build per-slice thickness and the through-thickness Gauss stations (leggauss per nip), and _init_material_state sizes the stress/plastic-strain arrays. Not carried: the ISUBSTACK stack (layers nested inside one part), DRAPE/SEDRAPE, IXLAY/NLAY stacking and RATIO_THKLY.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/shell_gpu_mod.F90",
+    "routine": "shell_gpu_mod",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "CUDA device allocation/deallocation for the shell kernels. pyradioss/accel/gpu_kernels exists but claims nothing on this module; P3.11 owns the decision to port or formally decline.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/shell_internal_forces.F90",
+    "routine": "shell_internal_forces",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "GPU launch wrapper (gpu_shell_launch_async) called from resol.F. Same CUDA gap as shell_gpu_mod.F90; P3.11.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "bt",
+    "fortran": "engine/source/elements/shell/coque/thickvar.F",
+    "routine": "thickvar",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Thickness variation update for the shell (thermal/temperature-driven THKE drift and the node thickness table). The port carries the initial thickness only.",
+    "parity_case": "c40",
+    "parity": {
+      "family": "bt",
+      "cases": {
+        "c40": 0.1892,
+        "c41": 0.1375,
+        "c42": 0.2503,
+        "c43": 0.2566,
+        "c44": 0.1902,
+        "c45": 0.1496
+      },
+      "worst_channel": "HE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbabe3.F",
+    "routine": "cbabe3",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_warp_gp",
+    "status": "ported",
+    "deviation_note": "Same formulation: the per-Gauss-point B matrices (BM membrane, BC transverse shear with the 4 mid-edge assumed-shear samples, BF/TC bending) built from the Gauss-point frame VQG, the inverse in-plane Jacobian columns VJFI and the edge normals VNRM/VASTN.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbacoor.F",
+    "routine": "cbacoor",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_cbacoor",
+    "status": "ported",
+    "deviation_note": "Same formulation, flat and warped split included: the corotational frame from the covariant diagonal sums (r = x2+x3-x1-x4, s = x3+x4-x1-x4, AREA = |r x s|/4), the ZL1^2 < 1e-12*max(L13,L24) flat test, the per-node warped frames VQN, the 3x3 free-rigid-mode projection DI, and the condensed characteristic length. Not carried: the stack/DRAPE legs and the NGL=3 gather.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbacoork.F",
+    "routine": "cbacoork",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Starter-time coordinate pass (Jacobian JAC, half-edge lengths, condensed length LL, warp ZL1) run once per part from the property reader. shell_qbat.init_group builds its geometry inside forces() each cycle instead, so there is no counterpart routine and no Startup-time LL claim.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbacoorpinch.F",
+    "routine": "cbacoorpinch",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_cbacoorpinch",
+    "status": "ported",
+    "deviation_note": "Same formulation: the pinching element's through-thickness stretch DOFs and their local transform, with the FACP thickness scaling and the LC conditioning length.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbadef.F",
+    "routine": "cbadef",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_warp_gp",
+    "status": "ported",
+    "deviation_note": "Same formulation for both branches: the in-plane and transverse-shear B operators with the velocity strains per Gauss point, the flat CBADEF1-equivalent loop and the assumed constant membrane shear CBADEFSH for Idrill=0.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbadefpinch.F",
+    "routine": "cbadefpinch",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_cbadefpinch",
+    "status": "ported",
+    "deviation_note": "Same formulation: pinching transverse-shear and through-thickness normal-stretch rates at the Gauss point, in the local pinching frame.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbaener.F",
+    "routine": "cbaener",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "The assumed-shear energy correction is booked in forces() alongside the Gauss-point energy, as the module docstring records for CBAENER/CBAENERS.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbafint_reg.F",
+    "routine": "cbafint_reg",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Non-local (regularised) damage internal forces for QBAT, guarded by INLOC>0 upstream. No element-level non-local path exists in the port (see the BT cfint_reg.F row and the P2.0 solid sfint_reg.F row).",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbaforc3.F",
+    "routine": "cbaforc3",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same driver: frame, Gauss loop, per-layer material, assumed-shear force assembly, projection, scatter, time-step claim. Not carried: the thermal branch, the STACK/DRAPE legs and the nip=1 (CBAFORI1/CBAVISNP1) cut the plan records.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbafori.F",
+    "routine": "cbafori",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_fori_warp",
+    "status": "ported",
+    "deviation_note": "Same formulation: the internal force/moment assembly at a Gauss point from the layer resultants, plus the CBAFORCT constant-shear membrane force built from the MEAN of the four Gauss resultants (_fori_flat/_fori_warp carry the flat and warped legs).",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbaforipinch.F",
+    "routine": "cbaforipinch",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_cbaforipinch",
+    "status": "ported",
+    "deviation_note": "Same formulation: the pinching force assembly at a Gauss point from BCP/BP and the pinching stress resultants.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbake3.F",
+    "routine": "cbake3",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "The element tangent stiffness the implicit path needs exists (shell_qbat.tangent: membrane, bending, transverse shear, spin-coupled drilling penalty, frame transform), but it is assembled numerically from B^T C B rather than from this routine's closed forms, and it carries neither the IORTH orthotropic moduli nor the ITHK=1 thickness derivative. Phase 15's consumer is P3.10's subject.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbalke3.F",
+    "routine": "cbalke3",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "Covered by shell_qbat.tangent as a numerically assembled tangent of the same quantity (membrane K11.., bending M11.., drilling MF.., plus the geometric part), not by upstream's closed-form block. Not carried: the IORTH/HMOR/HFOR orthotropic legs and the IDRIL>0 drilling stiffness, both recorded cuts.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbapinchproj.F",
+    "routine": "cbapinchproj",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_cbapinchproj",
+    "status": "ported",
+    "deviation_note": "Same formulation: the local pinching force projected onto the element normal and scattered as a global 3-D nodal force, with the diagonal damping split.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbapinchthk.F",
+    "routine": "cbapinchthk",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_cbapinchthk",
+    "status": "ported",
+    "deviation_note": "Same formulation: the dynamic thickness update from the through-thickness strain EZZPG, scaled by the pinching stretch DOFs.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbaproj.F",
+    "routine": "cbaproj",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_cbaproj",
+    "status": "ported",
+    "deviation_note": "Same formulation: local 5-dof forces to global 6-dof nodal forces and moments, including the warped-element free-rigid-mode re-projection that removes the rigid rotation from the assembled forces (cbaproj.F lines 202-240).",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbastra3.F",
+    "routine": "cbastra3",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the strain increments EXX..KXY are VDEF*dt, formed per Gauss point and per layer in forces() and fed to materials.shell_update. Not carried: the EPSDOT/GSTR/GSTRPG animation book-keeping and the ISTRAIN flag.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbastra3pinch.F",
+    "routine": "cbastra3pinch",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_cbastra3pinch",
+    "status": "ported",
+    "deviation_note": "Same formulation: the pinching strain increments EPINCHXZ, EPINCHYZ and EZZ from VDEFPINCH and DT1C.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbasumg3.F",
+    "routine": "cbasumg3",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "The element stiffness this routine assembles exists as shell_qbat.tangent; what is missing is the IADK/JDIK scatter into the sparse structure, which the port's implicit driver does instead (pyradioss/implicit/statics.py assembles globally from the element matrices). Not carried: the IORTH and IDRIL legs of the assembled matrix.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbatempel.F",
+    "routine": "cbatempel",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Element temperature from the nodal thermal field. The port carries no shell thermal state; thermal is a recorded cut for this family.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbatherm.F",
+    "routine": "cbatherm",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Thermal strain increment FP/TEL/DHEAT for the shell layers. Same recorded cut; pyradioss/elements/solid_thermal.py covers solids only.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbavarnl.F",
+    "routine": "cbavarnl",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Non-local variable bookkeeping (VARNL at the Gauss points) feeding the regularised force routines. No port counterpart; part of the same non-local gap as cbafint_reg.F.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbavisc.F",
+    "routine": "cbavisc",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the numerical-damping (dn) viscous stress is formed and its work booked to the part hourglass ledger, which is why a QBAT deck reports near-zero HE next to a BT deck. Not carried: the IOFC force-cut-off scaling.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cbawarpoff.F",
+    "routine": "cbawarpoff",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "CBAL58WARP: the off-axis warping stiffness of the Ishell=58 variant, called from the QBAT geometry. No port counterpart and no coverage claim.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cmain3pinch.F",
+    "routine": "cmain3pinch",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Starter-side pinching element initialisation (lumped mass, SSP/RHO, VISCMX, the initial DT1C and the material coefficients for the pinching part). shell_qbat.init_group builds the pinching state inside forces() instead; there is no counterpart Startup routine.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cmatc3.F",
+    "routine": "cmatc3",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "init_group",
+    "status": "partial",
+    "deviation_note": "The per-part coefficient set the port needs is ported (thickness, rho0, sound speed, amu, nip per slice, plus the shear modulus in forces()). Not carried: IDRIL, IORTH/HMOR/HFOR (the orthotropic moduli), the ISUBSTACK/STACK legs, DRAPE/SEDRAPE and the ITHK=1 thickness update - all recorded cuts.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cndt3pinch.F",
+    "routine": "cndt3pinch",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "_cndt3pinch",
+    "status": "ported",
+    "deviation_note": "Same formulation: the pinching element's 3-D solid sound speed and its time-step claim with the A11PINCH term.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/cupdtn3pinch.F",
+    "routine": "cupdtn3pinch",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the pinching forces are accumulated into the global arrays with upstream's subtraction sign convention inside forces().",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/dtcba_reg.F",
+    "routine": "dtcba_reg",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Non-local element time-step (the DT2T reduction by the non-local internal length LEN, the non-local density ZETA and LE_MAX, guarded by NODADT). No port counterpart: the port's QBAT time-step claim is the local (sqrt(1+dn^2)-dn)*LL/SSP form. Same non-local gap as the BT cfint_reg.F row.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qbat",
+    "fortran": "engine/source/elements/shell/coqueba/mulawglcpinch.F",
+    "routine": "mulawglcpinch",
+    "port_module": "pyradioss.elements.shell_qbat",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the 3-D Hooke law with through-thickness stretch coupling for the pinching layer, reached through materials.shell_update (pyradioss/materials/law91_pinch_shell.py). Not carried: the ZCFAC=1 plastic relaxation and the NPT=0 resolved-to-3-stations mapping, both exact-for-elastic cuts.",
+    "parity_case": "c02",
+    "parity": {
+      "family": "qbat",
+      "cases": {
+        "c02": 0.0126,
+        "c03": 0.0094,
+        "c04": 0.0084,
+        "c28": 0.423
+      },
+      "worst_channel": "MOMZ",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c02..c04 (BATOZ Sf 0.6/0.8/0.9) are MATCH; MOMZ is their only significant channel and the one that sets max_rel_rms. c28 (V0240_QUAD_Ishell12, 0.423) is M40-carried, not re-run in M41."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/a3invdp_v.F",
+    "routine": "a3invdp_v",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "_current_yield",
+    "status": "approximate",
+    "deviation_note": "Upstream decides plastic admissibility by inverting the 6-component damage tensor D in closed form (determinant plus three cofactors) and testing PLAT, inside czcorp5.F. The port reaches the same decision by a different formulation: _current_yield rebuilds the slice's yield surface from its hardening data and the constant+hourglass von-Mises test decides the relaxation. The closed-form D inverse is not ported.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czbe3.F",
+    "routine": "czbe3",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "tangent",
+    "status": "approximate",
+    "deviation_note": "The bending coefficients this routine closes in one expression (HXX = 5/12(SY^2+RY^2), HYY, HXY and the RX/RY/SX/SY cross terms from the corner geometry) are not ported as such; shell_qeph.tangent assembles the same bending block numerically from the assumed-strain B operators and the plane-stress moduli. Same quantity, different formulation; the orthotropic PRX/PHERX legs are absent (P3.3).",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czcoork3.F",
+    "routine": "czcoork3",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Starter-time QEPH coordinate pass (half-diagonals, area, X13/X24/Y13/Y24, MX/MY couplings, the Z1 warp test, the condensed length). shell_qeph.init_group builds this inside forces() per cycle instead, so no counterpart routine and no Startup-time claim exists.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czcorc.F",
+    "routine": "czcorc",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "_geometry",
+    "status": "ported",
+    "deviation_note": "Same formulation: the CLSKEW3 IREP=0 covariant frame, local corner coordinates, the warp Z1 and its LM*1e-8 test, the MX13/MX23/MX34/MY13/MY23/MY34 coupling set, the condensed characteristic length, and the rotation/velocity gather.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czcorp5.F",
+    "routine": "czcorp5",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "_rates",
+    "status": "ported",
+    "deviation_note": "Same formulation: the warped-element velocity projection onto the frame that removes the rigid rotation from the local field, with the IDRIL>0 drilling velocity handed to it (the drilling stiffness it feeds is not ported - P3.5).",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czdef.F",
+    "routine": "czdef",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "_kinematics",
+    "status": "ported",
+    "deviation_note": "Same formulation: the 8 generalized strain rates VDEF and the 6 hourglass rates VHG, the latter orthogonalised through the CZ geometry so that VHG vanishes identically on any linear velocity field (the Flanagan-Belytschko property the module docstring checks term by term).",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czfintce.F",
+    "routine": "czfintce",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "_fint_const",
+    "status": "ported",
+    "deviation_note": "Same formulation: the one-point constant internal forces and moments from the layer resultants.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czfintn.F",
+    "routine": "czfintn",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "_fint_stab",
+    "status": "partial",
+    "deviation_note": "The ISOTROPIC physical hourglass is ported: the modal stress state is integrated with A11 = E/(1-nu^2), A12 = nu*A11 and G*SHF scaled by CVIS = 1, the elastic stabilisation work is booked to EINT and only the damper work to the part hourglass ledger, with the 0.85/0.999 combined von-Mises relaxation caps. NOT carried: the orthotropic _or branch (HM/HF moduli for LAW19/HM-HF shells) - pyradioss/starter/checks.py flags exactly this, and P3.3 owns it. The ZCFAC=1 plastic relaxation is an exact-for-elastic-law cut.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czforc3.F",
+    "routine": "czforc3",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same driver: gather, frame, strain definition, material, constant + physical stabilisation, projection, scatter, time-step claim. Not carried: the thermal branch, the NPT=0-to-3-stations mapping, ISMSTR=1/11 and the orthotropic path.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czke3.F",
+    "routine": "czke3",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "The element tangent the implicit path needs exists (shell_qeph.tangent: membrane, bending, shear, physical hourglass, saddle mode, spin-coupled drilling, frame transform) but is numerically assembled rather than taken from this routine, and it carries neither the IORTH legs nor the drilling stiffness upstream can switch on with IDRIL. P3.10's subject.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czlkec3.F",
+    "routine": "czlkec3",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "Covered by shell_qeph.tangent as a numerically assembled element stiffness of the same quantity (K11.., M11.., MF.., the HX/HY hourglass and the drilling terms); the closed-form ITHK=1 thickness derivative and the IORTH/HFOR orthotropic legs are not carried.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czlkecg3.F",
+    "routine": "czlkecg3",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "Covered by shell_qeph.tangent for the membrane/geometric block; the upstream closed form and its IDRIL=1 drilling terms are not carried (P3.5).",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czlkect3.F",
+    "routine": "czlkect3",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "Covered by shell_qeph.tangent for the transverse-shear block (kappa*G*t with the 5/6 correction); the closed form and the orthotropic legs are not carried.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czlken3.F",
+    "routine": "czlken3",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "Covered by shell_qeph.tangent for the normal/through-thickness block; the closed form and the IDRIL/IORTH legs are not carried.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czproj.F",
+    "routine": "czproj",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "_project",
+    "status": "ported",
+    "deviation_note": "Same formulation: the antisymmetric/symmetric reconstruction, the warped-element force re-projection and the local-to-global transform, with the same subtraction sign convention on the global arrays.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czstra3.F",
+    "routine": "czstra3",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the strain increments are VDEF*dt, formed in forces() and fed to materials.shell_update. Not carried: the EPSDOT/GSTR/GSTRW animation book-keeping and the ISTRAIN flag.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czstrah3.F",
+    "routine": "czstrah3",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "_fint_stab",
+    "status": "partial",
+    "deviation_note": "The hourglass strain increments STRA_H = VHG*DT1C are formed inside _fint_stab as part of the modal integration, and the modal stresses are advanced with the sqrt moduli A11SR/A12SR/NUSR the same way. Not carried: the standalone routine's own output arrays, so no separate hourglass-strain history exists.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "qeph",
+    "fortran": "engine/source/elements/shell/coquez/czsumg3.F",
+    "routine": "czsumg3",
+    "port_module": "pyradioss.elements.shell_qeph",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "The element stiffness this routine assembles exists as shell_qeph.tangent; the IADK/JDIK scatter into the sparse structure is done by the port's implicit driver instead. Not carried: the IORTH and IDRIL legs of the assembled matrix.",
+    "parity_case": "c08",
+    "parity": {
+      "family": "qeph",
+      "cases": {
+        "c08": 0.0,
+        "c09": 0.0,
+        "c15": 0.1258
+      },
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c08/c09 (QEPH Sf 0.8/0.9) are MATCH with max_rel_rms 0.0, so the family has no measured deviation channel; c15 (V0700_LAW2_SHELL_Ishell24_LAW2) is M40-carried. The known unmeasured gap is the orthotropic czfintn.F _or branch (P3.3), which no corpus case exercises."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3be3.F",
+    "routine": "c3be3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "_local_geometry",
+    "status": "ported",
+    "deviation_note": "Same formulation: the CST mid-plane gradient operators B1=[y2-y3, y3-y1, y1-y2]/(2A) and B2=[x3-x2, x1-x3, x2-x1]/(2A) and the triangle area - one point is FULL integration here, so there is no hourglass mode.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3bilan.F",
+    "routine": "c3bilan",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "init_group",
+    "status": "partial",
+    "deviation_note": "The energy/mass half is ported (init_group builds the lumped mass and the rotational inertia, forces() books the layer internal energy). Not carried: the PARTSAV per-part ledger, GRESAV/GRTH, IGRTH, EINTTH and the XFEM crack legs (IEL_CRK, IADTG_CRK).",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3coef3.F",
+    "routine": "c3coef3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The layer coefficients are read off the material object per slice in forces(). Not carried: the MTN dispatch, ITHK, the ISUBSTACK stack, and the ZOFFSET layer-offset leg.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3coor3.F",
+    "routine": "c3coor3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "_local_geometry",
+    "status": "ported",
+    "deviation_note": "Same formulation: e3 = normalized (x2-x1)x(x3-x1), e1 the side 1-2 direction, e2 = e3 x e1, area and local corner coordinates, velocity gather.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3coork3.F",
+    "routine": "c3coork3",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Starter-time triangle coordinate pass (XL2/XL3/YL3, the local triad, the K11..K33 cross terms, half-edge lengths). shell_tri3.init_group builds the geometry inside forces() instead; no counterpart routine.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3curv3.F",
+    "routine": "c3curv3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the rotation-rate curvature operators k_xx = B1.thy, k_yy = -B2.thx, k_xy = B2.thy - B1.thx with the linear (constant over the element) rotation field. Not carried: the WXY and EZX/EYZ coupling outputs this routine also fills.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3defo3.F",
+    "routine": "c3defo3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the constant-strain triangle membrane velocity rates from the local velocities, with the ISH3N branch structure reproduced in the same local frame as ccoor3's.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3deri3.F",
+    "routine": "c3deri3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "_local_geometry",
+    "status": "ported",
+    "deviation_note": "Same formulation: the mid-plane gradient operators and the area, shared with the BT kernel's operators through the same _local_geometry.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3dt3.F",
+    "routine": "c3dt3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The element time-step claim is ported (forces() returns the condensed-length claim scaled by the VISCMX factor over the material sound speed, EP30 for a dead element). Not carried: the IOFC force-cut-off scaling and the MSC/JSMS/DMELC mixed sound-speed blend, and the SSP_EQ equilibrium-pressure sound speed.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3eoff.F",
+    "routine": "c3eoff",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "OFF = ETAG(N1)*ETAG(N2)*ETAG(N3): node-tag deletion for the triangle. Same absence as the BT c4eoff.F row - the port has no node deletion tags.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3evec3.F",
+    "routine": "c3evec3",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Material-frame reorientation for the triangle (IREP/ECOS/ESIN fabric legs). Same deliberate IREP 1/2 cut as the BT cevec3.F row.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3fcum3.F",
+    "routine": "c3fcum3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the local 3x3 force matrix is transformed by the triad and scattered with upstream's subtraction sign convention.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3fint3.F",
+    "routine": "c3fint3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the layer resultants are assembled into the six in-plane and six moment components with the exact transpose of the rate operators.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3fint_reg.F",
+    "routine": "c3fint_reg",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Non-local (regularised) damage internal forces for the C0 triangle, guarded by INLOC>0 upstream. No element-level non-local path in the port; same gap as the BT cfint_reg.F row.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3forc3.F",
+    "routine": "c3forc3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same driver: gather, frame, derivatives, membrane and curvature rates, per-layer material, scatter, time-step claim. Not carried: the thermal branch, the ZOFFSET layer offset and the XFEM crack legs.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3ke3.F",
+    "routine": "c3ke3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "The element tangent exists (shell_tri3.tangent, LAW1 closed-form elastic and LAW2 per-layer consistent integration) but is numerically assembled rather than taken from this routine, and it carries no drilling stiffness or orthotropic legs. P3.10's subject.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3lke3.F",
+    "routine": "c3lke3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "Covered by shell_tri3.tangent as a numerically assembled stiffness of the same quantity; upstream's closed-form block with its IORTH and IDRIL legs is not carried.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3mcum3.F",
+    "routine": "c3mcum3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the local moment matrix is transformed by the triad and scattered into mint.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3pxpy3.F",
+    "routine": "c3pxpy3",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Shell/solid stiffness coupling (feeding SMSTR into the triangle's PX1..PY2). The port has no shell-to-solid coupling path; same absence as the BT cpxpy3.F row.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3stra3.F",
+    "routine": "c3stra3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The strain increment is ported (the membrane and bending increments formed in forces() and fed to materials.shell_update). Not carried: the EPSDOT/GSTR animation book-keeping and the ISTRAIN flag.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3sumg3.F",
+    "routine": "c3sumg3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "tangent",
+    "status": "partial",
+    "deviation_note": "The element stiffness this routine assembles exists as shell_tri3.tangent; the IADK/JDIK scatter into the sparse structure is done by the port's implicit driver instead.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/c3updt3.F",
+    "routine": "c3updt3",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The force/moment accumulation is ported as the np.subtract.at scatter in forces(), with upstream's sign convention. Not carried: the thermal leg (NODADT_THERM/JTHE/FTHE), the PARTSAV booking and the stiffness-offset arguments.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/cssp2a11.F",
+    "routine": "cssp2a11",
+    "port_module": "pyradioss.elements.shell_tri3",
+    "port_symbol": "forces",
+    "status": "approximate",
+    "deviation_note": "This routine converts a material sound speed into the A11-shaped quantity the element time-step claim consumes. The port asks the material for the sound speed directly (mat.sound_speed_shell()) and divides the condensed-length claim by it in forces(): same quantity, different route. The SSP_EQ equilibrium-pressure branch is not carried.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/temp3cg.F",
+    "routine": "temp3cg",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Element temperature from the nodal thermal field. No shell thermal state in the port; recorded cut.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "tri3",
+    "fortran": "engine/source/elements/sh3n/coque3n/therm3c.F",
+    "routine": "therm3c",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Thermal strain increment and heat storage for the triangle layers. Same recorded cut; the port's thermal module covers solids only.",
+    "parity_case": "c17",
+    "parity": {
+      "family": "tri3",
+      "cases": {
+        "c17": 0.1234
+      },
+      "worst_channel": "IE",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "c17 (V0700_LAW2_TRIA_LAW2) is the family's only measured case, M40-carried; IE, IE+KE and EW sit together at 0.1234, so the deviation is in the total energy, not in one channel."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "dkt18",
+    "fortran": "engine/source/elements/sh3n/coquedk/cdkcoor3.F",
+    "routine": "cdkcoor3",
+    "port_module": "pyradioss.accel.jit_kernels.shells_dkt18",
+    "port_symbol": "cdkcoor3",
+    "status": "ported",
+    "deviation_note": "Same formulation: the corotational frame, the local corner coordinates, the area (and AREA2/CDET), and the membrane and rotational-velocity gather into the local frame. Not carried: the NGL/IREP material-frame legs and the NLOC_DMG non-local DOF numbering the routine's signature also accepts.",
+    "parity_case": "c00",
+    "parity": {
+      "family": "dkt18",
+      "cases": {
+        "c00": 0.4556,
+        "c06": 0.2813,
+        "c07": 0.2581
+      },
+      "worst_channel": "MOMX",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
+    },
+    "hypothesis": "hypothesis: unlikely - the frame, area and velocity gather are ported line for line; if the frame were wrong the bending AND the membrane channels would diverge together, and on c06/c07 the membrane-dominated KE/IE sit lower than MOMX."
+  },
+  {
+    "family": "dkt18",
+    "fortran": "engine/source/elements/sh3n/coquedk/cdkdefo3.F",
+    "routine": "cdkdefo3",
+    "port_module": "pyradioss.accel.jit_kernels.shells_dkt18",
+    "port_symbol": "cdkdefo3",
+    "status": "ported",
+    "deviation_note": "Same formulation: the membrane strain rates EXX/EYY/EXY (and the transverse EXZ/EYZ pair) from the local membrane velocities and the area-scaled gradient operators PX2/PY2/PX3/PY3, with the EPSDOT slots and the ISTRAIN/GSTR book-keeping kept in the kernel's signature.",
+    "parity_case": "c00",
+    "parity": {
+      "family": "dkt18",
+      "cases": {
+        "c00": 0.4556,
+        "c06": 0.2813,
+        "c07": 0.2581
+      },
+      "worst_channel": "MOMX",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
+    },
+    "hypothesis": "hypothesis: CANDIDATE (strain). If the membrane strain rates feeding the Hammer points are off, every downstream force is off and MOMX drifts with them; discriminate by comparing the port's EXX/EYY/EXY against the Fortran's on a c06 element - if they differ, this is the routine and cdkderi3.F/cdkfint3.F are downstream of it."
+  },
+  {
+    "family": "dkt18",
+    "fortran": "engine/source/elements/sh3n/coquedk/cdkderi3.F",
+    "routine": "cdkderi3",
+    "port_module": "pyradioss.accel.jit_kernels.shells_dkt18",
+    "port_symbol": "cdkderic3",
+    "status": "ported",
+    "deviation_note": "Same formulation: the routine in this file is CDKDERIC3, the interpolation constants (PX2/PY2/PX3/PY3, the PX/PY/PXY/PYY products, the bending eigenvalues ALPE/ALDT and the element volume) from the local corner coordinates, the area, the Poisson ratio and the thickness. The companion CDKDERI3 (the bending shape-function derivatives at the three Hammer points) is ported alongside it in the same kernel.",
+    "parity_case": "c00",
+    "parity": {
+      "family": "dkt18",
+      "cases": {
+        "c00": 0.4556,
+        "c06": 0.2813,
+        "c07": 0.2581
+      },
+      "worst_channel": "MOMX",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
+    },
+    "hypothesis": "hypothesis: CANDIDATE (strain). The DK bending operators at the three Hammer points set the curvature increments that dominate a bending-driven case; discriminate the same way - right membrane strain with wrong KXX/KYY/KXY points here, and both wrong points at cdkdefo3.F as well."
+  },
+  {
+    "family": "dkt18",
+    "fortran": "engine/source/elements/sh3n/coquedk/cdkfcum3.F",
+    "routine": "cdkfcum3",
+    "port_module": "pyradioss.accel.jit_kernels.shells_dkt18",
+    "port_symbol": "cdkfcum3",
+    "status": "ported",
+    "deviation_note": "Same formulation: the local 3x3 force and moment matrices are transformed by the local triad (R11..R33) and handed back for the global scatter.",
+    "parity_case": "c00",
+    "parity": {
+      "family": "dkt18",
+      "cases": {
+        "c00": 0.4556,
+        "c06": 0.2813,
+        "c07": 0.2581
+      },
+      "worst_channel": "MOMX",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
+    },
+    "hypothesis": "hypothesis: unlikely - a pure local-to-global rotation of quantities the other routines produced; a defect here would rotate the error, not create a moment-specific one, and would show equally on the force channels."
+  },
+  {
+    "family": "dkt18",
+    "fortran": "engine/source/elements/sh3n/coquedk/cdkfint3.F",
+    "routine": "cdkfint3",
+    "port_module": "pyradioss.accel.jit_kernels.shells_dkt18",
+    "port_symbol": "cdkfint3",
+    "status": "ported",
+    "deviation_note": "Same formulation: the Hammer-point resultants are assembled into the nine force and nine moment components with the exact transpose of the DK bending operators BZ/BRX/BRY and the membrane operators PX2/PY2/PX3/PY3. Not carried: the drill-like M31/M32/M33 entries upstream zeroes for NPT=3, which the kernel does.",
+    "parity_case": "c00",
+    "parity": {
+      "family": "dkt18",
+      "cases": {
+        "c00": 0.4556,
+        "c06": 0.2813,
+        "c07": 0.2581
+      },
+      "worst_channel": "MOMX",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
+    },
+    "hypothesis": "hypothesis: CANDIDATE (force). If the strain side is right and only the force assembly diverges, this is the routine - it is the exact transpose of the operators cdkderi3.F built, so a transposed or mis-signed term produces a moment error with a correct strain. Discriminate by running the port's forces on a Fortran state: same SIG/EPS, different F/M."
+  },
+  {
+    "family": "dkt18",
+    "fortran": "engine/source/elements/sh3n/coquedk/cdkfint_reg.F",
+    "routine": "cdkfint_reg",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Non-local (regularised) damage internal forces for DKT18, guarded upstream by INLOC>0 (IPARG(78), cdkforc3.F:498) and driven by its own DOF numbering NLOC_DMG%POSI with the thickness integration NDDL. The port has no element-level non-local path at all: pyradioss/materials/law130_nonlocal_damage.py is the local damage law at the Gauss point only, and /MAT/NONLOCAL is parsed into model.mat_nonlocal_modifiers (pyradioss/model/model.py:1190) which nothing consumes. Same gap as solid/solide/sfint_reg.F in the P2.0 table.",
+    "parity_case": "c00",
+    "parity": {
+      "family": "dkt18",
+      "cases": {
+        "c00": 0.4556,
+        "c06": 0.2813,
+        "c07": 0.2581
+      },
+      "worst_channel": "MOMX",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
+    },
+    "hypothesis": "hypothesis: not a candidate - the routine is guarded by INLOC>0 and c06/c07 do not set /NONLOCAL (IPARG(78)); it cannot explain a MOMX deviation on those cases. Recorded because it is genuinely unported."
+  },
+  {
+    "family": "dkt18",
+    "fortran": "engine/source/elements/sh3n/coquedk/cdkforc3.F",
+    "routine": "cdkforc3",
+    "port_module": "pyradioss.elements.shell_dkt18",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same driver: gather, frame (cdkcoor3), constants (cdkderic3), membrane rates (cdkdefo3), the three-Hammer-point loop with cdkderi3/cdkcurv3, the per-layer material update, cdkfint3, cdkfcum3, scatter into fint/mint, and the time-step claim. Not carried: the thermal branch, the STACK/DRAPE legs, the non-local (INLOC>0) branch and the cdkstra3 animation outputs.",
+    "parity_case": "c00",
+    "parity": {
+      "family": "dkt18",
+      "cases": {
+        "c00": 0.4556,
+        "c06": 0.2813,
+        "c07": 0.2581
+      },
+      "worst_channel": "MOMX",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
+    },
+    "hypothesis": "hypothesis: driver, not a candidate by itself - it orchestrates the rows above; a defect here would corrupt every channel rather than one."
+  },
+  {
+    "family": "dkt18",
+    "fortran": "engine/source/elements/sh3n/coquedk/cdkstra3.F",
+    "routine": "cdkstra3",
+    "port_module": "pyradioss.elements.shell_dkt18",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The strain bookkeeping the routine exists for is ported in substance: forces() scales the three Hammer-point curvature rates by dt and forms deps = [exx + z*kxx, eyy + z*kyy, exy + z*kxy] per layer, which is exactly the increment cdkstra3 builds. Not carried: the EPSDOT(4:6) curvature slots, the GSTR/GSTRPG animation arrays and the ISTRAIN flag, so /ANIM strain output for DKT18 is thinner than upstream's.",
+    "parity_case": "c00",
+    "parity": {
+      "family": "dkt18",
+      "cases": {
+        "c00": 0.4556,
+        "c06": 0.2813,
+        "c07": 0.2581
+      },
+      "worst_channel": "MOMX",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
+    },
+    "hypothesis": "hypothesis: unlikely as a physics source - the dt scaling of the curvature rates and the GSTR output it performs is reproduced inline in forces(). It is a candidate only if /ANIM strain output is what the harness compared, which the M41 channel set says it is not."
+  },
+  {
+    "family": "dkt18",
+    "fortran": "engine/source/elements/sh3n/coquedk/cncoef3.F",
+    "routine": "cncoef3",
+    "port_module": "pyradioss.elements.shell_dkt18",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The coefficients the port needs (NU, G, YM, A11, A12, SSP, RHO, VOLG, the viscous AMU) are read off the material object per slice in forces(). Not carried: the MTN dispatch, the ITHK=1 thickness update, the ISUBSTACK/PM_STACK legs, the KRZ drilling leg and the self-contact A11R/A11SR sound-speed blend this 800-line routine computes.",
+    "parity_case": "c00",
+    "parity": {
+      "family": "dkt18",
+      "cases": {
+        "c00": 0.4556,
+        "c06": 0.2813,
+        "c07": 0.2581
+      },
+      "worst_channel": "MOMX",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
+    },
+    "hypothesis": "hypothesis: CANDIDATE (material, not geometry). The per-layer moduli A11/A12/G and the viscous AMU decide how much of the bending strain becomes moment; discriminate by comparing the port's SIG at the Hammer points against the Fortran's - a wrong modulus with a right strain is this routine, and it would show in MOMX before MOMZ because bending dominates there."
+  },
+  {
+    "family": "dkt18",
+    "fortran": "engine/source/elements/sh3n/coquedk/cndt3.F",
+    "routine": "cndt3",
+    "port_module": "pyradioss.elements.shell_dkt18",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The element time-step claim is ported: forces() returns dtfac * ALDT * (sqrt(1+amu^2)-amu) / SSP for a live element (EP30 otherwise), which is upstream's AMU/VISCMX viscous factor on the condensed length, and the dt-free cycle returns the same value. Not carried: the IOFC force-cut-off scaling, the MSC/JSMS/DMELC mixed sound-speed blend and the SSP_EQ equilibrium sound speed.",
+    "parity_case": "c00",
+    "parity": {
+      "family": "dkt18",
+      "cases": {
+        "c00": 0.4556,
+        "c06": 0.2813,
+        "c07": 0.2581
+      },
+      "worst_channel": "MOMX",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
+    },
+    "hypothesis": "hypothesis: excluded - a wrong time step changes the integration path and would move every channel of every case, not concentrate on MOMX on c06/c07 alone."
+  },
+  {
+    "family": "dkt18",
+    "fortran": "engine/source/elements/sh3n/coquedk/dtcdk_reg.F",
+    "routine": "dtcdk_reg",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Non-local element time-step: the DT2T reduction by the non-local internal length LEN^2, the non-local density ZETA and LE_MAX, guarded by NODADT. The port's DKT18 claim is the local form only (see the cdkfint_reg.F row for what is parsed and unconsumed).",
+    "parity_case": "c00",
+    "parity": {
+      "family": "dkt18",
+      "cases": {
+        "c00": 0.4556,
+        "c06": 0.2813,
+        "c07": 0.2581
+      },
+      "worst_channel": "MOMX",
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
+    },
+    "hypothesis": "hypothesis: not a candidate - guarded by the non-local path, which c06/c07 do not enable. Recorded because it is genuinely unported."
+  },
+  {
+    "family": "dkt6",
+    "fortran": "engine/source/elements/sh3n/coquedk6/cdk6bc3.F",
+    "routine": "cdk6bc3",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Starter boundary-condition helper for the DKT6 macro-patch (patch node ordering ICODR/IXTG1 and the skew handling SKEW for degenerate patches). No port counterpart; the port's shell_dkt6.init_group takes the 6-node connectivity as given.",
+    "parity_case": null,
+    "parity": {
+      "family": "dkt6",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "dkt6",
+    "fortran": "engine/source/elements/sh3n/coquedk6/cdk6coor3.F",
+    "routine": "cdk6coor3",
+    "port_module": "pyradioss.elements.shell_dkt6",
+    "port_symbol": "_patch_geometry",
+    "status": "partial",
+    "deviation_note": "The central triangle's frame, area and gradient operators are ported in _patch_geometry. Not carried: the per-neighbour-node frames and coordinates (N4/N5/N6), the three patch areas AREA4/AREA5/AREA6 and the rotational velocity gather for the neighbours, which upstream needs for its macro-patch bending.",
+    "parity_case": null,
+    "parity": {
+      "family": "dkt6",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "dkt6",
+    "fortran": "engine/source/elements/sh3n/coquedk6/cdk6defo3.F",
+    "routine": "cdk6defo3",
+    "port_module": "pyradioss.elements.shell_dkt6",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The membrane rates are formed from the central triangle's local velocities in forces(). Not carried: the transverse rates from the neighbour deflections (VZ4/VZ5/VZ6) and the PB1/PB2/PB3 bending operator products this routine assembles upstream.",
+    "parity_case": null,
+    "parity": {
+      "family": "dkt6",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "dkt6",
+    "fortran": "engine/source/elements/sh3n/coquedk6/cdk6deri3.F",
+    "routine": "cdk6deri3",
+    "port_module": "pyradioss.elements.shell_dkt6",
+    "port_symbol": "_patch_geometry",
+    "status": "ported",
+    "deviation_note": "Same quantity and role: the patch curvature and the Discrete Kirchhoff constraint operators are what _patch_geometry evaluates (curvatures from the relative deflections across the three shared edges). Not carried: the AREA4/5/6 and NVS/IVS bookkeeping this routine also returns for the patch integration.",
+    "parity_case": null,
+    "parity": {
+      "family": "dkt6",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "dkt6",
+    "fortran": "engine/source/elements/sh3n/coquedk6/cdk6fcum3.F",
+    "routine": "cdk6fcum3",
+    "port_module": "pyradioss.elements.shell_dkt6",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the local force components are transformed by the triad (R11..R33) and scattered over all six nodes in forces().",
+    "parity_case": null,
+    "parity": {
+      "family": "dkt6",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "dkt6",
+    "fortran": "engine/source/elements/sh3n/coquedk6/cdk6fint3.F",
+    "routine": "cdk6fint3",
+    "port_module": "pyradioss.elements.shell_dkt6",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same formulation: the internal translational forces on the three primary plus three neighbour nodes, with the moment contribution self-equilibrating and mint identically zero (the module docstring states this and the scatter honours it).",
+    "parity_case": null,
+    "parity": {
+      "family": "dkt6",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "dkt6",
+    "fortran": "engine/source/elements/sh3n/coquedk6/cdk6fint_reg.F",
+    "routine": "cdk6fint_reg",
+    "port_module": null,
+    "port_symbol": null,
+    "status": "missing",
+    "deviation_note": "Non-local (regularised) damage internal forces for DKT6. No element-level non-local path in the port; same gap as the BT cfint_reg.F row.",
+    "parity_case": null,
+    "parity": {
+      "family": "dkt6",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "dkt6",
+    "fortran": "engine/source/elements/sh3n/coquedk6/cdk6forc3.F",
+    "routine": "cdk6forc3",
+    "port_module": "pyradioss.elements.shell_dkt6",
+    "port_symbol": "forces",
+    "status": "ported",
+    "deviation_note": "Same driver: gather, patch geometry, membrane and patch-bending rates, per-layer material, force assembly on six nodes, scatter, time-step claim. Not carried: the thermal branch and the non-local (INLOC>0) branch.",
+    "parity_case": null,
+    "parity": {
+      "family": "dkt6",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "dkt6",
+    "fortran": "engine/source/elements/sh3n/coquedk6/cdk6stra3.F",
+    "routine": "cdk6stra3",
+    "port_module": "pyradioss.elements.shell_dkt6",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The strain increment is formed in forces() (membrane plus patch bending, scaled by DT1C) and fed to materials.shell_update. Not carried: the EPSDOT/GSTR animation book-keeping and the ISTRAIN flag.",
+    "parity_case": null,
+    "parity": {
+      "family": "dkt6",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
+    },
+    "hypothesis": null
+  },
+  {
+    "family": "dkt6",
+    "fortran": "engine/source/elements/sh3n/coquedk6/cdk6updt3.F",
+    "routine": "cdk6updt3",
+    "port_module": "pyradioss.elements.shell_dkt6",
+    "port_symbol": "forces",
+    "status": "partial",
+    "deviation_note": "The force accumulation into F and M is ported as the scatter in forces(), with upstream's sign convention and the neighbour-node bookkeeping. Not carried: the STIFN/STIFR derivative leg and the IXTG1/IVS coupling arguments.",
+    "parity_case": null,
+    "parity": {
+      "family": "dkt6",
+      "cases": {},
+      "worst_channel": null,
+      "source": "tools/validation_data/parity_m41.json",
+      "note": "No RD-E-1000 / V0240 case in the M41 corpus uses Ish3n=3 (/SH3N DKT6), so this family has no measured parity at all. Its coverage claims rest on the kernel's own analytic tests."
+    },
+    "hypothesis": null
+  }
+]
