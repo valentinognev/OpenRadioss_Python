@@ -2,15 +2,11 @@
 Numerical constants used throughout the solver.
 
 Fortran origin: ``common_source/comm/constant.inc`` (and the ``ZERO``,
-``EM20``, ``EP30`` … parameters sprinkled through every Fortran file).
-The original defines named constants like
-
-    my_real, parameter :: ZERO = 0.0, EM20 = 1.0E-20, EP30 = 1.0E30
-
-mostly to guarantee identical literals everywhere and to make the "guard"
-values greppable. We keep the same *names* here so that a reader coming from
-the Fortran immediately recognizes e.g. ``EM20`` as the tiny value used to
-avoid division by zero.
+``EM20``, ``EP30`` … parameters sprinkled through every Fortran file), which
+defines named constants mostly to guarantee identical literals everywhere and
+to make the "guard" values greppable.  We keep the same *names* so that a
+reader coming from the Fortran immediately recognizes e.g. ``EM20`` as the
+tiny value used to avoid division by zero.
 """
 
 # Tiny value used to protect divisions (Fortran: EM20). Any length, area or
@@ -19,9 +15,11 @@ EM15 = 1.0e-15
 EM20 = 1.0e-20
 EM30 = 1.0e-30
 
-# Huge value used to initialize minima (Fortran: EP30), e.g. the search for
-# the smallest element time step starts from EP30.
+# Huge values used to initialize minima (Fortran: EP30/EP20): EP30 starts the
+# search for the smallest element time step, EP20 stands for "no bound" where
+# a minimum is not searched (dtcdk_reg.F's ``DTNL_TH`` at NDDL == 1).
 EP30 = 1.0e30
+EP20 = 1.0e30
 
 # Default time-step *scale factor* applied to the critical (Courant) time
 # step. The pure central-difference stability limit dt <= 2/omega_max is an

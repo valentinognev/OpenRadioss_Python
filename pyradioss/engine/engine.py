@@ -53,7 +53,7 @@ from ..accel import auto_select_backend
 from ..common.constants import EP30
 from ..common.messages import MessageLog
 from ..contact import build_contacts
-from ..elements import KERNELS
+from ..elements import KERNELS, shell_nonlocal
 from ..input.deck_reader import read_deck
 from ..input.engine_keywords import parse_engine_deck
 from ..input.idsolid import solid_group_fragments
@@ -559,6 +559,7 @@ def _integrate(model: Model, controls: EngineControls, log: MessageLog,
             sensors.status[sid] = True
     ams = AMSManager(model, controls) if getattr(controls, "dt_ams", False) else None
     noda = NodalTimeStep(model, controls, log) if controls.dt_noda else None
+    nloc = shell_nonlocal.configure(model, controls, noda)  # NLOC_DMG /DT/NODA
     if noda is not None and spmd.active:
         # counters once per node (WEIGHT); the initial mass reference is
         # the GLOBAL physical mass (a resume overwrites it with the saved
@@ -729,8 +730,8 @@ def _integrate(model: Model, controls: EngineControls, log: MessageLog,
             state.e_madd = noda.e_madd
         # penalty interfaces bound the step from cycle 0 (their stiffness
         # is static in this port), so an impact on the very first cycles
-        # is safe (a /SENSOR-gated interface claims nothing until it
-        # fires — its NEAR accumulation pulls dt down when it does, M4)
+        # is safe (a /SENSOR-gated interface claims nothing until it fires
+        # — its NEAR accumulation pulls dt down when it does, M4)
         if len(sensors):
             sensors.update(0.0, log)
         for ct in contacts:
@@ -928,7 +929,7 @@ def _integrate(model: Model, controls: EngineControls, log: MessageLog,
         # so a moving skew turns with its nodes. Free when nothing moves.
         model.skews.update(model.x)
 
-        # ---- 0c. pre-forces pass (SFEM nodal volume scattering) ----------
+        # ---- 0c. pre-forces pass (SFEM nodal volume scattering)
         if hasattr(model, "nodal_vol_t"):
             model.nodal_vol_t[:] = 0.0
         for name, group in model.element_groups():
@@ -994,12 +995,11 @@ def _integrate(model: Model, controls: EngineControls, log: MessageLog,
                 break
         if state.stop_reason and not spmd.active:
             break
-        # (SPMD: a local /DT/<elem>/STOP is NOT a local break — every
-        # domain must reach the same collectives; the flag rides the dt
-        # packet below and all domains stop together)
+        # (SPMD: a local /DT/<elem>/STOP is NOT a local break — every domain
+        # must reach the same collectives; the flag rides the dt packet)
 
-        # /SPHCEL / SPH particle step (M_SPH)
-        if hasattr(model, 'sph_cells') and model.sph_cells:
+        nloc and nloc.cycle_step(dt)   # 1b. NLOCAL_ACC/VEL/INCR (resol.F)
+        if hasattr(model, 'sph_cells') and model.sph_cells:  # /SPHCEL (M_SPH)
             from .sph_engine import sph_step
             sph_step(model, dt, state)
 

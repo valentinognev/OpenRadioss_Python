@@ -1738,13 +1738,13 @@ def initialize_elements_and_mass(model: Model, log: MessageLog) -> None:
             np.add.at(model.mass, node_idx[valid], mass_c[valid])
             if inertia_c is not None:
                 np.add.at(model.inertia, node_idx[valid], inertia_c[valid])
-            
         from pyradioss.engine.coloring import compute_element_colors
         if group.conn is not None and len(group.conn) > 0:
             c_idx, c_off = compute_element_colors(group.conn, model.numnod)
-            group.state["color_indices"] = c_idx
-            group.state["color_offsets"] = c_off
-
+            group.state["color_indices"], group.state["color_offsets"] = c_idx, c_off
+    from pyradioss.elements import shell_nonlocal
+    model.nloc_dmg = shell_nonlocal.setup(model, log)  # NLOC_DMG (None without
+    # /NONLOCAL, which is what keeps IPARG(78) == 0)
     # /ADMAS (M5, M139): non-structural mass, added BEFORE the massless-node
     # check so a standalone node + /ADMAS is a legitimate free point mass
     for am in model.admas:

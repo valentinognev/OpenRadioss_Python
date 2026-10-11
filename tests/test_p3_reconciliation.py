@@ -35,21 +35,20 @@ there.  No shell physics is touched by this task.
 
 WHY THE DKT18 ASSERTION IS SCOPED
 ---------------------------------
-Two DKT18 routines are genuinely unported: ``cdkfint_reg.F`` and
-``dtcdk_reg.F``, the non-local (regularised) damage force and the non-local
-element time step.  Upstream guards both behind ``INLOC = IPARG(78) > 0``
-(``cdkforc3.F:498``), so they do not run on c06/c07 and cannot explain a MOMX
-deviation there.
+Two DKT18 routines were genuinely unported when this audit landed:
+``cdkfint_reg.F`` and ``dtcdk_reg.F``, the non-local (regularised) damage
+force and the non-local element time step.  Upstream guards both behind
+``INLOC = IPARG(78) > 0`` (``cdkforc3.F:498`` and ``cdkforc3.F:573``), so they
+do not run on c06/c07 and cannot explain a MOMX deviation there.
 
 Every row therefore carries a declared ``guarded_by_inloc`` flag, the DKT18
 assertion is made over the ``INLOC=0`` explicit cycle, and
-``test_dkt18_nonlocal_branch_is_still_recorded_as_missing`` keeps the excluded
-rows pinned — still ``missing``, still noted, still owned by the queued
-non-local shell force and timestep work.  The scope is a property the table
-declares, not a filename pattern, so a newly missing explicit-cycle routine
-cannot hide behind it.  The same seven routines are missing in every shell
-family, and P2.0 already records the solid one
-(``solid/solide/sfint_reg.F``) the same way.
+``test_dkt18_nonlocal_branch_is_ported_and_still_guarded`` keeps the excluded
+rows pinned: still flagged, still named, and still ``missing`` everywhere the
+owner has not reached.  The scope is a property the table declares, not a
+filename pattern, so a newly missing explicit-cycle routine cannot hide behind
+it.  The same seven routines are missing in every shell family, and P2.0
+already records the solid one (``solid/solide/sfint_reg.F``) the same way.
 """
 
 from __future__ import annotations
@@ -121,6 +120,17 @@ NONLOCAL_ROUTINES = {
 #: The dispatch firstmate named as the owner of that path.
 NONLOCAL_OWNER = "non-local shell force and timestep work"
 
+#: The two DKT18 rows the non-local shell force and timestep task ported:
+#: ``cdkfint_reg.F`` (partial — the material-side coupling is still out of
+#: reach) and ``dtcdk_reg.F`` (ported in full).  Their ``guarded_by_inloc``
+#: flags stay **true** — they are still unreachable on c06/c07, which is why
+#: the parity numbers do not move.  Only the *status* changed, and only for
+#: these two; the other five families stay ``missing``.
+NONLOCAL_PORTED = {
+    "engine/source/elements/sh3n/coquedk/cdkfint_reg.F": "partial",
+    "engine/source/elements/sh3n/coquedk/dtcdk_reg.F": "ported",
+}
+
 
 def _rows() -> list[dict]:
     return json.loads(STATUS_JSON.read_text())
@@ -165,18 +175,33 @@ def test_dkt18_scope_excludes_only_the_nonlocal_branch():
     assert len(explicit) == 9, f"the DKT18 explicit cycle has {len(explicit)} routines"
 
 
-def test_dkt18_nonlocal_branch_is_still_recorded_as_missing():
-    """The scoped assertion must not delete the gap it steps around."""
-    rows = [r for r in _dkt18_rows() if r["guarded_by_inloc"]]
-    assert rows, "the non-local rows are gone from the table"
-    for row in rows:
+def test_dkt18_nonlocal_branch_is_ported_and_still_guarded():
+    """The gap the owner closed, and the guard that must survive it.
+
+    ``cdkfint_reg.F`` and ``dtcdk_reg.F`` were recorded ``missing`` with an
+    owner; they are now ``partial``/``ported`` with a named module and symbol.
+    ``guarded_by_inloc`` stays **true** on both — neither is reachable with
+    ``INLOC == 0`` — so the DKT18 parity numbers are expected NOT to move and
+    that is stated rather than tuned.
+    """
+    rows = {r["fortran"]: r for r in _rows() if r["guarded_by_inloc"]}
+    for fortran, status in NONLOCAL_PORTED.items():
+        assert fortran in rows, f"{fortran} lost its guarded_by_inloc flag"
+        row = rows[fortran]
+        assert row["status"] == status, (
+            f"{fortran} is {row['status']}, expected {status}")
+        assert row["port_module"] and row["port_symbol"], (
+            f"{fortran} is {status} but names no port")
+        assert row["deviation_note"], f"{fortran} carries no deviation_note"
+    # every OTHER inloc-guarded row is still missing and still owned
+    for fortran, row in rows.items():
+        if fortran in NONLOCAL_PORTED:
+            continue
         assert row["status"] == "missing", (
-            f"{row['fortran']} is {row['status']}: the non-local branch was "
-            f"recorded as unported and is not reclassified by the scope decision"
-        )
+            f"{fortran} is {row['status']}: only the DKT18 non-local branch was "
+            f"ported, this one is a different element family")
         assert NONLOCAL_OWNER in row["deviation_note"], (
-            f"{row['fortran']} names no owner for the non-local path"
-        )
+            f"{fortran} names no owner for the non-local path")
 
 
 # --------------------------------------------------------------------------
@@ -220,13 +245,20 @@ def test_the_inloc_flag_marks_exactly_the_known_nonlocal_routines():
     )
 
 
-def test_every_inloc_guarded_row_is_missing_and_owned():
+def test_every_inloc_guarded_row_is_missing_unless_the_owner_ported_it():
     for row in _rows():
-        if row["guarded_by_inloc"]:
-            assert row["status"] == "missing", f"{row['fortran']} is {row['status']}"
+        if not row["guarded_by_inloc"]:
+            continue
+        expected = NONLOCAL_PORTED.get(row["fortran"], "missing")
+        assert row["status"] == expected, (
+            f"{row['fortran']} is {row['status']}, expected {expected}")
+        if row["fortran"] in NONLOCAL_PORTED:
+            assert row["deviation_note"], (
+                f"{row['fortran']} is {row['status']} with no deviation_note "
+                f"naming what is not carried")
+        else:
             assert NONLOCAL_OWNER in row["deviation_note"], (
-                f"{row['fortran']} names no owner for the non-local path"
-            )
+                f"{row['fortran']} names no owner for the non-local path")
 
 
 @pytest.mark.parametrize("family", sorted(PLANNED_COUNTS))

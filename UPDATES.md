@@ -13,6 +13,35 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.23.0 - Phase 3: element-side non-local (regularised) damage for DKT18 shells (2026-10-11)
+
+New: `pyradioss/elements/shell_nonlocal.py` (NLOC_DMG shell side — the DOF
+numbering `IDXI`/`POSI`/`L_NLOC`, the per-material `LEN`/`LE_MAX`/`DENS`/
+`DAMP`/`SSPNL`, the non-local masses, `cdkfint_reg.F` and `dtcdk_reg.F`,
+the `cdkfint_reg_ini.F` sweep and the `nlocal_init_sta.F` relaxation loop),
+`pyradioss/elements/shell_dkt18_kinematics.py` (the DKT18 tangent, consistent
+mass, `kgeo` and implicit residuals, moved out so `shell_dkt18.py` stays inside
+its recorded size budget), `tests/test_p3_nonlocal_dkt18.py`,
+`tools/validation_data/parity_p3.json`.
+Modified: `shell_dkt18.py` (the `INLOC > 0` branch at `cdkforc3.F:498` and
+`:573`, plus the `VAR_REG` pre-treatment at `:392-424`), `engine.py` (the
+`NLOCAL_ACC`/`NLOCAL_VEL`/`NLOCAL_INCR` phases and the `/DT/NODA` hand-off),
+`starter/initialization.py` and `model/model.py` (`model.nloc_dmg`),
+`common/constants.py` (`EP20`), `tools/validation_data/shell_routine_status.json`
+and `tests/test_p3_reconciliation.py`.
+- `cdkfint_reg.F` and `dtcdk_reg.F` leave `missing`: the first `partial` (the
+  `IPARIT != 0` assembly leg and the `CNLOC_MAT` material coupling are named
+  as not carried), the second `ported`. `guarded_by_inloc` stays **true** on
+  both.
+- `/MAT/NONLOCAL` and `/NONLOCAL` are live inputs for the first time:
+  `model.mat_nonlocal_modifiers` had been parsed and read by nothing.
+- Parity is unchanged and is expected to be: both routines are unreachable at
+  `INLOC == 0`. A full before/after run of `examples/rd_e_1000_dkt18`
+  (1,149,600 cycles) is byte-identical; c00/c06/c07 stay 0.4556 / 0.2813 /
+  0.2581. No threshold was tuned.
+- The solid-side rows (`sfint_reg.F`, `s4fint_reg.F`, `s6fint_reg.F90`,
+  `s8zfint_reg.F`) stay `refused` — nothing built here makes them stale.
+
 ## 1.22.0 - Task P2.11: every `Isolid` value is routed to a kernel or refused with its upstream citation (2026-10-10)
 
 New: `pyradioss/input/idsolid.py` (the refusal table) and

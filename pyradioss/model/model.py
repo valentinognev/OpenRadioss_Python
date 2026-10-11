@@ -1133,6 +1133,7 @@ class Model:
         self.load_hydros: Dict[int, LoadHydro] = {}           # /LOAD/HYDRO (M144)
         self.func2d_tables: Dict[int, Func2DTable] = {}       # /FUNC_2D (M145)
         self.nonlocal_models: Dict[int, NonlocalModel] = {}   # /NONLOCAL (M145)
+        self.nloc_dmg = None                            # NLOC_DMG (see shell_nonlocal)
         self.fric_orients: Dict[int, FricOrient] = {}         # /FRIC_ORIENT (M145)
         self.ini_sphcels: Dict[int, IniSphCel] = {}           # /INISPHCEL (M145)
         self.implicit_flag: bool = False                      # /IMPLICIT (M145)
@@ -1189,7 +1190,7 @@ class Model:
         self.mat_heat_modifiers: Dict[int, MatHeatModifier] = {}   # /MAT/HEAT, /HEAT/MAT (M171)
         self.mat_nonlocal_modifiers: Dict[int, MatNonlocalModifier] = {}  # /MAT/NONLOCAL, /NONLOCAL/MAT (M171)
         self.mat_law66s: Dict[int, MatLaw66] = {}                  # /MAT/LAW66, /MAT/PLAS_TAB_COSSER (M172, M562)
-        self.mat_plas_tab_cossers = self.mat_law66s
+        self.mat_plas_tab_cossers = self.mat_law66s   # /MAT/PLAS_TAB_COSSER aliases
         self.mat_plas_cossers = self.mat_law66s
         self.mat_law35s: Dict[int, MaterialLaw35] = {}             # /MAT/LAW35, /MAT/FOAM_VISC (M172)
         self.mat_law62s: Dict[int, MaterialLaw62] = {}             # /MAT/LAW62, /MAT/VISC_HYP (M172)
@@ -3946,7 +3947,6 @@ class Model:
             g = getattr(self, name, None)
             if g is not None and g.n:
                 yield name, g
-
 
     @property
     def frames(self) -> dict:

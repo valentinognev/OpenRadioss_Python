@@ -2529,10 +2529,10 @@
     "family": "dkt18",
     "fortran": "engine/source/elements/sh3n/coquedk/cdkfint_reg.F",
     "routine": "cdkfint_reg",
-    "port_module": null,
-    "port_symbol": null,
-    "status": "missing",
-    "deviation_note": "Non-local (regularised) damage internal forces for DKT18, guarded upstream by INLOC>0 (IPARG(78), cdkforc3.F:498) and driven by its own DOF numbering NLOC_DMG%POSI with the thickness integration NDDL. The port has no element-level non-local path at all: pyradioss/materials/law130_nonlocal_damage.py is the local damage law at the Gauss point only, and /MAT/NONLOCAL is parsed into model.mat_nonlocal_modifiers (pyradioss/model/model.py:1190) which nothing consumes. Same gap as solid/solide/sfint_reg.F in the P2.0 table. Owner: the queued non-local shell force and timestep work.",
+    "port_module": "pyradioss.elements.shell_nonlocal",
+    "port_symbol": "cdkfint_reg",
+    "status": "partial",
+    "deviation_note": "Same formulation: the non-local DOF numbering (NLOC_DMG%IDXI/POSI, cdkfint_reg.F:143-147), the element volume and the six BtB entries (:154-176), the NDDL>1 in-thickness regularisation over the BUFNL MASSTH/UNLTH/VNLTH/FNLTH buffers with the NTH/BTH shape values from the coqini Z0/ZN1 tables and the NDDL==2,K==2 special case (:186-349), the NODADT nodal step and the /DT/NODA/CSTX added mass (:288-320), the plane force NTN_UNL + XI*NTN_VNL - NTVAR + L2*BtB*UNL with the MIN(sqrt(M/M0)) damping ratio (:352-431), the broken-element absorbing branch ZETA*SSPNL*(VNL+VNL0)/2*sqrt((4/sqrt(3))*AREA0)*THK0 (:433-451) and the IPARIT==0 assembly into FNL/STIFNL (:455-476). Ported in pyradioss/elements/shell_nonlocal.py, reached from shell_dkt18.forces() at the cdkforc3.F:498 call site, with the VAR_REG pre-treatment of cdkforc3.F:392-424. Not carried: the IPARIT!=0 (/PARITH/ON) FSKY/STSKY assembly leg (mpi4py is not installed, so every run is single-rank, which is upstream's IPARIT==0 branch); the material-side coupling CNLOC_MAT/CNLOC_MATINI and the G/L_EPSDNL buffer flags that let a material law consume VAR_REG and seed DNL, so on a deck whose material laws are not non-local-aware the field relaxes to zero at initialisation exactly as upstream does when no plastic strain is generated; and the /DT/NODA announcement and mass addition performed by nlocal_dtnoda.F, which lives in engine/source/time_step/ and is outside the sh3n/coquedk scope of this task. The DKT18 numbers c00/c06/c07 are UNCHANGED at 0.4556 / 0.2813 / 0.2581 \u2014 neither routine is reachable with INLOC==0, which is the expected outcome, not a measurement to explain.",
     "parity_case": "c00",
     "parity": {
       "family": "dkt18",
@@ -2545,7 +2545,7 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: not a candidate - the routine is guarded by INLOC>0 and c06/c07 do not set /NONLOCAL (IPARG(78)); it cannot explain a MOMX deviation on those cases. Recorded because it is genuinely unported.",
+    "hypothesis": "hypothesis: not a candidate - the routine is guarded by INLOC>0 and c06/c07 do not set /NONLOCAL (IPARG(78)); it cannot explain a MOMX deviation on those cases. It is no longer unported; the remaining 'Not carried' items are named in the deviation_note.",
     "guarded_by_inloc": true
   },
   {
@@ -2554,8 +2554,8 @@
     "routine": "cdkforc3",
     "port_module": "pyradioss.elements.shell_dkt18",
     "port_symbol": "forces",
-    "status": "ported",
-    "deviation_note": "Same driver: gather, frame (cdkcoor3), constants (cdkderic3), membrane rates (cdkdefo3), the three-Hammer-point loop with cdkderi3/cdkcurv3, the per-layer material update, cdkfint3, cdkfcum3, scatter into fint/mint, and the time-step claim. Not carried: the thermal branch, the STACK/DRAPE legs, the non-local (INLOC>0) branch and the cdkstra3 animation outputs.",
+    "status": "partial",
+    "deviation_note": "Same driver: gather, frame (cdkcoor3), constants (cdkderic3), membrane rates (cdkdefo3), the three-Hammer-point loop with cdkderi3/cdkcurv3, the per-layer material update, cdkfint3, cdkfcum3, scatter into fint/mint, and the time-step claim. Now also carried: the non-local (INLOC>0) branch \u2014 the VAR_REG pre-treatment at :392-424 and the CDKFINT_REG call at :498 \u2014 and the DTCDK_REG call at :573, so this row's 'Not carried' line no longer lists them. Not carried: the thermal branch, the STACK/DRAPE legs and the cdkstra3 animation outputs.",
     "parity_case": "c00",
     "parity": {
       "family": "dkt18",
@@ -2644,10 +2644,10 @@
     "family": "dkt18",
     "fortran": "engine/source/elements/sh3n/coquedk/dtcdk_reg.F",
     "routine": "dtcdk_reg",
-    "port_module": null,
-    "port_symbol": null,
-    "status": "missing",
-    "deviation_note": "Non-local element time-step: the DT2T reduction by the non-local internal length LEN^2, the non-local density ZETA and LE_MAX, guarded by NODADT. The port's DKT18 claim is the local form only (see the cdkfint_reg.F row for what is parsed and unconsumed). Owner: the queued non-local shell force and timestep work.",
+    "port_module": "pyradioss.elements.shell_nonlocal",
+    "port_symbol": "dtcdk_reg",
+    "status": "ported",
+    "deviation_note": "Same formulation: the DT2T reduction by the non-local internal length, DTNL = 2*MIN(LE,LE_MAX)*SQRT(3*ZETA)/SQRT(12*LEN**2 + MIN(LE,LE_MAX)**2) times DTFAC1(1)*CDAMP, the DTNL_TH variant with the THK/NDDL station spacing for NDDL>2 and THK itself for NDDL==2 (EP20 for NDDL==1), the NODADT==0 guard and the per-element OFF(I)/=ZERO skip (dtcdk_reg.F:65-93). Ported as pyradioss.elements.shell_nonlocal.dtcdk_reg, called from shell_dkt18.forces() at the cdkforc3.F:573 call site and folded into the element's dt claim (upstream reduces a running global DT2T; the port's Engine reduces per-element claims, which takes the same minimum). Not carried: nothing \u2014 the routine is 95 lines and every branch is here. guarded_by_inloc stays true and the DKT18 numbers are UNCHANGED for the same reason as cdkfint_reg.",
     "parity_case": "c00",
     "parity": {
       "family": "dkt18",
@@ -2660,7 +2660,7 @@
       "source": "tools/validation_data/parity_m41.json",
       "note": "MOMX is the worst SIGNIFICANT channel on c06 (0.2813) and c07 (0.2581), the two bending cases Task P3.0 names; on c00 (twisted beam, 0.4556) the worst significant channel is MOMZ and its MOMX is flagged non-significant (scale 1.3e-05 against a Fortran moment of the same order). c05 is SKIPPED-SLOW and carries no number. VALIDATION.md 7 item 2's claim that DKT18 is unported is stale: the kernel exists; the gap is depth, and this table localises it as a hypothesis, not a conclusion."
     },
-    "hypothesis": "hypothesis: not a candidate - guarded by the non-local path, which c06/c07 do not enable. Recorded because it is genuinely unported.",
+    "hypothesis": "hypothesis: not a candidate - guarded by the non-local path, which c06/c07 do not enable. Now ported; see the deviation_note.",
     "guarded_by_inloc": true
   },
   {

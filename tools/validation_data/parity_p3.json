@@ -1,0 +1,57 @@
+{
+  "milestone": "P3 \u2014 element-side non-local (regularised) damage for DKT18",
+  "task": "openradioss-p3-nonlocal: cdkfint_reg.F + dtcdk_reg.F",
+  "tolerance_rel_rms": 0.05,
+  "machine": "13th Gen Intel(R) Core(TM) i9-13900H",
+  "headline": "The DKT18 numbers are UNCHANGED, and that is the expected outcome rather than a measurement needing explanation: both routines this task ports are reached only under INLOC = IPARG(78) > 0 (cdkforc3.F:498 and :573), and no parity case sets /NONLOCAL, so the INLOC == 0 cycle is bit-identical by construction.",
+  "re_measurement": {
+    "what": "A full before/after A/B of the bundled DKT18 example (examples/rd_e_1000_dkt18, /RUN/ROLLING/1) under the pinned interpreter, because a rel-RMS to four decimals cannot show 'unchanged' the way an identity can.",
+    "example": "rd_e_1000_dkt18",
+    "deck": "/RUN/ROLLING/1 1605.00, /VERS/140, /DT/NODA 0.1",
+    "cycles": 1149600,
+    "final_time": 1194.483,
+    "engine_termination": "ERROR \u2014 NUMERICAL ENERGY INJECTION -30.1% EXCEEDS LIMIT 30.0% \u2014 RUN UNSTABLE (the port's pre-existing DKT18 deviation; the Fortran side runs this same deck to completion)",
+    "internal_energy": 1010239.5,
+    "kinetic_energy": 10534.198,
+    "numerical_dissipation": -307186.27,
+    "external_work": 713587.49,
+    "before": "main (this branch's parent), same interpreter and oracle",
+    "after": "fm/openradioss-p3-nonlocal",
+    "result": "IDENTICAL.  diff of the two engine .out files over all 11539 lines returns only the two RESTART path lines and the elapsed-time line; every numeric line, every per-cycle time-history row and the termination summary match exactly.",
+    "why_this_is_the_right_evidence": "cdkfint_reg.F and dtcdk_reg.F are unreachable at INLOC == 0, so the only honest claim is that nothing moved \u2014 and this measures it directly rather than inferring it from an unchanged rounded rel-RMS."
+  },
+  "harness_run": {
+    "command": "$PYTHON tools/validate_vs_fortran.py parity --only rd_e_1000_dkt18 --timeout 900 --budget 1800",
+    "class": "PYRADIOSS-FAIL",
+    "pyradioss_status": "engine-fail (the energy-injection abort above)",
+    "fortran_status": "the Fortran Starter+Engine ran this deck to completion in 51.65 s (1243215 cycles) and wrote its T01, but no th_to_csv converter is installed in this oracle prefix, so the harness could not build the Fortran-side channel set",
+    "note": "The class is the port's pre-existing DKT18 result and is unchanged by this task; see the re_measurement block for the before/after identity that establishes it."
+  },
+  "conclusion": "No parity number moved, none was tuned, and none needed explaining. This task closed a porting-coverage gap (two genuinely unported routines behind the INLOC>0 guard), not a measured-parity gap.",
+  "dkt18_cases_unchanged": {
+    "c00": {
+      "case": "c00_E0100_Twisted_beam_DKT18",
+      "class": "DEVIATION",
+      "max_rel_rms": 0.45558419892982893,
+      "worst_channel": "MOMX",
+      "formulation": "DKT18 (twisted beam)",
+      "source": "tools/validation_data/parity_m41.json"
+    },
+    "c06": {
+      "case": "c06_E1000_Bending_DKT18_Sf_0.2",
+      "class": "DEVIATION",
+      "max_rel_rms": 0.2813025962301115,
+      "worst_channel": "MOMX",
+      "formulation": "DKT18 (Ishell=0) Sf0.2",
+      "source": "tools/validation_data/parity_m41.json"
+    },
+    "c07": {
+      "case": "c07_E1000_Bending_DKT18_Sf_0.3",
+      "class": "DEVIATION",
+      "max_rel_rms": 0.25812750514955835,
+      "worst_channel": "MOMX",
+      "formulation": "DKT18 (Ishell=0) Sf0.3",
+      "source": "tools/validation_data/parity_m41.json"
+    }
+  }
+}
