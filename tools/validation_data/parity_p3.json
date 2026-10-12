@@ -1,10 +1,13 @@
 {
-  "milestone": "P3 \u2014 element-side non-local (regularised) damage for DKT18",
-  "task": "openradioss-p3-nonlocal: cdkfint_reg.F + dtcdk_reg.F",
-  "tolerance_rel_rms": 0.05,
-  "machine": "13th Gen Intel(R) Core(TM) i9-13900H",
-  "headline": "The DKT18 numbers are UNCHANGED, and that is the expected outcome rather than a measurement needing explanation: both routines this task ports are reached only under INLOC = IPARG(78) > 0 (cdkforc3.F:498 and :573), and no parity case sets /NONLOCAL, so the INLOC == 0 cycle is bit-identical by construction.",
-  "re_measurement": {
+ "milestone": "P3 \u2014 shell elements (Phase 3, plan/04_phase3_elements_shell.md)",
+ "tolerance_rel_rms": 0.05,
+ "machine": "13th Gen Intel(R) Core(TM) i9-13900H",
+ "file_layout": "One record per Phase 3 task under `tasks`.  Task P3.0 produced tools/validation_data/shell_routine_status.json and the DKT18 non-local task (openradioss-p3-nonlocal) landed first, so its record is kept here verbatim under its own key.",
+ "tasks": {
+  "openradioss-p3-nonlocal (landed on main, kept as merged)": {
+   "task": "openradioss-p3-nonlocal: cdkfint_reg.F + dtcdk_reg.F",
+   "headline": "The DKT18 numbers are UNCHANGED, and that is the expected outcome rather than a measurement needing explanation: both routines this task ports are reached only under INLOC = IPARG(78) > 0 (cdkforc3.F:498 and :573), and no parity case sets /NONLOCAL, so the INLOC == 0 cycle is bit-identical by construction.",
+   "re_measurement": {
     "what": "A full before/after A/B of the bundled DKT18 example (examples/rd_e_1000_dkt18, /RUN/ROLLING/1) under the pinned interpreter, because a rel-RMS to four decimals cannot show 'unchanged' the way an identity can.",
     "example": "rd_e_1000_dkt18",
     "deck": "/RUN/ROLLING/1 1605.00, /VERS/140, /DT/NODA 0.1",
@@ -19,39 +22,90 @@
     "after": "fm/openradioss-p3-nonlocal",
     "result": "IDENTICAL.  diff of the two engine .out files over all 11539 lines returns only the two RESTART path lines and the elapsed-time line; every numeric line, every per-cycle time-history row and the termination summary match exactly.",
     "why_this_is_the_right_evidence": "cdkfint_reg.F and dtcdk_reg.F are unreachable at INLOC == 0, so the only honest claim is that nothing moved \u2014 and this measures it directly rather than inferring it from an unchanged rounded rel-RMS."
-  },
-  "harness_run": {
+   },
+   "harness_run": {
     "command": "$PYTHON tools/validate_vs_fortran.py parity --only rd_e_1000_dkt18 --timeout 900 --budget 1800",
     "class": "PYRADIOSS-FAIL",
     "pyradioss_status": "engine-fail (the energy-injection abort above)",
     "fortran_status": "the Fortran Starter+Engine ran this deck to completion in 51.65 s (1243215 cycles) and wrote its T01, but no th_to_csv converter is installed in this oracle prefix, so the harness could not build the Fortran-side channel set",
     "note": "The class is the port's pre-existing DKT18 result and is unchanged by this task; see the re_measurement block for the before/after identity that establishes it."
-  },
-  "conclusion": "No parity number moved, none was tuned, and none needed explaining. This task closed a porting-coverage gap (two genuinely unported routines behind the INLOC>0 guard), not a measured-parity gap.",
-  "dkt18_cases_unchanged": {
+   },
+   "conclusion": "No parity number moved, none was tuned, and none needed explaining. This task closed a porting-coverage gap (two genuinely unported routines behind the INLOC>0 guard), not a measured-parity gap.",
+   "dkt18_cases_unchanged": {
     "c00": {
-      "case": "c00_E0100_Twisted_beam_DKT18",
-      "class": "DEVIATION",
-      "max_rel_rms": 0.45558419892982893,
-      "worst_channel": "MOMX",
-      "formulation": "DKT18 (twisted beam)",
-      "source": "tools/validation_data/parity_m41.json"
+     "case": "c00_E0100_Twisted_beam_DKT18",
+     "class": "DEVIATION",
+     "max_rel_rms": 0.45558419892982893,
+     "worst_channel": "MOMX",
+     "formulation": "DKT18 (twisted beam)",
+     "source": "tools/validation_data/parity_m41.json"
     },
     "c06": {
-      "case": "c06_E1000_Bending_DKT18_Sf_0.2",
-      "class": "DEVIATION",
-      "max_rel_rms": 0.2813025962301115,
-      "worst_channel": "MOMX",
-      "formulation": "DKT18 (Ishell=0) Sf0.2",
-      "source": "tools/validation_data/parity_m41.json"
+     "case": "c06_E1000_Bending_DKT18_Sf_0.2",
+     "class": "DEVIATION",
+     "max_rel_rms": 0.2813025962301115,
+     "worst_channel": "MOMX",
+     "formulation": "DKT18 (Ishell=0) Sf0.2",
+     "source": "tools/validation_data/parity_m41.json"
     },
     "c07": {
-      "case": "c07_E1000_Bending_DKT18_Sf_0.3",
-      "class": "DEVIATION",
-      "max_rel_rms": 0.25812750514955835,
-      "worst_channel": "MOMX",
-      "formulation": "DKT18 (Ishell=0) Sf0.3",
-      "source": "tools/validation_data/parity_m41.json"
+     "case": "c07_E1000_Bending_DKT18_Sf_0.3",
+     "class": "DEVIATION",
+     "max_rel_rms": 0.25812750514955835,
+     "worst_channel": "MOMX",
+     "formulation": "DKT18 (Ishell=0) Sf0.3",
+     "source": "tools/validation_data/parity_m41.json"
     }
+   }
+  },
+  "P3.1 cdefo3 BT type-3 (c43) node-1-relative velocity branch": {
+   "task": "openradioss-p3-bt3-c43: plan/04_phase3_elements_shell.md Task P3.1 \u2014 cdefo3.F BT type-3 (c43) node-1-relative velocity branch",
+   "case": "c43_E1000_Bending_BT_BT_type3_Sf_0",
+   "case_id": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type3/Sf_0.9/ROLLING_0000.rad",
+   "formulation": "BT type3 (Ishell=3) Sf0.9 \u2014 engine IHBE = 2 via GEO(171) = IHBE-1 (hm_read_prop01.F:306-315)",
+   "deck": "/RUN/ROLLING/1 1185.05, /VERS/140, /DT/NODA 0.1",
+   "what_changed": "cdefo3.F's third branch (IHBE==2.OR.IHBE==3, l.133-173) is transcribed into pyradioss/elements/shell_cdefo3.py and exposed as shell_bt4._rot2_correction(px, py, vx, vy, dt, kind) with kind in {0: none, 1: general, 3: node-1-relative, 4: Z2 warp (Task P3.2, refused loudly)}.  The SIGN(MAX(ABS,EM20)) guards (l.111, l.122) and the IMPL_S>0 disable (l.137, carried as DT1C == 0) are copied.  NO production arithmetic was touched: forces() keeps both inline blocks bit-for-bit, and tests/test_p3_bt3_c43.py pins them to the transcribed form.",
+   "rel_rms": {
+    "value": 0.2565737863252257,
+    "class": "DEVIATION",
+    "worst_channel": "HE",
+    "moved": false,
+    "why_it_did_not_move": "The change is bitwise inert by construction \u2014 see `re_measurement` \u2014 so the c43 rel-RMS is unchanged.  It is quoted from the M41 measurement rather than re-derived on this box; see `why_no_rel_rms_was_re_derived_here`.",
+    "source": "tools/validation_data/parity_m41.json (M41-fresh numpy run; the port side is byte-identical to it)"
+   },
+   "why_no_rel_rms_was_re_derived_here": "The comparison route is closed on this machine, identically to the DKT18 record above and for the same reason: (1) th_to_csv is NOT installed in the oracle prefix ($OR_SRC/tools/th_to_csv/ ships README.md only; the converter lives in the separate OpenRadioss/Tools repository), so the Fortran-side channel set cannot be rendered as CSV; (2) the fallback route, tools/compare_t01.read_t01, REFUSES this deck's binary T01 \u2014 `per-step block 1 has record lengths (264, 36, 4, 92), expected (4, 92, 36, 64); ... 1186 steps of 6`, i.e. the deck's T01 has six records per step and the shared walk's fixed stride of four does not describe it.  Both solvers were run: the Fortran Starter+Engine completed and wrote its T01; pyradioss completed and wrote its CSV.  Only the comparison is unavailable, so no rel-RMS can be honestly quoted from this box.",
+   "re_measurement": {
+    "what": "A before/after A/B of the bundled c43 example on the port side, under the pinned interpreter with PYRADIOSS_BACKEND=numpy, over the deck's full 1186-step window.",
+    "before": "the pre-P3.1 tree (this branch's parent, a3789a0)",
+    "after": "fm/openradioss-p3-bt3-c43",
+    "result": "BITWISE IDENTICAL.  `cmp` of the two engine T01 CSVs returns 0 \u2014 all 1187 rows and every energy channel match exactly.  The c43 parity number therefore cannot have moved, and is not quoted as a new measurement.",
+    "final_row_IE": 192843.7064,
+    "cycles": 1186
+   },
+   "chaos_measurement": {
+    "what": "WHY forces() was left inline instead of being routed through _rot2_correction \u2014 a measured constraint, not a preference.",
+    "claim": "Routing the two inline blocks through the operator-pair interface reassociates area*(B2_0+B2_1) into area*B2_0 + area*B2_1 (and np.sum(B1*VZ) into (PX1*VZ13 + PX2*VZ24)/AREA).  Those are mathematically identical and differ only in the last bit.",
+    "measured": "That single bit moves the c43 run's final internal energy from 1.9284e5 to 2.5833e5 \u2014 34 % \u2014 over the same 1186 steps.  A third variant, adding upstream's `-VX1/-VY1/-VZ1` node-1-relative velocity subtraction, tracks the baseline exactly to t ~ 600 and then diverges to 2.0934e5, because that term is a uniform rigid translation of the element velocity (every consumer of these velocities takes a difference or a gamma/h dot product whose shape vector sums to zero) and is observable only as rounding noise.",
+    "consequence": "c43 is a 1185 ms free roll and is chaos-dominated, so no physics-neutral reassociation is measurable on it.  The refactor was kept bitwise inert and the transcribed form is the tested reference instead.  P3.2 (c45) inherits the same constraint and should be told before it starts.",
+    "variants_measured": {
+     "reassociated_only": 258333.0096,
+     "node1_relative_velocity_only": 209339.2296,
+     "baseline_and_shipped": 192843.7064
+    }
+   },
+   "known_deviations_from_the_plan": {
+    "step1_identity": "The plan's Step-1 identity \u2014 'with VZ13 == VZ24 the correction vanishes' \u2014 is the KIND-1 form ((VZ13-VZ24)^2) and is NOT true of kind 3, which is driven by the out-of-plane membrane rate EXZ = PX1*VZ13 + PX2*VZ24 and stays non-zero at VZ13 == VZ24 for any PX1 + PX2 != 0.  Per AGENTS.md ('If the Fortran disagrees with your expectation, the Fortran wins') the test pins the Fortran's own identity (the correction vanishes when the out-of-plane motion does) and keeps the plan's second assertion (kind 3 differs from kind 1 on the same input) verbatim.  tests/test_p3_bt3_c43.py::test_bt3_is_driven_by_the_membrane_rate_not_the_diagonal_difference documents the arithmetic.",
+    "files": "The plan names pyradioss/accel/jit_kernels/shells_bt4.py as a file to update.  No such file exists: the only BT mirror is accel.jit_kernels.shell_pre (pyradioss/accel/jit_kernels/__init__.py:313), which covers _pre.  The cdefo3 correction lives in forces() AFTER that call, in shared NumPy, identically under both backends \u2014 the M41 note records the same finding ('No jit_kernels change needed').  There is consequently no mirror to update.",
+    "module_size": "shell_bt4.py is at its recorded budget (1913 lines, tools/validation_data/size_budget.json) and the budget may only shrink, so the transcription went to the new pyradioss/elements/shell_cdefo3.py (168 lines) and shell_bt4 re-exports _rot2_correction / _ROT2_KIND from it.",
+    "stale_docs": "VALIDATION.md \u00a77 item 1 and PORTING_GUIDE.md's BT row both still say the c43 branch 'takes NO rot2 correction'.  That was true when written (M41) and stopped being true at M50 ('Implement cdefo3.F IHBE=2/3 and 4 branches for BT shells', f878113): the branch is live today and this task verified it \u2014 an Ishell=3 element's membrane strain increment on a stencil-exact roll is 1.3e-13 where an uncorrected one is +5.0e-7 and a kind-1-corrected one is -5.0e-7, i.e. the EXACT cancellation the M41 note describes.  Both docs were left alone: neither is in this task's file list, and neither is mine to rewrite."
+   },
+   "harness_run": {
+    "command": "$PYTHON tools/validate_vs_fortran.py parity --only <c43>  (driven through the harness's own run_fortran/run_pyradioss/compare_binary_t01 on the tests/data/rd_decks c43 deck pair \u2014 the harness's find_examples() only scans examples/, and no c43 entry exists there)",
+    "fortran_status": "ok \u2014 Starter+Engine completed, T01 written",
+    "pyradioss_status": "ok \u2014 CSV written, full 1186-step window",
+    "comparison": "unavailable: th2csv-missing (converter not installed) and the binary-T01 reader refuses this deck's 6-record step layout"
+   },
+   "conclusion": "No parity number moved, none was tuned, and none needed explaining: the change is bitwise inert on c43, which is the strongest form of that claim and is measured rather than argued.  What P3.1 delivers is the c43 branch as a transcribed, cited, unit-tested form with its guards and its implicit disable explicit, plus the measured finding that c43 amplifies one floating-point bit into 34 % of its final internal energy \u2014 which is a constraint P3.2 needs before it touches the c45 branch."
   }
+ }
 }

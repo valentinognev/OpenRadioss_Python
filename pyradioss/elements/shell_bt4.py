@@ -138,7 +138,7 @@ from __future__ import annotations
 import numpy as np
 
 from .. import failure, materials
-from . import shell_ortho
+from . import shell_ortho, shell_cdefo3 as _shell_cdefo3
 from ..accel import get as accel_get
 from ..common.constants import EM20, EP30, SHEAR_FACTOR
 from ..common.fastmath import cross3, norm3, scatter_add3
@@ -268,12 +268,12 @@ def _char_length(xl: np.ndarray, area: np.ndarray) -> np.ndarray:
 #: 0 -> 0, 1 -> 1, 2 -> 0, >= 3 except 4 -> card-1, 4 -> 4.  The BT
 #: type-1 family (cards 0/1/2) therefore runs cdefo3.F's IHBE <= 1
 #: membrane-rate branch, which carries the SECOND-ORDER rigid-rotation
-#: correction of forces() (see there); type 3 (engine 2) and type 4
-#: (engine 4) have their own distinct branches (node-1-relative + Z2
-#: warp corrections), NOT ported — those decks keep the uncorrected
-#: rates this kernel always used.
+#: correction of forces() (see there); type 3 (engine 2) runs the
+#: node-1-relative branch and type 4 (engine 4) the Z2 warp one, both
+#: transcribed in :mod:`shell_cdefo3` (kind 4 = Phase 3 Task P3.2).
 _IHBE_LE1_CARDS = (0, 1, 2)
-
+_rot2_correction = _shell_cdefo3.rot2_correction
+_ROT2_KIND = _shell_cdefo3.ROT2_KIND
 
 
 

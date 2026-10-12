@@ -13,6 +13,45 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.24.0 - Phase 3 P3.1: cdefo3 BT type-3 (c43) node-1-relative velocity branch (2026-10-12)
+
+New: `pyradioss/elements/shell_cdefo3.py` — `cdefo3.F`'s second-order
+rigid-rotation correction transcribed per ENGINE `IHBE` branch, plus
+`rot2_correction(px, py, vx, vy, dt, kind)` with `kind ∈ {0: none,
+1: general, 3: node-1-relative, 4: Z2 warp}`. The `SIGN(MAX(ABS,EM20))`
+denominator guards (l.111, l.122) and the `IMPL_S>0` disable (l.137,
+carried as `DT1C == 0`) are copied verbatim; `kind=4` (c45, Task P3.2)
+raises `NotImplementedError` rather than returning a silent zero.
+New: `tests/test_p3_bt3_c43.py` (12 tests).
+Modified: `shell_bt4.py` — re-exports `_rot2_correction`/`_ROT2_KIND`
+(`shell_bt4.py` is at its recorded size budget and may only shrink);
+**no production arithmetic was touched**. Modified:
+`tools/validation_data/parity_p3.json` (now one record per Phase 3 task;
+the DKT18 non-local record is kept verbatim).
+
+The c43 branch itself was already live in `forces()` (M50, `f878113`) —
+`VALIDATION.md` §7 item 1 and `PORTING_GUIDE.md` still say it "takes NO
+rot2 correction", which stopped being true at M50. What P3.1 adds is the
+transcribed, cited, unit-tested form, with the two branches kept apart:
+kind 1 over-corrects the `+w²dt/2` frame-lag bias 2x (the asymmetry M41
+mirrors), kind 3 is the exact cancellation. Measured on an `Ishell=3`
+roll: uncorrected `deps_xx = +5.0e-7`, kind 1 `-5.0e-7`, kind 3
+`1.3e-13`.
+
+**c43 rel-RMS 0.2565737863252257 (DEVIATION, worst channel HE) — unchanged
+by construction and measured:** the change is bitwise inert (the two
+engine T01 CSVs before and after are `cmp`-identical over all 1187 rows).
+The comparison route could not be re-run here — `th_to_csv` is not
+installed in the oracle prefix and `tools/compare_t01.read_t01` refuses
+this deck's 6-record T01 layout — so the number is quoted from
+`parity_m41.json` rather than re-derived.
+
+Constraint measured for P3.2: c43 is chaos-dominated. Reassociating
+`area*(B2_0+B2_1)` into `area*B2_0 + area*B2_1` — one different last
+bit — moves the deck's final internal energy from 1.93e5 to 2.58e5
+(**34 %**). `forces()` therefore keeps its inline blocks bit-for-bit and
+the new function is the tested reference they are pinned against.
+
 ## 1.23.0 - Phase 3: element-side non-local (regularised) damage for DKT18 shells (2026-10-11)
 
 New: `pyradioss/elements/shell_nonlocal.py` (NLOC_DMG shell side — the DOF
