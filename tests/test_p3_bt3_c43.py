@@ -245,14 +245,19 @@ def test_implicit_disable_zeroes_every_implemented_kind():
         assert np.abs(dy).max() == 0.0, kind
 
 
-def test_kind4_is_refused_not_silently_dropped():
-    """The IHBE==4 Z2-warp branch is Task P3.2; it must be a loud refusal,
-    never a quiet zero (AGENTS.md: a cut must stay ported OR explicitly
-    refused)."""
+def test_kind4_no_longer_refuses_and_demands_its_z2():
+    """The IHBE==4 Z2-warp branch was Task P3.2's and used to be a loud
+    ``NotImplementedError`` here; it is ported now, with ``Z2`` as a
+    required argument (``cderi3.F:109``), and its own suite lives in
+    ``tests/test_p3_bt4_c45.py``.  The refusal-to-zero rule still holds:
+    a missing Z2 is a loud ``ValueError``, never a quiet zero."""
     px, py = _ops(1.0, 1.0, 1.0, 1.0)
-    with pytest.raises(NotImplementedError):
-        shell_bt4._rot2_correction(px, py, np.zeros((1, 2)), np.zeros((1, 2)),
-                                   dt=1e-4, kind=4)
+    zeros = np.zeros((1, 2))
+    with pytest.raises(ValueError, match="cderi3"):
+        shell_bt4._rot2_correction(px, py, zeros, zeros, dt=1e-4, kind=4)
+    dx, dy = shell_bt4._rot2_correction(px, py, zeros, zeros, dt=1e-4,
+                                        kind=4, z2=np.zeros(1))
+    assert np.abs(dx).max() == 0.0 and np.abs(dy).max() == 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -296,7 +301,10 @@ def test_production_blocks_are_the_transcribed_closed_forms(
     kind 3.  They are kept inline because the c43 benchmark turns the
     last bit of the operand grouping into 34 % of the final IE (see the
     docstring); this pins them to the transcribed form so the two cannot
-    drift apart.  kind 4 is P3.2's and is not in forces() as this."""
+    drift apart.  The kind-4 (Ishell = 4) block is pinned the same way in
+    tests/test_p3_bt4_c45.py, which also carries that branch's own suite —
+    it is not routed through _prod_coeffs here because it is a per-node
+    velocity modification, not a pair of coefficient fields."""
     assert shell_bt4._ROT2_KIND[ishell] == kind
     if kind == 4:
         return

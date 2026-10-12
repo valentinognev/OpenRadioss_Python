@@ -96,7 +96,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -122,7 +122,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -148,7 +148,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -174,7 +174,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -200,7 +200,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -209,10 +209,10 @@
     "family": "bt",
     "fortran": "engine/source/elements/shell/coque/cdefo3.F",
     "routine": "cdefo3",
-    "port_module": "pyradioss.elements.shell_bt4",
-    "port_symbol": "forces",
-    "status": "partial",
-    "deviation_note": "The general membrane velocity-strain branch is ported, including the M41 second-order rot2 correction TMP1A=(dt/4)(VZ13-VZ24)^2/(PY1+PY2) into VX13/VX24 and TMP2B=(dt/4)(VZ13+VZ24)^2/(PX2-PX1) into VY13/VY24 with the SIGN(MAX(ABS,EM20)) guards and the IMPL_S>0 disable. Not carried: the IHBE=3 node-1-relative velocity branch and the IHBE=4 Z2 warp branch, which VALIDATION.md 7 item 1 names as the two concrete unported targets and which P3.1/P3.2 own.",
+    "port_module": "pyradioss.elements.shell_cdefo3",
+    "port_symbol": "rot2_correction",
+    "status": "ported",
+    "deviation_note": "All three IHBE formulation branches are transcribed and unit-tested in pyradioss/elements/shell_cdefo3.py as rot2_correction(px, py, vx, vy, dt, kind) with kind in {0: none, 1: IHBE<=1 general, 3: IHBE=2/3 node-1-relative, 4: IHBE=4 Z2 warp}, re-exported as shell_bt4._rot2_correction: kind 1 TMP1A=(dt/4)(VZ13-VZ24)^2/(PY1+PY2) into VX13/VX24 and TMP2B=(dt/4)(VZ13+VZ24)^2/(PX2-PX1) into VY13/VY24 (the M41 second-order rot2 correction), kind 3 EXZ2=(EXZ/AREA)^2*dt/2 and EYZ2=(EYZ/AREA)^2*dt/2, kind 4 the per-node warp correction GZX*ZZ2 with ZZ2=Z2/2. SIGN(MAX(ABS,EM20)) guards (l.111, l.122) carried verbatim. Not carried / not modelled: forces() keeps its three blocks INLINE rather than calling the transcription, because routing them through reassociates area*(B2_0+B2_1) into area*B2_0+area*B2_1 and np.sum(B1*VZ) into (PX1*VZ13+PX2*VZ24)/AREA, which is algebraically identical and one different last bit, and that bit is worth 34 % of c43's final internal energy (1.93e5 -> 2.58e5 over 1185 steps, measured) -- the transcription is the tested reference the inline blocks are pinned against instead. The port's AREA and Z2 both come from its always-corotational local geometry, so the ISMSTR=3 stress-based path's Z2=ZERO (cpxpy3.F l.77/88) is not modelled, and on the c45 deck -- which carries no /BRAT, hence runs ISMSTR=3 -- upstream's Z2 warp half is identically zero while the port's is not. The IMPL_S>0 guard is carried as an explicit `implicit` flag rather than as DT1C==0, because on kind 4 it is NOT the same thing: EXZZ2/EYZZ2 carry no DT1V4 and survive it.",
     "parity_case": "c40",
     "parity": {
       "family": "bt",
@@ -226,7 +226,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -252,7 +252,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -278,7 +278,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -304,7 +304,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -330,7 +330,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -356,7 +356,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -382,7 +382,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": true
@@ -408,7 +408,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -434,7 +434,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -460,7 +460,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -486,7 +486,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -512,7 +512,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -538,7 +538,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -564,7 +564,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -590,7 +590,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -616,7 +616,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -642,7 +642,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -668,7 +668,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -694,7 +694,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -720,7 +720,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false
@@ -746,7 +746,7 @@
       },
       "worst_channel": "HE",
       "source": "tools/validation_data/parity_m41.json",
-      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches are the two concrete unported targets (P3.1, P3.2)."
+      "note": "All six RD-E-1000 BT cases are DEVIATION (tolerance 0.05). HE is the family worst (c43 0.2566, c42 0.2503); MOMZ is worst on c40 and c44. VALIDATION.md 7 item 1 records that the Fortran reference itself diverges in its final window (HE = 76% of its own IE at TSTOP, ENERGY ERROR -40.7%), so this band is not reachable by pure comparison; cdefo3.F's c43 and c45 branches were the two concrete unported targets and were ported by P3.1/P3.2 without moving a parity number."
     },
     "hypothesis": null,
     "guarded_by_inloc": false

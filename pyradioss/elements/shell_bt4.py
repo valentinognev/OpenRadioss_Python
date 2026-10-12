@@ -269,8 +269,8 @@ def _char_length(xl: np.ndarray, area: np.ndarray) -> np.ndarray:
 #: type-1 family (cards 0/1/2) therefore runs cdefo3.F's IHBE <= 1
 #: membrane-rate branch, which carries the SECOND-ORDER rigid-rotation
 #: correction of forces() (see there); type 3 (engine 2) runs the
-#: node-1-relative branch and type 4 (engine 4) the Z2 warp one, both
-#: transcribed in :mod:`shell_cdefo3` (kind 4 = Phase 3 Task P3.2).
+#: node-1-relative branch and type 4 (engine 4) the Z2 warp one, all
+#: transcribed in :mod:`shell_cdefo3` (kind 4 ported by Task P3.2).
 _IHBE_LE1_CARDS = (0, 1, 2)
 _rot2_correction = _shell_cdefo3.rot2_correction
 _ROT2_KIND = _shell_cdefo3.ROT2_KIND

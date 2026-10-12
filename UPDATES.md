@@ -13,6 +13,63 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.25.0 - Phase 3 P3.2: cdefo3 BT type-4 (c45) Z2 warp-correction branch (2026-10-12)
+
+Modified: `pyradioss/elements/shell_cdefo3.py` — the third and last
+`cdefo3.F` formulation branch (`ELSEIF(IHBE==4)THEN`, l.174-203) is
+transcribed; `kind=4` no longer raises `NotImplementedError`.
+`rot2_correction` gains `z2` (required for `kind=4`) and a keyword-only
+`implicit`.
+New: `tests/test_p3_bt4_c45.py` (15 tests).
+Modified: `tests/test_p3_bt3_c43.py` — its kind-4 refusal test becomes a
+"demands its Z2" test. Modified: `shell_bt4.py` (comment only, still
+1913 lines). Modified: `tools/validation_data/shell_routine_status.json`
+— the `cdefo3` row moves `partial` → `ported`. Modified:
+`tools/validation_data/parity_p3.json` (one record per Phase 3 task).
+
+Kind 4 is not the shape kinds 1 and 3 are. Those return a coefficient
+field per component; kind 4 **is** a per-node modification of the four
+in-plane velocities — upstream's own header calls it "velocity
+modification for the lurglass membrane" (l.176) — so it returns two
+`(..., 4)` nodal corrections, the warp term `GZX*ZZ2` alternating sign
+across the 1-3 and 2-4 diagonals, each half contracting with the
+*opposite* operator pair (`VX` rows with `PY`, `VY` rows with `PX`).
+
+Two plan corrections, both forced by the Fortran:
+
+- **`Z2` is not a curvature and does not come from `ccurv3.F`.** It is the
+  corotational out-of-plane *coordinate* of node 2 relative to node 1,
+  `(x2-x1).e3` (`cderi3.F:95,109`), zeroed on the `ISMSTR=3` path
+  (`cpxpy3.F:77,88`); `ccurv3.F` never mentions it and runs *after*
+  `cdefo3` (`cforc3.F:471` then `:476`). There was no curvature state to
+  extend, so `Z2` is an argument, and a missing one is a loud `ValueError`.
+- **The `IMPL_S>0` disable is not `dt == 0` on this branch.**
+  `IF(IMPL_S>0) DT1V4=ZERO` (l.178) zeroes `EXZ2`/`EYZ2` only; `EXZZ2`
+  and `EYZZ2` carry no `DT1V4` and survive it. P3.1 modelled the guard as
+  `DT1C == 0`; that is right for kinds 1 and 3 and would have deleted real
+  upstream behaviour here, so it is carried as an explicit `implicit=True`
+  flag instead.
+
+The plan's Step-1 "vanishes on a flat element" is false as stated for kind
+4 (flat kills the warp half, not `EXZ2`) — the second time a plan
+identity turned out to be a kind-1 property. Pinned the Fortran's way
+instead, with both halves separable under the 1↔3 / 2↔4 swap.
+
+**c45 rel-RMS 0.14961544161338852 (DEVIATION, worst channel HE) —
+unchanged by construction and measured:** the change is bitwise inert
+(`cmp` of the before/after T01 CSVs returns 0, md5
+`32eaca6e2c013d1d13289e77eaa960ca` on both sides of an A/B of the deck
+between the `ce1ceca` tree and this one). Quoted from `parity_m41.json`,
+**not re-derived** — `th_to_csv` is not installed and `read_t01` refuses
+this deck's T01 (1186 steps of 6, the shared walk's stride is 4); both
+solvers ran, only the comparison is unavailable.
+
+Handover to the next reader: the c45 deck carries no `/BRAT`, so it runs
+`ISMSTR=3` and upstream's `Z2` is identically `ZERO` there — the port's
+always-corotational `Z2` is a divergence in the *already-shipped* inline
+block. Closing it would be a physics change to `forces()`, which this
+task is forbidden from making.
+
 ## 1.24.0 - Phase 3 P3.1: cdefo3 BT type-3 (c43) node-1-relative velocity branch (2026-10-12)
 
 New: `pyradioss/elements/shell_cdefo3.py` — `cdefo3.F`'s second-order
