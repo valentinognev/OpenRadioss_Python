@@ -23,16 +23,16 @@ Every kernel module exposes the same two entry points:
 
 Sign convention: kernels ACCUMULATE the internal force with a MINUS sign
 into ``fint`` — i.e. after all kernels ran, ``fint`` is the net force such
-that  a = (fext + fint) / m  (this matches the Fortran A(3,*) accumulation
-where internal forces enter negated).
+that  a = (fext + fint) / m  (this matches the Fortran A(3,*) accumulation).
 """
 
-from . import (beam_fiber, beam_type3, iga3d, shell_bt4, shell_dkt18, shell_dkt6, shell_qbat, shell_qeph,  # noqa: F401
-               shell_thick16, shell_tri3, solid_bric20, solid_cohesive, solid_connect, solid_heph, solid_hexa8,
+from . import (beam_fiber, beam_type3, iga3d, shell_basis, shell_bt4, shell_dkt18, shell_dkt6, shell_qbat,  # noqa: F401
+               shell_qeph, shell_thick16, shell_tri3, solid_bric20, solid_cohesive, solid_connect, solid_heph, solid_hexa8,
                solid_hexa8_eas, solid_hexa8_full, solid_hexa8z, solid_penta6, solid_penta6_heph, solid_pyra5,
                solid_quad, solid_quad4_full, solid_shell_ha8, solid_tetra10, solid_tetra4,
                solid_tetra4_sfem, solid_tria3, solid_tshell8, spring, spring_advanced, spring_mat,
                thickshell_composite, thickshell_wedge6, truss, nstrand, xfem_shell, xfem_crack)
+from .shell_basis import force_equilibrium  # noqa: F401  (fequilibre.F -- re-exported for the Engine)
 
 KERNELS = {
     # Isogeometric Analysis 3D Solids (NURBS)

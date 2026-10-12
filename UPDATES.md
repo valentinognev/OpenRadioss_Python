@@ -13,6 +13,37 @@ total and the fast tier are produced by the commands in `docs/STATE.md`
 was taken on. `tests/test_p0_record_suite_counts.py` is what keeps it that way
 — see §1.8.0 and §1.9.0.*
 
+## 1.26.0 - Phase 3 P3.4: coqini basis tables, err_thk, fequilibre (2026-10-12)
+
+New: `pyradioss/elements/shell_basis.py` (19 tests, as-of this entry, in
+`tests/test_p3_shell_basis.py`).
+
+- `coqini.F`'s `DATA Z01/WF1/WM1/ZN1` blocks transcribed digit-for-digit
+  into the cached read-only startup tables `Z01()/WF1()/WM1()/ZN1()`;
+  Fortran's column-major fill becomes the plain row-major reshape the
+  ENGINE indexes as `Z0(IT,NPT) -> Z()[NPT-1][IT-1]` (`coqueba/cmatc3.F:
+  780-781`); `ZN1` (declared `(12,11)` upstream) is its `(11,12)`
+  transpose per `cfint_reg.F:209-211`. Spot values re-derived from
+  `coqini.F:46-148` itself, not quoted from any parity record.
+- `err_thk.F` ported as the remesher thickness-error *estimator*
+  (`shell_areas` / `node_thickness` / `thickness_error`): the SH4 area is
+  `|(X3-X1)x(X4-X2)|/8` (a unit square scores 0.25 — upstream's scale,
+  kept literally), the indicator is `(1/4)*sum|THICK_NOD/MAX(EM30,
+  AREA_NOD)/THICK - 1|`. The file has no `EXIT`/`STOP`/message call, so
+  the plan's "port the abort" is a misreading of the `ERR_` name and
+  nothing aborts; `admthke.F` (adapted parts) has no port yet.
+- `fequilibre.F` ported as `force_equilibrium(acc, conn4, conn3)`:
+  `WA(K)` corner-incidence count, `FZERO = A/WA`, `A` freed at shell
+  nodes. No tolerance exists upstream, so the plan's `(fint, fint_ref,
+  tol)` signature was not invented.
+- `engine.py` re-exports it (`from ..elements import ...,
+  force_equilibrium`); both edited files stay at their recorded line
+  budget (1689 / 151) — the linter forbids growth.
+- Plan deviations, Fortran as arbiter: 6 of the plan's 8 Step-1 Z01 spot
+  values were read off the `DATA` block's visual lines and do not match
+  `coqini.F:46-68`; the tests pin the Fortran's values and pin the six
+  wrong ones as *not* matching.
+
 ## 1.25.0 - Phase 3 P3.2: cdefo3 BT type-4 (c45) Z2 warp-correction branch (2026-10-12)
 
 Modified: `pyradioss/elements/shell_cdefo3.py` — the third and last

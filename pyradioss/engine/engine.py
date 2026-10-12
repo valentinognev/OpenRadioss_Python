@@ -53,7 +53,7 @@ from ..accel import auto_select_backend
 from ..common.constants import EP30
 from ..common.messages import MessageLog
 from ..contact import build_contacts
-from ..elements import KERNELS, shell_nonlocal
+from ..elements import KERNELS, shell_nonlocal, force_equilibrium
 from ..input.deck_reader import read_deck
 from ..input.engine_keywords import parse_engine_deck
 from ..input.idsolid import solid_group_fragments
