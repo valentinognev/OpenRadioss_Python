@@ -151,6 +151,45 @@
     "comparison": "unavailable: th2csv-missing (converter not installed) and the binary-T01 reader refuses this deck's 6-record per-step block (1186 steps of 6 against the shared walk's fixed stride of 4).  Both re-verified directly for this task rather than inherited from the P3.1 record."
    },
    "conclusion": "No parity number moved, none was tuned, and none needed explaining: the change is bitwise inert on c45 (md5 32eaca6e2c013d1d13289e77eaa960ca on both sides of the A/B, cmp returns 0), which is the strongest form of that claim and is measured rather than argued.  The stored rel-RMS 0.14961544161338852 (DEVIATION, worst channel HE) is quoted from parity_m41.json, not re-derived \u2014 the comparison route is closed on this box and that is recorded above rather than papered over.  What P3.2 delivers is the c45 branch as a transcribed, cited, unit-tested form with its guards, its Z2 provenance and its implicit-guard asymmetry explicit, and it closes the last of the two cdefo3.F gaps VALIDATION.md 7 item 1 named.  It also records the one thing the next reader most needs: on this deck upstream's Z2 is identically ZERO (no /BRAT, so ISMSTR=3), so the port's always-corotational Z2 is a divergence in the SHIPPED inline block, not something P3.2 introduced or may fix."
+  },
+  "P3.3 orthotropic QEPH stabilisation (czfintn_or HM/HF path)": {
+   "task": "openradioss-p3-qeph-ortho: plan/04_phase3_elements_shell.md Task P3.3 - the _or branch of engine/source/elements/shell/coquez/czfintn.F (HM/HF moduli), its caller czforc3.F:678-724, and the LAW19 shell modulus source engine/source/materials/mat/mat019/sigeps19c.F via hm_read_mat19.F + cmatc3.F GEPM_LC/CCTOGLOB. The third and last of the three measured shell gaps; the only one outright not ported (VALIDATION.md section 7 item 5).",
+   "cases": [
+    "c50_V0230_Fabric_LAW19_0230_shell",
+    "c51_V0230_Fabric_LAW19_0230_shell"
+   ],
+   "case_ids": [
+    "rd_v_material/RD-V-0230_Fabric_LAW19/0230_fabric_LAW19/0230_shell_mat_019_01/SHELL_LAW19_PROP9_0000.rad"
+   ],
+   "formulation": "QEPH (Ishell=24) + /MAT/FABRI (LAW19) + /PROP/SH_ORTH; IORTH=1 by material type alone (cmatc3.F:211-217)",
+   "what_changed": "New pyradioss/materials/shell_moduli.py (GEPM_LC, cmatc3.F:477-513) and pyradioss/elements/shell_qeph_ortho.py (CCTOGLOB cmatc3.F:412-458; group_moduli cmatc3.F:222-232; damper_moduli czfintn.F:1136-1140; elastic_increment = the IORTH>0 DGLAS czfintn.F:1148-1185 with CZFINTN1 rows 184-227 as the hm-is-None branch). shell_qeph.init_group builds per-element HM/HC after build_group_ortho and re-derives gsr/a11sr/a12sr from HM; _fint_stab delegates the DGLAS block to elastic_increment (isotropic expressions term-identical, only relocated). The numba qeph_post mirror is gated off for hm-carrying groups (it only knows the isotropic rows); porting it is P3.13. The starter/checks.py deferred comment now reads live. law19_fabric.py untouched (Phase 6 frozen window; the generic params reader already exposes E11/E22/NU12/G12/G23/G31).",
+   "rel_rms": {
+    "c50": {
+     "value": 0.6086655334487759,
+     "class": "DEVIATION"
+    },
+    "c51": {
+     "value": 0.3656664201531201,
+     "class": "DEVIATION"
+    },
+    "moved": false,
+    "why_it_did_not_move": "Both values are QUOTED from parity_m41.json, not re-derived here; the comparison route is closed on this box (see below) so nothing was tuned to move them and nothing could. The port-side A/B below shows the change is inert on both decks it ran.",
+    "source": "tools/validation_data/parity_m41.json (M41-fresh numpy runs)"
+   },
+   "why_no_rel_rms_was_re_derived_here": "The comparison route is closed on this machine, identically to the P3.1/P3.2 records and for the same reason. Both halves re-verified directly for this task: (1) th_to_csv is not installed - the oracle bin holds only starter_linux64_gf and engine_linux64_gf; (2) tools/compare_t01.read_t01 refuses this deck binary T01: T01FormatError per-step block 1 has record lengths (48, 48, 48, 48), expected (4, 92, 48, 48); the data section is 17040 records = 852 steps of 20 (record lengths [4, 92, 48, 48, 48, 48, 48, 48, 252, 252, 252, 252, 252, 252, 72, 72, 72, 72, 72, 72] bytes). Both solvers still RAN; only the comparison is unavailable.",
+   "re_measurement": {
+    "what": "Two before/after A/Bs on the port side under the pinned interpreter with PYRADIOSS_BACKEND=numpy pinned. before = the pre-P3.3 tree exported with git archive HEAD (6b7b551, P3.2 commit) into a scratch directory outside the worktree and run with PYTHONPATH pointing at it; after = this branch working tree. Identical decks (scratch copies with TSTOP truncated: ROLLING 1605->15.0, SHELL_LAW19_PROP9 100->1.0), identical environment, identical backend.",
+    "isotropic_qeph": "RD-E-1000_Bending/10_Bending/QEPH/Sf_0.9/ROLLING (LAW1 ELAST, Ishell 24). BITWISE IDENTICAL: cmp returns 0 over all 18 lines of ROLLINGT01.csv, md5sum 122ff6b3ceefae2b81cd317577543df0 both sides. 896 cycles, NORMAL TERMINATION, energy error 0.03% on both sides. The isotropic DGLAS relocation is association-identical (verified by reading, and this is the measurement).",
+    "law19_qeph": "RD-V-0230 SHELL_LAW19_PROP9 (LAW19 + SH_ORTH, Ishell 24). BITWISE IDENTICAL: cmp returns 0 over all 555 lines, md5sum b996fafd29d777546b9000ea2bc4ae9f both sides. 553 cycles, NORMAL TERMINATION, energy error 0.29% on both sides. Inert WITH reason, not by luck: the group demonstrably carries hm (0.5, 0.3, 0, 0.05 - fibre along element y so CCTOGLOB swapped the axes) yet the deck symmetric loading keeps the hourglass velocity modes bitwise zero, so both DGLAS branches coincide exactly (final HE 9.16e-11 against IE 7.39e-05). Branch liveness is proven at the unit level instead (x-driven hourglass DGLAS differs: HM(1)=0.30 vs A11=0.50).",
+    "fortran_runs": "QEPH ROLLING: Starter+Engine NORMAL TERMINATION, 897 cycles, T01 written. LAW19: Starter NORMAL (termination with warning, 0 errors), Engine NORMAL TERMINATION, 852 cycles, T01 written (2125272 bytes) on a no-H3D engine-deck copy - the as-shipped deck ERRORs at startup with MESSAGE 274 H3D EXTERNAL LIBRARY NOT FOUND (missing lib in this oracle prefix, unrelated to physics). Both re-run, not inherited."
+   },
+   "known_deviations_from_the_plan": [
+    "shell_moduli returns (C11, C22, C12, G12, HC1, HC2) per LAYER, not the plan (A11, A12, G) per Gauss point. Forced by the Fortran: czfintn.F:1148-1160 uses HM(1) AND HM(2), so a triple cannot express the substitution, and GEPM_LC broadcasts one material to the whole group (cmatc3.F:496-513) - per-Gauss would invent structure upstream does not have. The plan own Step 3 (which moduli and in which order; the list is not symmetric) is the authority cited.",
+    "Two new modules instead of only editing shell_qeph.py: shell_qeph.py is at its recorded size budget (1600 lines, size_budget.json) and may only shrink - it shrinks by a net 12 lines here. _stabilisation(..., moduli) as literally named was not created; the selection lives in elastic_increment gated on st[hm] (None unless cmatc3 raised IORTH), which is the same dispatch czforc3.F:715-724 performs.",
+    "The plan Step-1 warnings_for helper does not exist in this tree (pyradioss/input/checks.py has no warnings_for; the isotropic refusal is a comment in starter/checks.py). The acceptance pair is adapted: the group-carries-hm tests plus a numba-mirror-bypass test (RED-verified against the ungated code), and the checks.py comment flips only now that the path is live.",
+    "Transcription corrections found by reading (Fortran wins): the isotropic rows are CZFINTN1 at czfintn.F:184-227, not the _OR ELSE at 1228-1248 (which carries DT1 in C1M); the FAC dummy CZFINTN_OR scales by is ZCFAC (czforc3.F:715, init ONE at :387-388), so FACM=FAC1*DT1 on this path by the standing ZCFAC=1 cut; HMOR/HM(5..6) are dead on IORTH=1 (only consumers: the CMH/CFH coupling zeroed at :1191-1196 and the unreachable IORTH>1 block); CZHOUREP_OR is inert for LAW19 because upstream leaves SIGY=EP30 (czforc3.F:386), failing its own SIGY<ZEP9EP30 gate."
+   ],
+   "conclusion": "LAW19 QEPH shells now run the orthotropic CZFINTN_OR stabilisation (GEPM_LC -> CCTOGLOB -> HM/HF=HM/12 with the asymmetric HM(1)/HM(2) substitution and split HC(1)/HC(2) transverse pair), unit-pinned at every stage including upstream 45-degree shear value 0.200 against the textbook 0.225. No parity number moved and none was tuned: the isotropic QEPH path is bitwise inert by measurement (md5 122ff6b3ceefae2b81cd317577543df0), the LAW19 deck is inert with a stated symmetry reason (md5 b996fafd29d777546b9000ea2bc4ae9f, HE 9.2e-11), and the stored c50/c51 rel-RMS pair (0.6087/0.3657, DEVIATION) is quoted from parity_m41.json. This closes the last of the three measured Phase 3 gaps (VALIDATION.md section 7 item 5)."
   }
  }
 }

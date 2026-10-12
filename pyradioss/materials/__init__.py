@@ -100,7 +100,7 @@ from . import (detonation, eos, law01_elastic, law02_johnson_cook, law03_plas_bo
                law76_samp,
                law90_foam,
                law190_dubois,
-               mat_gas, mat_void,
+               mat_gas, mat_void, shell_moduli,
                law00_void, law11_fluid_visc, law13_fluid_ale, law16_gray_ewing, law17_orth_elastic,
                law18_plas_iso, law20_rigid, law23_user_mat, law26_honeycomb_sesame, law41_jwl_burn,
                law45_fabric_membrane, law45_orth_fabric, law46_kin_hard, law51_granular_soil, law53_tab_foam, law54_hyd_visc,

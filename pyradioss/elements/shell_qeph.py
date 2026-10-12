@@ -93,7 +93,7 @@ from __future__ import annotations
 import numpy as np
 
 from .. import materials
-from . import shell_ortho
+from . import shell_ortho, shell_qeph_ortho
 from .shell_bt4 import (_element_deletion, _init_material_state,
                         _layer_extra, _layer_failure)
 from ..common.constants import EM20, EP30, SHEAR_FACTOR
@@ -695,6 +695,20 @@ def init_group(group, model, log):
     _init_material_state(group, nip_max)
     group.state["ortho"] = shell_ortho.build_group_ortho(
         group.state["slices"], G["E"], n, log, group.ids)
+    # cmatc3.F:211-232 — IORTH=1 for MTN==19 builds the per-element HM/HC
+    # here (GEPM_LC -> CCTOGLOB) and czfintn.F:1142-1147 re-derives the
+    # damper moduli from it; an isotropic group keeps None and the loop
+    # above.  Placed after build_group_ortho because CCTOGLOB needs the
+    # element fibre cosines.
+    hm, hc = shell_qeph_ortho.group_moduli(
+        group.state["slices"], group.state["ortho"], shf, n)
+    group.state["hm"] = hm
+    group.state["hc"] = hc
+    if hm is not None:
+        gsr, a11sr, a12sr = shell_qeph_ortho.damper_moduli(hm)
+        group.state["gsr"] = gsr
+        group.state["a11sr"] = a11sr
+        group.state["a12sr"] = a12sr
     node_idx = group.conn.reshape(-1)
     mass_c = np.repeat(mass / 4.0, 4)
     group.state["dt_iner"] = mass / 4.0 * (thick ** 2 + area) / 12.0
@@ -793,54 +807,29 @@ def _current_yield(st, sl, mat):
 
 
 def _fint_stab(G, st, vhg, dt, alive, Nres, Mres, VF, VM, thick):
-    """czfintn.F CZFINTN1: elastic modal-stress update with the PHYSICAL
-    moduli (CVIS = 1), plastic relaxation, linear damper, generalized
-    force assembly, energy split EINT (elastic) / EHOUR (damper)."""
+    """czfintn.F CZFINTN1 / CZFINTN_OR: elastic modal-stress update with
+    the PHYSICAL moduli (CVIS = 1), plastic relaxation, linear damper,
+    generalized force assembly, energy split EINT (elastic) / EHOUR
+    (damper).  The DGLAS block selects the orthotropic row set whenever
+    the group carries one (see shell_qeph_ortho)."""
     area, a_i, z1 = G["area"], G["a_i"], G["z1"]
     x13, x24, y13, y24 = G["x13"], G["x24"], G["y13"], G["y24"]
     mx13, mx23, mx34 = G["mx13"], G["mx23"], G["mx34"]
     my13, my23, my34 = G["my13"], G["my23"], G["my34"]
     vg = st["hgstr"]
-    n = len(area)
     off = alive.astype(float)
 
-    a11, a12 = st["a11"], st["a12"]
     fbend = np.where(st["npt1"], 0.0, 1.0 / 12.0)    # czfintn 97-102
     fbend_v = np.where(st["npt1"], 0.0, _FBEND_V)
     c6 = thick ** 2 * fbend                          # C6 = THK02*FBEND
 
     dhg = vhg * dt
-    c3g = 4.0 * a_i
-    hxx = c3g * my34
-    hyy = c3g * mx34
-    hxx_k = c3g * my23
-    hyy_k = c3g * mx23
 
-    # ---- elastic increments DGLAS (czfintn 184-227, FAC1 = CVIS = 1) ----
-    c1m = a11 * _CVIS
-    c2m = a12 * _CVIS
-    dg = np.zeros((n, 12))
-    cxx = hxx * dhg[:, 0]
-    cyy = hyy * dhg[:, 1]
-    cxx_k = hxx_k * dhg[:, 0]
-    cyy_k = hyy_k * dhg[:, 1]
-    bxx = hxx * dhg[:, 2]
-    byy = hyy * dhg[:, 3]
-    bxx_k = hxx_k * dhg[:, 2]
-    byy_k = hyy_k * dhg[:, 3]
-    dg[:, 0] = c1m * cxx - c2m * cyy
-    dg[:, 1] = c1m * cyy - c2m * cxx
-    dg[:, 2] = c1m * bxx - c2m * byy
-    dg[:, 3] = c1m * byy - c2m * bxx
-    dg[:, 6] = c1m * cxx_k - c2m * cyy_k
-    dg[:, 7] = c1m * cyy_k - c2m * cxx_k
-    dg[:, 8] = c1m * bxx_k - c2m * byy_k
-    dg[:, 9] = c1m * byy_k - c2m * bxx_k
-    c2s = _CVIS * st["gs"] / 64.0                    # FAC1*G*SHF/64
-    dg[:, 4] = c2s * hxx * dhg[:, 4]
-    dg[:, 5] = c2s * hyy * dhg[:, 4]
-    dg[:, 10] = c2s * hxx_k * dhg[:, 5]
-    dg[:, 11] = c2s * hyy_k * dhg[:, 5]
+    # ---- elastic increments DGLAS (CZFINTN_OR czfintn.F:1164-1185 with
+    # IORTH>0, CZFINTN1 czfintn.F:184-227 without — both branches in
+    # shell_qeph_ortho, selected on st["hm"], which is None unless
+    # cmatc3.F:211-217 raised IORTH) ----
+    dg = shell_qeph_ortho.elastic_increment(G, st, vhg, dt, _CVIS)
 
     # ---- first (old-stress) half of the trapezoidal energy --------------
     ss1o = my34 * vg[:, 0] + my23 * vg[:, 6]
@@ -1215,7 +1204,11 @@ def forces(group, x, v, vr, dt, fint, mint):
     st["eint"] += area * de_layers
 
     jit_post = accel_get("qeph_post")
-    if jit_post is not None and "E" in G:
+    # P3.3: the numba mirror only knows CZFINTN1's isotropic rows.  An
+    # orthotropic (hm-carrying) group stays on the numpy _post — which
+    # selects the CZFINTN_OR branch — rather than silently running the
+    # isotropic mirror.  Porting the mirror is Phase 3 task P3.13's job.
+    if jit_post is not None and "E" in G and st.get("hm") is None:
         fg, mg, dt_e = jit_post(thick, Nres, Mres, qres, st["amu"], st["cspd"], st["yld"], st["fmat"], vhg, dt, alive, plat, vqn, di, db, G["E"], G["area"], G["a_i"], G["z1"], G["corx"], G["cory"], G["x13"], G["x24"], G["y13"], G["y24"], G["mx13"], G["mx23"], G["mx34"], G["my13"], G["my23"], G["my34"], G["l13"], G["l24"], G["ll"], G["lm"], st["a11"], st["a12"], st["npt1"], st["gs"], st["hgstr"])
     else:
         fg, mg, dt_e = _post(G, thick, Nres, Mres, qres, st, vhg, dt, alive, plat, vqn, di, db)
