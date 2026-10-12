@@ -28,6 +28,7 @@ from typing import List
 
 import numpy as np
 
+from ..elements.shell_lump import corner_ke
 from ..model.model import Model
 
 
@@ -103,23 +104,13 @@ class TimeHistory:
                     continue
                 safe_conn = np.clip(conn[mask], 0, max(0, len(model.v) - 1))
                 ve = model.v[safe_conn]
-                v2 = np.einsum("nib,nib->n", ve, ve) / conn.shape[1]
-                mass = group.state.get("mass")
-                ke_trans = 0.5 * (mass[mask] * v2).sum() if mass is not None else 0.0
-                ke_rot = 0.0
+                vre = None
                 vr = getattr(model, "vr", None)
                 if vr is not None and len(vr) > 0 and len(vr) >= len(model.v):
                     vre = vr[safe_conn]
-                    if "dt_iner" in group.state:
-                        # Shells / beams: dt_iner is the per-node rotational
-                        # inertia share (cbilan.F: IN25 * VA2 * HALF).
-                        # Sum |omega_i|^2 over nodes, multiply by dt_iner.
-                        vr2_sum = np.einsum("nib,nib->n", vre, vre)
-                        ke_rot = 0.5 * (group.state["dt_iner"][mask] * vr2_sum).sum()
-                    elif "inertia" in group.state:
-                        # Springs / mock groups: element-total inertia.
-                        vr2_avg = np.einsum("nib,nib->n", vre, vre) / conn.shape[1]
-                        ke_rot = 0.5 * (group.state["inertia"][mask] * vr2_avg).sum()
+                # Corner shares honour a kernel's PTG angle table when
+                # present (shell_lump); otherwise the uniform formulas.
+                ke_trans, ke_rot = corner_ke(group.state, ve, vre, mask)
                 val += float(ke_trans + ke_rot)
         return val
 

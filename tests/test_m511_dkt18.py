@@ -281,7 +281,10 @@ def test_dkt18_cycle_0_courant_step():
 # 9. Lumped mass conservation
 # ============================================================================
 def test_dkt18_lumped_mass_conservation():
-    """Total lumped mass equals rho * t * A with m/3 per node."""
+    """Total lumped mass equals rho * t * A, scattered by vertex-angle
+    fractions (P3.9: starter c3inmas.F:1136-1150 + spmd_msin.F:557-558 —
+    this right triangle's angles are 90/45/45 deg, so (1/2, 1/4, 1/4),
+    not uniform thirds)."""
     x = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [0.0, 10.0, 0.0]])
     rho = 7850.0
     t = 0.02
@@ -292,7 +295,7 @@ def test_dkt18_lumped_mass_conservation():
     node_idx, mass_c, inertia_c = init_group(group, model, MessageLog())
 
     assert np.isclose(mass_c.sum(), expected_total_mass)
-    assert np.allclose(mass_c, expected_total_mass / 3.0)
+    assert np.allclose(mass_c, expected_total_mass * np.array([0.5, 0.25, 0.25]))
     assert np.all(inertia_c > 0.0)
 
 

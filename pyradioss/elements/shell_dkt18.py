@@ -49,6 +49,42 @@ from .. import materials
 
 log = logging.getLogger(__name__)
 
+
+def _vertex_angle_fractions(xe):
+    """Vertex-angle fractions PTG for the lumped-mass scatter.
+
+    Starter ``c3inmas.F:1136-1150`` computes, in the element local frame,
+    ``P1 = ACOS((A2+C2-B2)/(TWO*AA*CC))/PI`` (and cyclic) — the three
+    interior angles over PI — and ``spmd_msin.F:557-558`` assembles the
+    nodal mass and rotary inertia as ``MS += MSTG*PTG`` /
+    ``IN += INTG*PTG``.  Edge lengths give the same angles without building
+    the local frame (law of cosines).  Degenerate (zero-area) elements fall
+    back to uniform thirds so no NaN is ever scattered; the kernel already
+    logs those elements as errors.
+    """
+    x1 = xe[:, 0, :]
+    x2 = xe[:, 1, :]
+    x3 = xe[:, 2, :]
+    a2 = ((x2 - x3) ** 2).sum(axis=1)  # squared edge opposite node 1
+    b2 = ((x1 - x3) ** 2).sum(axis=1)  # squared edge opposite node 2
+    c2 = ((x1 - x2) ** 2).sum(axis=1)  # squared edge opposite node 3
+    a = np.sqrt(a2)
+    b = np.sqrt(b2)
+    c = np.sqrt(c2)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        p1 = np.arccos(np.clip((b2 + c2 - a2) / np.maximum(2.0 * b * c, EM20),
+                               -1.0, 1.0)) / np.pi
+        p2 = np.arccos(np.clip((a2 + c2 - b2) / np.maximum(2.0 * a * c, EM20),
+                               -1.0, 1.0)) / np.pi
+        p3 = np.arccos(np.clip((a2 + b2 - c2) / np.maximum(2.0 * a * b, EM20),
+                               -1.0, 1.0)) / np.pi
+    ptg = np.stack([p1, p2, p3], axis=1)
+    bad = ~(np.isfinite(ptg).all(axis=1))
+    if np.any(bad):
+        ptg[bad] = 1.0 / 3.0
+    return ptg
+
+
 def init_group(group, model, log):
     """Element buffer + lumped mass/inertia (starter c3init3/c3mass3)."""
     n = group.n
@@ -127,10 +163,16 @@ def init_group(group, model, log):
     group.state["ortho"] = shell_ortho.build_group_ortho(
         slices, E, n, log, group.ids)
     node_idx = group.conn.reshape(-1)
-    mass_c = np.repeat(mass / 3.0, 3)
-    # generous lumped rotational inertia (Key's trick, see module docstring)
-    group.state["dt_iner"] = mass / 3.0 * (area / 4.5 + thick ** 2 / 12.0)
-    inertia_c = np.repeat(group.state["dt_iner"], 3)
+    # Lumped mass + rotary inertia (starter c3inmas.F / spmd_msin.F): each
+    # triangle's mass MSTG and rotary inertia INTG scatter to its nodes by
+    # vertex-angle fractions PTG, not uniform thirds.
+    ptg = _vertex_angle_fractions(xe)
+    group.state["ptg"] = ptg
+    # element rotary inertia XI = EM*(AREA/4.5 + THK^2/12) (c3inmas.F:1116;
+    # the /4.5 is NINE_OVER_2, kept for compatibility with 4-node shells)
+    group.state["dt_iner"] = mass * (area / 4.5 + thick ** 2 / 12.0)
+    mass_c = (mass[:, None] * ptg).reshape(-1)
+    inertia_c = (group.state["dt_iner"][:, None] * ptg).reshape(-1)
     return node_idx, mass_c, inertia_c
 
 

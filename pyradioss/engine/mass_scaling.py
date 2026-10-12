@@ -116,6 +116,7 @@ import math
 import numpy as np
 
 from ..common.constants import EM20, EP30
+from ..elements.shell_lump import corner_shares
 from ..model.model import Model
 
 
@@ -159,10 +160,8 @@ class NodalTimeStep:
                                  Optional[np.ndarray]]] = []
         for name, group in model.element_groups():
             conn = group.state.get("mass_conn", group.conn)
-            share = group.state["mass"][:, None] / conn.shape[1]
-            iner = group.state.get("dt_iner")
-            if iner is not None:
-                iner = np.broadcast_to(iner[:, None], conn.shape).copy()
+            # Corner shares (a kernel's PTG angle table when present — shell_lump).
+            share, iner = corner_shares(group.state, conn)
             self._shares.append((name, conn, np.broadcast_to(
                 share, conn.shape).copy(), iner))
         #: any rotational claims at all? (gates every STIFR op so a
