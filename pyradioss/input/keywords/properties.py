@@ -323,6 +323,8 @@ def read_prop(block: KeywordBlock, model: Model, log: MessageLog) -> None:
                 f = cards[0].cut("PROP_SHELL_FLAGS")
                 if f[0].strip():
                     params["ishell"] = _ival(f[0])
+                if len(f) > 1 and f[1].strip():
+                    params["ismstr"] = _ival(f[1])
                 if len(f) > 2 and f[2].strip():
                     params["ish3n"] = _ival(f[2])
             hm_d, hf_d, hr_d = _hourglass_defaults(params["ishell"])
@@ -368,6 +370,10 @@ def read_prop(block: KeywordBlock, model: Model, log: MessageLog) -> None:
                     params["ishell"] = int(toks[0])
                 except ValueError:
                     params["ishell"] = 0
+                try:
+                    params["ismstr"] = int(toks[1]) if len(toks) > 1 else 0
+                except ValueError:
+                    params["ismstr"] = 0
                 if len(toks) > 2:
                     try:
                         params["ish3n"] = int(toks[2])
@@ -2850,8 +2856,6 @@ def read_prop(block: KeywordBlock, model: Model, log: MessageLog) -> None:
         model.prop_spr_pulls[block.user_id] = p13
 
 
-
-
 def read_prop_rivet(block: KeywordBlock, model: Model, log: MessageLog) -> None:
     """``/PROP/TYPE5`` or ``/PROP/RIVET`` (M143): Rivet / Fastener connector property."""
     from ...model.entities import PropRivet
@@ -2876,8 +2880,6 @@ def read_prop_rivet(block: KeywordBlock, model: Model, log: MessageLog) -> None:
     )
 
 
-
-
 def read_prop_xelem(block: KeywordBlock, model: Model, log: MessageLog) -> None:
     """``/PROP/TYPE28`` or ``/PROP/XELEM`` (M143): X-FEM / cohesive element property."""
     from ...model.entities import PropXelem
@@ -2898,8 +2900,6 @@ def read_prop_xelem(block: KeywordBlock, model: Model, log: MessageLog) -> None:
     model.prop_xelems[pid] = PropXelem(
         id=pid, title=title, itip=itip, isurf=isurf, alpha=alpha
     )
-
-
 
 
 def read_prop_inject1(block: KeywordBlock, model: Model, log: MessageLog) -> None:

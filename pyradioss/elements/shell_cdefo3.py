@@ -31,7 +31,9 @@ WHY THIS IS A SEPARATE MODULE
 ``pyradioss/elements/shell_bt4.py`` is at its recorded line budget
 (``tools/validation_data/size_budget.json``, 1913 lines) and may only
 shrink, so the transcribed branches live here and
-``shell_bt4._rot2_correction`` re-exports them.
+``shell_bt4._rot2_correction`` re-exports them. The exact-dt eigenvalue
+helpers (``_bend_shear_omega2`` / ``_exact_dt_factor``) were exiled here
+later for the same reason — likewise re-exported, verbatim.
 
 THE UPSTREAM CONTRACT
 ---------------------
@@ -81,7 +83,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from ..common.constants import EM20
+from .. import materials
+from ..common.constants import EM20, SHEAR_FACTOR
 
 #: cdefo3.F branch selector -> ``_rot2_correction`` ``kind``: 0 none,
 #: 1 the ``IHBE <= 1`` general form, 3 the ``IHBE == 2 .OR. IHBE == 3``
@@ -235,3 +238,171 @@ def rot2_correction(px, py, vx, vy, dt, kind=1, z2=None, *, implicit=False):
         return (0.5 * dt) * gzx * gzx, (0.5 * dt) * gzy * gzy
 
     raise ValueError(f"_rot2_correction: unknown cdefo3 kind {kind!r}")
+
+
+def resolve_ismstr(prop, def_shell, log):
+    """Resolve one shell property's engine strain flag ISMSTR — the switch
+    ``cforc3.F:430`` branches on (``ISMSTR == 3`` takes ``CPXPY3``, which
+    sets ``Z2 = ZERO`` at ``cpxpy3.F:77`` and l.88).
+
+    Rules are ``hm_read_prop01.F:203``, l.233-241 for ``/PROP/SHELL``: card
+    ``Ismstr`` 0 takes the ``/DEF_SHELL`` default ``ISST_D`` (``-2``
+    forces automatic ``-1`` — ``cgrtails.F`` then picks per material, a
+    wider gap carried here as-is; it never yields 3, so the ``== 3`` gate
+    below stays exact); leftover 0 becomes 2; ``ISMSTR == 3`` with the
+    EFFECTIVE card ``Ishell`` (0 means "default", whose ``ISHELL``
+    fallback is 1 — ``defaults_mod.F90:167``) outside ``{0, 2}`` becomes
+    2 with the MSGID 319 warning. Only ``TYPE1`` is guarded — other
+    property types carry raw or no ``Ismstr`` (their own starter rules
+    are unported) and pass through the same 0-to-default-to-2 chain.
+    Measured on the oracle starter: ``(4,3) -> 2`` + 319, ``(0,3) -> 2``
+    + 319, ``(2,3) -> 3``, ``(4,0) -> 2``.
+    """
+    params = getattr(prop, "params", {}) or {}
+    def_shell = def_shell or {}
+    def_ism = def_shell.get("ismstr", 0)
+    raw = int(params.get("ismstr", 0) or 0)
+    if raw == 0:
+        raw = def_ism
+    if def_ism == -2:
+        raw = -1
+    if raw == 0:
+        raw = 2
+    if raw == 3 and getattr(prop, "type", 1) == 1:
+        card = int(params.get("ishell", 0) or 0)
+        eff = card if card != 0 else (def_shell.get("ishell", 0) or 1)
+        if eff not in (0, 2):
+            raw = 2
+            log.warning(f"/PROP/SHELL/{prop.id}: Ismstr = 3 incompatible "
+                        f"with Ishell = {eff}: ISMSTR set to 2 (MSGID 319)",
+                        "SHELL INIT")
+    return raw
+
+# ----------------------------------------------------------------------------
+# Starter dt-claim eigenvalue helpers (cdt3.F flavour)
+# ----------------------------------------------------------------------------
+# Exiled here by the shell_bt4.py line budget, for the same reason the
+# transcription above lives here rather than inline in forces(): the exact
+# per-element dt correction init_group claims on lc/c. Verbatim move —
+# shell_bt4 re-exports both names, so shell_tri3's import keeps working.
+
+
+def _bend_shear_omega2(B1, B2, area, sl, mat, t, nnode, rho) -> np.ndarray:
+    """Exact max eigenfrequency^2 of the bending/shear branch of a FLAT
+    one-point shell element (membrane decouples on a flat element).
+
+    Local dofs (w_i, thx_i, thy_i); generalized rates (kxx, kyy, kxy,
+    gx, gy) from the SAME operators as forces() — see the kinematics
+    there; K = A * B^T C_b B with C_b = diag(t^3/12 * C_planestress,
+    kappa*G*t * I2); lumped mass m = rho t A/nnode and the (deliberately
+    generous) rotational inertia I = m (t^2 + A)/12 actually used by
+    init_group. This branch GOVERNS the time step for thick/large
+    elements where kappa*G*t*A outruns the membrane stiffness — assuming
+    'membrane always binds' was an M1 bug fixed in M2 (a nu=0 cantilever
+    strip at /DT 0.9 diverged on the shear-rotation mode)."""
+    b1, b2, A = B1[sl], B2[sl], area[sl]
+    n = len(A)
+    B = np.zeros((n, 5, 3 * nnode))
+    B[:, 0, 2 * nnode:] = b1                    # kxx =  B1 . thy
+    B[:, 1, nnode:2 * nnode] = -b2              # kyy = -B2 . thx
+    B[:, 2, 2 * nnode:] = b2                    # kxy = B2.thy - B1.thx
+    B[:, 2, nnode:2 * nnode] = -b1
+    B[:, 3, :nnode] = b1                        # gx = B1.w + mean(thy)
+    B[:, 3, 2 * nnode:] = 1.0 / nnode
+    B[:, 4, :nnode] = b2                        # gy = B2.w - mean(thx)
+    B[:, 4, nnode:2 * nnode] = -1.0 / nnode
+    Ep = mat.E / (1.0 - mat.nu ** 2)
+    Cb = np.zeros((5, 5))
+    Cb[:3, :3] = t ** 3 / 12.0 * np.array(
+        [[Ep, mat.nu * Ep, 0.0], [mat.nu * Ep, Ep, 0.0], [0.0, 0.0, mat.G]])
+    Cb[3, 3] = Cb[4, 4] = SHEAR_FACTOR * mat.G * t
+    K = A[:, None, None] * np.einsum("nai,ab,nbj->nij", B, Cb, B)
+    m = np.maximum(rho * t * A / nnode, EM20)   # nodal mass
+    inertia = np.maximum(m * (t ** 2 + A) / 12.0, EM20)  # nodal inertia (init_group)
+    minv = np.empty((n, 3 * nnode))
+    minv[:, :nnode] = 1.0 / np.sqrt(m)[:, None]
+    minv[:, nnode:] = np.repeat(1.0 / np.sqrt(inertia), 2 * nnode
+                                ).reshape(n, 2 * nnode)
+    Ksym = minv[:, :, None] * K * minv[:, None, :]
+    return np.linalg.eigvalsh(Ksym)[:, -1]
+
+
+def _exact_dt_factor(B1, B2, area, lc, thick, slices) -> np.ndarray:
+    """Per-element ratio dt_exact/(lc/c) over BOTH stiffness branches of
+    the flat one-point element:
+
+    * membrane — the 2-D analogue of solid_hexa8._exact_dt_factor: the
+      membrane stiffness is K = t*A * B^T C B with constant B, so the
+      exact max frequency is the 3x3 eigenproblem
+      omega^2 = (4/rho) eig(C_planestress . B B^T)  (lumped m = rho t A/4);
+    * bending/transverse-shear — the 12-dof (w, thx, thy) eigenproblem of
+      _bend_shear_omega2, which takes over for thick or large elements.
+
+    dt_exact = 2 / max(omega) is a strict bound for the linearized
+    element; forces() rescales it by the running lc/c."""
+    n = len(area)
+    Sxx = np.einsum("ni,ni->n", B1, B1)
+    Syy = np.einsum("ni,ni->n", B2, B2)
+    Sxy = np.einsum("ni,ni->n", B1, B2)
+    BBt = np.zeros((n, 3, 3))
+    BBt[:, 0, 0], BBt[:, 1, 1] = Sxx, Syy
+    BBt[:, 2, 2] = Sxx + Syy
+    BBt[:, 0, 2] = BBt[:, 2, 0] = Sxy
+    BBt[:, 1, 2] = BBt[:, 2, 1] = Sxy
+    fac = np.ones(n)
+    for sl, mat, prop in slices:
+        if getattr(mat, "law", 1) == 0 or not (getattr(mat, "rho0", 0.0) > 0.0 and getattr(mat, "E", 0.0) > 0.0):
+            # stiffness-free / massless material (a /MAT/VOID skin shell —
+            # legally RHO0 = 0 and E = 0, see starter/checks.
+            # _NULL_RHO0_OK_LAWS): the element claims no time step at all
+            # (upstream lc/SSP with SSP = 0), so the correction ratio is
+            # moot — keep 1 instead of dividing by the null density.  The
+            # exact twin of the guard solid_hexa8._exact_dt_factor already
+            # applies for the same material (M39 / M38-NEW-2).
+            fac[sl] = 1.0
+            continue
+        if getattr(mat, "law", 1) in (104, "104", "LAW104", 106, "106", "LAW106", 107, "107", "LAW107", 109, "109", "LAW109", 110, "110", "LAW110") or getattr(mat, "law_name", None) in ("104", "LAW104", "106", "LAW106", "107", "LAW107", "109", "LAW109", "110", "LAW110"):
+            try:
+                c = float(materials.sound_speed(mat, is_shell=True))
+            except Exception:
+                c = float(mat.sound_speed_shell()) if hasattr(mat, "sound_speed_shell") and getattr(mat, "rho0", 0.0) > 0.0 else 0.0
+        elif getattr(mat, "law", 1) in (57, "57", "LAW57", "BARLAT", "BARLAT3", "MAT_LAW57", "MAT_BARLAT", "MAT_BARLAT3", "LAW57_BARLAT", "LAW57_BARLAT3") or getattr(mat, "law_name", None) in ("57", "LAW57", "BARLAT", "BARLAT3", "MAT_LAW57", "MAT_BARLAT", "MAT_BARLAT3", "LAW57_BARLAT", "LAW57_BARLAT3"):
+            from ..materials import law57_barlat
+            c = law57_barlat.sound_speed_shell_law57(mat, getattr(mat, "rho0", None))
+        elif getattr(mat, "law", 1) in (73, "73", "LAW73", "HILL_THERM", "THERM_HILL", "MAT_LAW73", "MAT_HILL_THERM", "MAT_THERM_HILL", "LAW73_HILL_THERM", "LAW73_THERM_HILL") or getattr(mat, "law_name", None) in ("73", "LAW73", "HILL_THERM", "THERM_HILL", "MAT_LAW73", "MAT_HILL_THERM", "MAT_THERM_HILL", "LAW73_HILL_THERM", "LAW73_THERM_HILL"):
+            from ..materials import law73_hill_therm
+            c = law73_hill_therm.sound_speed(mat, getattr(mat, "rho0", None))
+        elif getattr(mat, "law", 1) in (87, "87", "LAW87", "BARLAT", "BARLAT2000", "BARLAT_2000", "BARLAT2000_2D", "BARLAT_YLD2000") or getattr(mat, "law_name", None) in ("87", "LAW87", "BARLAT", "BARLAT2000", "BARLAT_2000", "BARLAT2000_2D", "BARLAT_YLD2000", "MAT_LAW87", "MAT_BARLAT", "MAT_BARLAT2000", "MAT_BARLAT_2000", "MAT_BARLAT2000_2D", "MAT_BARLAT_YLD2000"):
+            from ..materials import law87_barlat2000
+            c = law87_barlat2000.sound_speed(mat, getattr(mat, "rho0", None))
+        elif getattr(mat, "law", 1) in (88, "88", "LAW88", "HYPER_ELAS", "TABULATED_HYPERELASTIC", "TAB_HYP", "TABULATED_HYP") or getattr(mat, "law_name", None) in ("88", "LAW88", "HYPER_ELAS", "TABULATED_HYPERELASTIC", "TAB_HYP", "TABULATED_HYP", "MAT_LAW88", "MAT_HYPER_ELAS", "MAT_TABULATED_HYPERELASTIC", "MAT_TAB_HYP"):
+            from ..materials import law88_tab_hyp
+            c = law88_tab_hyp.sound_speed_shell(mat, getattr(mat, "rho0", None))
+        elif getattr(mat, "law", 1) in (92, "92", "LAW92", "ARRUDA_BOYCE", "ARRUDA-BOYCE") or getattr(mat, "law_name", None) in ("92", "LAW92", "ARRUDA_BOYCE", "ARRUDA-BOYCE", "MAT_LAW92", "MAT_ARRUDA_BOYCE"):
+            from ..materials import law92_arruda_boyce
+            c = law92_arruda_boyce.sound_speed_shell(mat, getattr(mat, "rho0", None))
+        elif getattr(mat, "law", 1) in (93, "93", "LAW93", "ORTH_HILL") or getattr(mat, "law_name", None) in ("93", "LAW93", "ORTH_HILL", "MAT_LAW93", "MAT_ORTH_HILL", "LAW93_ORTH_HILL"):
+            from ..materials import law93_orth_hill
+            c = law93_orth_hill.sound_speed_shell(mat, getattr(mat, "rho0", None))
+        elif getattr(mat, "law", 1) in (94, "94", "LAW94", "YEOH") or getattr(mat, "law_name", None) in ("94", "LAW94", "YEOH", "MAT_LAW94", "MAT_YEOH"):
+            from ..materials import law94_yeoh
+            c = law94_yeoh.sound_speed_shell(mat, getattr(mat, "rho0", None))
+        elif hasattr(mat, "sound_speed_shell") and getattr(mat, "rho0", 0.0) > 0.0:
+            c = mat.sound_speed_shell()
+        else:
+            c = 0.0
+        if c <= EM20:
+            fac[sl] = 1.0
+            continue
+        Ep = mat.E / (1.0 - mat.nu ** 2)
+        C = np.array([[Ep, mat.nu * Ep, 0.0],
+                      [mat.nu * Ep, Ep, 0.0],
+                      [0.0, 0.0, mat.G]])
+        eig = np.linalg.eigvals(C[None, :, :] @ BBt[sl])
+        w2max = (4.0 / mat.rho0) * eig.real.max(axis=1)
+        w2bend = _bend_shear_omega2(B1, B2, area, sl, mat,
+                                    getattr(prop, "params", {}).get("thick", getattr(prop, "thick", 0.001)), 4, mat.rho0)
+        w2max = np.maximum(w2max, w2bend)
+        dt_exact = 2.0 / np.sqrt(np.maximum(w2max, EM20))
+        fac[sl] = np.minimum(dt_exact / np.maximum(lc[sl] / c, EM20), 1.0)
+    return fac
