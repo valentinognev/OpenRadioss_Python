@@ -176,6 +176,83 @@ run against an `Ists` deck on the oracle.
 
 ---
 
+## The shell CUDA kernels — declined, host dispatch ported (Task P3.11)
+
+**Status:** declined — option (b) of `plan/04_phase3_elements_shell.md`
+Task P3.11. This is a **decision record**, not a port extension: the four
+upstream files have no Python counterpart *by decision*, and the one part
+of that pipeline that is solver logic rather than throughput — *when* a
+shell group is routed to the GPU path, and what the fallback is — is
+ported in `pyradioss/accel/shell_gpu_dispatch.py` (a port, cited to its
+Fortran origins, not an extension).
+
+**Upstream search** (2026-10-13, against `$OR_SRC`, read-only):
+
+```console
+$ wc -l engine/source/elements/shell/coque/shell_*kernel*.cu \
+         engine/source/elements/shell/coque/shell_gpu_driver.[ch] \
+         engine/source/elements/shell/coque/shell_gpu_mod.F90 \
+         engine/source/elements/shell/coque/shell_gpu_data.h \
+         engine/source/elements/shell/coque/shell_internal_forces.F90
+  551  shell_geometry_kernel.cu
+  994  shell_strain_material_kernel.cu
+  708  shell_force_assembly_kernel.cu
+1315  shell_gpu_driver.cu
+  212  shell_gpu_driver.h
+1082  shell_gpu_mod.F90
+  232  shell_gpu_data.h
+1019  shell_internal_forces.F90
+```
+
+All four `.cu` files exist and carry the three `__global__` entry points
+`shell_geometry_kernel`, `shell_strain_material_kernel` and
+`shell_force_assembly_kernel`, launched from `shell_gpu_driver.cu` behind
+the `shell_gpu_mod.F90` ISO-C shim, which `resol.F` calls under
+`IF (GPU == 1)`.
+
+**Decision: decline.** The port's stated goal is readability, not GPU
+throughput, and the NumPy and numba backends already cover performance.
+The CUDA pipeline is ~3,900 lines of device code whose only ground truth
+would be a CUDA device: the open-source oracle cannot run it, so a
+transcription could never be parity-verified — and an unverifiable kernel
+is what this repository's provenance rules exist to keep out. What is
+*not* acceptable is silence, so the decision is recorded here.
+
+**What is ported instead — the host dispatch, which is solver logic.**
+`pyradioss/accel/shell_gpu_dispatch.py` transcribes the routing decision
+of `forintc_prepare_gpu` (`shell_internal_forces.F90:522-534`): a shell
+group goes to the GPU path only when it is a 4-node shell (`ITY=3`) with
+Johnson-Cook material (`MLW=2`), the group is active (`IPARG(8)/=1`),
+`NPT>0`, `JHBE<11` (standard formulation — not BATOZ/QEPH), `IGTYP<29`,
+`IXFEM=0`, `IFAILURE=0`, `NSECT=0`, `NEXMAD=0`, `NSLIPRING=0`,
+`ISEATBELT=0`, `ISUBSTACK=0`, `ISENS_ENERGY=0`, and the run was started
+with `-GPU` (`GPU=1`, `execargcheck.F:227`). It also ports the
+super-group homogeneity key (`NPT, ISMSTR, JHBE, ITHK, IPLA` — groups
+sharing it share one CUDA handle, `shell_internal_forces.F90:547-566`) and
+the `compute_sti` / `reduce_elem_dt` rule (`shell_internal_forces.F90:
+641-655`: the GPU element dt may lower DT2T only where the CPU `cdt3.F`
+would). `gpu_shell_available()` is `False` — no CuPy mirrors of the three
+kernels exist — and flips automatically if a future task adds them.
+
+**The fallback is the whole story here.** Every LAW2 shell group runs the
+CPU Fortran-faithful kernels (`shell_bt4.py` and its QBAT/QEPH
+siblings). Upstream, `resol.F` calls `gpu_shell_launch_async` BEFORE the
+CPU element work and `gpu_shell_sync_scatter` AFTER it, to hide GPU
+latency behind the CPU pipeline; with the kernels declined there is no
+async launch to make — the CPU path is not a degraded mode, it is the
+only mode. The existing CuPy mirrors `shell_pre` / `shell_post` in
+`accel/gpu_kernels` are **not** these kernels: they mirror the CPU
+Fortran `ccoor3.F` / `cdefo3.F` / `czforc3.F` / `chvis3.F` and exist
+independently of this decision.
+
+**Kept honest by:** `tests/test_p3_cuda_shell_kernels.py` —
+`test_gpu_shell_path_is_either_ported_or_declined` (this entry names all
+three kernels, or the port ships the GPU path), plus the predicate,
+super-group and `compute_sti` tests that pin the ported dispatch to the
+upstream branches.
+
+---
+
 ## Known misses outside this task's scope
 
 Generalising the citation scan from `pyradioss/elements/` to the whole
