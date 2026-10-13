@@ -113,11 +113,10 @@ finis", vol. 3; the Q4gamma24 / DKQ12-style shell):
   and normal force projection along nodal normals (cbacoorpinch.F, cbadefpinch.F,
   cbastra3pinch.F, cbaforipinch.F, cbapinchproj.F, cbapinchthk.F, cndt3pinch.F).
 
-* **Ithick**: thickness change without pinching is constant THK0 = deck value,
-  matching the c04-family decks (Ithick = 0). Idrill > 0 (ISROT) is NOT
-  ported — the deck reader does not surface Idrill; the Idrill=0 branch
-  (assumed constant membrane shear, no drilling stiffness) is what every
-  RD-E-1000 QBAT deck runs.
+* **Ithick**: CNCOEF3's ITHK gate is ported — 0 keeps deck THK0, 1 evolves
+  it (sigeps01c thinning + cbaforc3.F:865 relaxation; pinch owns its own).
+  Idrill > 0 (ISROT) is NOT ported — the deck reader does not surface
+  Idrill; the Idrill=0 branch is what every RD-E-1000 QBAT deck runs.
 
 Implicit: ``tangent()``/``kgeo()`` are DELIBERATELY not provided — a QBAT
 group in an /IMPL deck is refused by implicit/assembly.py's supported-
@@ -136,6 +135,7 @@ from .. import materials
 from ..common.constants import EM20, EP30, SHEAR_FACTOR
 from ..common.fastmath import scatter_add3
 from .shell_bt4 import _init_material_state, _layer_extra, _layer_failure
+from .shell_ithick import apply_qbat_thickness, thin_layer_increment
 from .shell_qbat_nip1 import _cbavisnp1, _fori_flat, _fori_np1, _nip_array
 
 #: 1/sqrt(3) — the Gauss abscissa PG of cbacoor.F/cbadef.F
@@ -1416,6 +1416,7 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
     vm = np.zeros((n, 2, 4))
     de = np.zeros(n)                             # eint increment
     dehg = np.zeros(n)                           # ehour increment (cbavisc)
+    dthk = np.zeros(n)                           # ITHK=1 thinning increment
 
     ops_f = []
     ops_w = []
@@ -1486,6 +1487,7 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
                 de[sl] += cdet_[sl] * wk * np.einsum("nk,nk->n", s_mid, deps)
                 npg_[sl] += wk[:, None] * s_new
                 mpg_[sl] += (wk * zk)[:, None] * s_new
+                dthk[sl] += thin_layer_increment(deps, wk, st["nu0"][sl], off[sl])
             # elastic transverse shear (per GP)
             qold = qsh[sl, ng].copy()
             dq = np.stack([exz[sl], eyz[sl]], axis=1)
@@ -1660,6 +1662,7 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
 
     st["eint"] += de
     st["ehour"] += dehg
+    apply_qbat_thickness(st, dthk, alive, has_pinch)
 
     # ---- CBAPROJ: local -> global, rigid projection, OFF -----------------
     jit_post = accel_get("qbat_post")

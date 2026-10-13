@@ -96,6 +96,7 @@ from .. import materials
 from . import shell_ortho, shell_qeph_ortho
 from .shell_bt4 import (_element_deletion, _init_material_state,
                         _layer_extra, _layer_failure)
+from .shell_ithick import apply_qeph_thickness, thin_layer_increment
 from ..common.constants import EM20, EP30, SHEAR_FACTOR
 from ..common.fastmath import cross3, norm3, scatter_add3
 
@@ -1141,6 +1142,7 @@ def forces(group, x, v, vr, dt, fint, mint):
     Nres = np.zeros((n, 3))
     Mres = np.zeros((n, 3))
     de_layers = np.zeros(n)
+    dthk = np.zeros(n)                       # ITHK=1 thinning increment
     nip_of = []
     ortho_all = st.get("ortho")
     area = G["area"]
@@ -1172,6 +1174,7 @@ def forces(group, x, v, vr, dt, fint, mint):
             s_res = shell_ortho.rot_stress_m2e(s_new, cs) if cs is not None else s_new
             Nres[sl] += wk[:, None] * s_res
             Mres[sl] += (wk * zk)[:, None] * s_res
+            dthk[sl] += thin_layer_increment(deps, wk, getattr(mat, "nu", 0.3), st["off"][sl])
         qold = st["qshear"][sl].copy()
         st["qshear"][sl] += st["gs"][sl][:, None] * gsr2[sl] * dt
         de_layers[sl] += t_sl * np.einsum(
@@ -1212,6 +1215,7 @@ def forces(group, x, v, vr, dt, fint, mint):
         fg, mg, dt_e = jit_post(thick, Nres, Mres, qres, st["amu"], st["cspd"], st["yld"], st["fmat"], vhg, dt, alive, plat, vqn, di, db, G["E"], G["area"], G["a_i"], G["z1"], G["corx"], G["cory"], G["x13"], G["x24"], G["y13"], G["y24"], G["mx13"], G["mx23"], G["mx34"], G["my13"], G["my23"], G["my34"], G["l13"], G["l24"], G["ll"], G["lm"], st["a11"], st["a12"], st["npt1"], st["gs"], st["hgstr"])
     else:
         fg, mg, dt_e = _post(G, thick, Nres, Mres, qres, st, vhg, dt, alive, plat, vqn, di, db)
+    apply_qeph_thickness(st, dthk, alive)
 
     flat = conn.reshape(-1)
     if fint is not None:
