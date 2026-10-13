@@ -83,11 +83,14 @@ finis", vol. 3; the Q4gamma24 / DKQ12-style shell):
   N = t C e, M = t^3/12 C kappa EXACTLY (2+ point Gauss integrates z^0
   and z^2 exactly); for elastoplastic laws the layered stack is the
   DOCUMENTED approximation of the unported resultant-plasticity law.
-  Deviation from upstream for nip = 1 (membrane-only + CBAVISNP1 rotation
-  damping, forced-flat): NOT ported — the port runs its layered path with
-  SHF = 0 (cncoef3.F lines 403-406 zeroes the shear factor at NPT==1, so
-  the transverse shear vanishes identically like upstream); no official
-  deck runs QBAT at N=1.
+  nip = 1 runs the single-point branch (P3.7): CBADEF1 membrane-only
+  velocity strains, the distinct CBAFORI1 force assembly, SHF = 0
+  (cncoef3.F zeroes the shear factor at NPT==1, so the transverse shear
+  vanishes identically like upstream), forced-flat (cbacoor.F 'OR NPT==1'),
+  and the CBAVISNP1 rotation damping (opposite z-forces on slots 3/4, TESY
+  work into the hourglass ledger); the group NIP is stored in
+  ``state["NIP"]`` (scalar when uniform). No official deck runs QBAT at
+  N=1, so this branch is covered by synthetic one-element tests.
 
 * **Numerical damping** (cbavisc.F): membrane FOR += 1.414*dn*rho*ssp*
   sqrt(CDET) * C_nu(rates), bending MOM += 0.3*t*that; dn defaults to
@@ -133,6 +136,7 @@ from .. import materials
 from ..common.constants import EM20, EP30, SHEAR_FACTOR
 from ..common.fastmath import scatter_add3
 from .shell_bt4 import _init_material_state, _layer_extra, _layer_failure
+from .shell_qbat_nip1 import _cbavisnp1, _fori_flat, _fori_np1, _nip_array
 
 #: 1/sqrt(3) — the Gauss abscissa PG of cbacoor.F/cbadef.F
 _PG = 0.577350269189626
@@ -286,6 +290,7 @@ def init_group(group, model, log):
     amu = np.zeros(n)
     ssp = np.zeros(n)
     nip_max = 1
+    nip_vals = []
     for sl, mat, prop in group.state["slices"]:
         params = getattr(prop, "params", {})
         thick[sl] = params.get("thick") if "thick" in params else getattr(prop, "thick", 0.0)
@@ -306,12 +311,7 @@ def init_group(group, model, log):
         amu[sl] = dn_val if dn_val > 0.0 else _DN_DEFAULT
         nip_val = int(params.get("nip", 1)) if "nip" in params else getattr(prop, "nip", 1)
         nip_max = max(nip_max, nip_val)
-        if nip_val == 1 and log is not None:
-            log.warning(
-                f"/PROP/SHELL/{getattr(prop, 'id', 0)}: QBAT with N=1 runs the layered "
-                f"path with SHF=0 (membrane-only, cncoef3.F NPT==1); the "
-                f"upstream CBAFORI1/CBAVISNP1 branch is not ported",
-                "SHELL INIT")
+        nip_vals.append(nip_val)
 
     # QBAT pinching detection (cbacoorpinch.F / sigeps01gpinch.F)
     ipinch = bool(group.state.get("ipinch", False) or any(
@@ -359,6 +359,9 @@ def init_group(group, model, log):
         ehour=np.zeros(n),             # cbavisc.F work -> PARTSAV(8) slot
         zw=zw,
         nip_max=nip_max,
+        NIP=(int(nip_vals[0]) if nip_vals and all(
+            v == nip_vals[0] for v in nip_vals) else _nip_array(
+                n, group.state["slices"], nip_vals)),
         ipinch=ipinch,
         vpinch=np.zeros((n, 4, 3)),
         fpinch=np.zeros((n, 4, 3)),
@@ -1385,13 +1388,23 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
     # per-slice constants
     gs_mod = np.zeros(n)                          # GS = G*SHF (0 if nip==1)
     bend_visc = np.ones(n)                        # cbavisc.F 'NPT /= 1' gate
+    nip_e = np.zeros(n, dtype=np.int64)           # through-thickness points
+    gshear = np.zeros(n)                          # G for CBAVISNP1 (NPT==1)
     for isl, (sl, mat, prop) in enumerate(st["slices"]):
         if getattr(mat, "law", 1) == 0:
             continue
         nip = len(st["zw"][isl][0])
-        gs_mod[sl] = 0.0 if nip == 1 else SHEAR_FACTOR * (getattr(mat, "G", 0.0) or getattr(mat, "g5", 0.0) or getattr(mat, "g0", 0.0))
+        nip_e[sl] = nip
+        gshear[sl] = (getattr(mat, "G", 0.0) or getattr(mat, "g5", 0.0)
+                      or getattr(mat, "g0", 0.0))
+        gs_mod[sl] = 0.0 if nip == 1 else SHEAR_FACTOR * gshear[sl]
         if nip == 1:
             bend_visc[sl] = 0.0
+
+    # single-point rows: NPT==1 elements are forced FLAT (cbacoor.F line 444
+    # 'OR NPT==1'), so nip1 is a subset of i_f on the numpy path.
+    nip1 = nip_e == 1
+    has_nip1 = bool(np.any(nip1))
 
     sig = st["sig"]
     qsh = st["qshear"]
@@ -1428,6 +1441,12 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
             else:
                 ops_w.append(None)
             vdef_[:, 2] = vdef3
+
+        if has_nip1:
+            # CBADEF1 (cbadef.F, the NPT==1 leg): membrane-only velocity
+            # strains — VDEF(4:8) (transverse shear + bending) are zero and
+            # VDEF(3) keeps the CBADEFSH constant assumed shear from vdef3.
+            vdef_[nip1, 3:8] = 0.0
 
         # strains (cbastra3.F): EXZ=VDEF4, EYZ=VDEF5
         exx = vdef_[:, 0] * dt
@@ -1569,12 +1588,24 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
         forpg[:, ng, 4] = qsh[:, ng, 0]          # FOR(5) = sig_zx
         mompg[:, ng] = mpg_v * (t_i ** 2)[:, None]
 
-        # ---- CBAFORI: internal force assembly ----------------------------
+        # ---- CBAFORI / CBAFORI1: internal force assembly ------------------
         q_pg = qsh[:, ng] * thick[:, None]       # physical [q_xz, q_yz]
         if jit_pre is None:
             if len(i_f):
-                _fori_flat(vf, vm, g, ops_f[ng][0], ops_f[ng][1],
-                           cdet_, npg_v, mpg_v, q_pg)
+                if has_nip1:
+                    # NPT==1 rows take the distinct CBAFORI1 membrane-only
+                    # assembly; the rest take the standard CBAFORI leg.
+                    m1 = nip1[i_f]
+                    if np.any(m1):
+                        _fori_np1(vf, g, ops_f[ng][0], cdet_, npg_v, m1)
+                    m2 = ~m1
+                    if np.any(m2):
+                        _fori_flat(vf, vm, dict(g, i_f=i_f[m2]),
+                                   ops_f[ng][0][m2], ops_f[ng][1][m2],
+                                   cdet_, npg_v, mpg_v, q_pg)
+                else:
+                    _fori_flat(vf, vm, g, ops_f[ng][0], ops_f[ng][1],
+                               cdet_, npg_v, mpg_v, q_pg)
             if len(i_w):
                 _fori_warp(vf, vm, g, ops_w[ng], cdet_, npg_v, mpg_v, q_pg)
 
@@ -1608,6 +1639,12 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
 
     # CBAENERS (post): + FOR3_mean_new * vdef3 * A*t*dt/2
     de += off * volg * dt * 0.5 * for_mean[:, 2] * vdef3
+
+    # CBAVISNP1 (cbaforc3 line ~999): rotation-damping z-forces + TESY work,
+    # NPT==1 only. Runs after CBAFORCT/CBAENERS like upstream, before CBAPROJ.
+    if has_nip1 and jit_pre is None:
+        _cbavisnp1(vf, g, nip1, gshear, st["rho0"], st["amu"], off,
+                   thick, area, dt, dehg)
 
     # ---- element deletion from the layer flags ---------------------------
     if st["chk_fail"]:
@@ -1657,47 +1694,6 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
         if getattr(mat, "law", 1) == 0:
             is_void[sl] = True
     return np.where(alive & (~is_void) & (st["ssp0"] > 0.0), dt_e, EP30)
-
-
-def _fori_flat(vf, vm, g, bm, bc, cdet, npg, mpg, q_pg):
-    """CBAFORI flat branch (cbafori.F lines 73-119): physical resultants,
-    factors C2 -> CDET (forces) and C1 -> CDET (moments) after the
-    FF = sigma / MM = M/t^2 unit reductions cancel THK0/TH12."""
-    i = g["i_f"]
-    c = cdet[i]
-    n1, n2 = npg[i, 0], npg[i, 1]
-    m1, m2, m3 = mpg[i, 0], mpg[i, 1], mpg[i, 2]
-    qx, qy = q_pg[i, 0], q_pg[i, 1]
-    cm1 = c * (bm[:, 6] * m2 + bm[:, 2] * m3)
-    cm2 = c * (bm[:, 2] * m1 + bm[:, 6] * m3)
-    cc1 = c * (bc[:, 14] * qx + bc[:, 15] * qy)
-    cc2 = c * (bc[:, 16] * qx + bc[:, 17] * qy)
-    vf[i, 0, 0] += c * bm[:, 0] * n1
-    vf[i, 1, 0] += c * bm[:, 4] * n2
-    vf[i, 2, 0] += c * (bc[:, 0] * qx + bc[:, 1] * qy)
-    vm[i, 0, 0] += c * (bc[:, 2] * qx + bc[:, 3] * qy) \
-        - c * (bm[:, 4] * m2 + bm[:, 0] * m3)
-    vm[i, 1, 0] += c * (bc[:, 4] * qx + bc[:, 5] * qy) \
-        + c * (bm[:, 0] * m1 + bm[:, 4] * m3)
-    vf[i, 0, 2] += c * bm[:, 2] * n1
-    vf[i, 1, 2] += c * bm[:, 6] * n2
-    vf[i, 2, 2] += c * (bc[:, 12] * qx + bc[:, 13] * qy)
-    vm[i, 0, 2] += cc1 - cm1
-    vm[i, 1, 2] += cc2 + cm2
-    vf[i, 0, 1] += c * bm[:, 1] * n1
-    vf[i, 1, 1] += c * bm[:, 5] * n2
-    vf[i, 2, 1] += c * (bc[:, 6] * qx + bc[:, 7] * qy)
-    vm[i, 0, 1] += c * (bc[:, 8] * qx + bc[:, 9] * qy) \
-        - c * (bm[:, 5] * m2 + bm[:, 1] * m3)
-    vm[i, 1, 1] += c * (bc[:, 10] * qx + bc[:, 11] * qy) \
-        + c * (bm[:, 1] * m1 + bm[:, 5] * m3)
-    # slot 4 = -slot 3 for the forces (assigned per cycle in the Fortran,
-    # equivalent to mirroring the accumulation)
-    vf[i, 0, 3] = -vf[i, 0, 2]
-    vf[i, 1, 3] = -vf[i, 1, 2]
-    vf[i, 2, 3] = -vf[i, 2, 2]
-    vm[i, 0, 3] += cc1 + cm1
-    vm[i, 1, 3] += cc2 - cm2
 
 
 def _fori_warp(vf, vm, g, ops, cdet, npg, mpg, q_pg):
