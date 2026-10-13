@@ -35,14 +35,14 @@ reason naming every place that was looked at when it is not.
 
 And a **second real oracle deck**
 (``test_the_stride_measurement_holds_on_a_second_real_oracle_t01``): the golden
-is a 4-records-per-step T01, and the shared walk
-(``tools.oracle.oracle_selftest.parse_t01``) fixes the per-step stride at four.
-The stride is really a property of the deck's ``/TH`` requests -- measured on
+is a 4-records-per-step T01, and the stride is really a property of the deck's
+``/TH`` requests -- measured on
 ``RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.6/ROLLING`` it is **6** (9630 records,
 1605 steps, ``[4, 92, 36, 64, 264, 36]``), with no ``/TH/SUBSET`` card in the
 deck at all -- so one live oracle run re-measures that here rather than trusting
-the number in the module docstring, and pins the refusal that follows.  Skips
-loudly without an oracle or without the deck in the live corpus.
+the number in the module docstring, and pins that the reader **decodes** it:
+the shared walk derives the stride from the header instead of fixing it at
+four.  Skips loudly without an oracle or without the deck in the live corpus.
 
 The run stamp
 -------------
@@ -177,12 +177,15 @@ def test_the_stride_measurement_holds_on_a_second_real_oracle_t01(batoz_t01):
     1605 steps of **6** records (``[4, 92, 36, 64, 264, 36]`` bytes) and says the
     extra records come from the ``/TH`` group block rather than the subset block.
     If a future edit to the reader, to upstream, or to the deck made that false,
-    this test is what notices -- and it also pins the refusal: the reader must
-    still refuse this file, with that measurement in the message.
+    this test is what notices -- and it also pins that the reader **decodes**
+    the file: the shared walk derives the stride from the header instead of
+    fixing it at four.
     """
-    from tools.compare_t01 import (T01FormatError, _hierarchy_and_nglobth,
+    import numpy as np
+
+    from tools.compare_t01 import (_hierarchy_and_nglobth,
                                    _per_step_stride, read_t01)
-    from tools.oracle.oracle_selftest import t01_records
+    from tools.oracle.oracle_selftest import parse_t01, t01_records
 
     records = t01_records(batoz_t01.read_bytes())
     payloads = [p for _, p in records]
@@ -199,11 +202,20 @@ def test_the_stride_measurement_holds_on_a_second_real_oracle_t01(batoz_t01):
     assert (stride, shape, steps) == (6, (4, 92, 36, 64, 264, 36), 1605), measured
     assert stride * steps == 9630, "the data section is 9630 records"
 
-    with pytest.raises(T01FormatError) as caught:
-        read_t01(batoz_t01)
-    message = str(caught.value)
-    assert "9630 records = 1605 steps of 6" in message, message
-    assert "[4, 92, 36, 64, 264, 36]" in message, message
+    parsed = parse_t01(batoz_t01.read_bytes())
+    assert parsed["n_steps"] == 1605, parsed["n_steps"]
+    assert parsed["stride_records"] == 6, parsed["stride_records"]
+    assert parsed["channels_per_step"]["global"] == 23
+    assert parsed["channels_per_step"]["part"] == 9, (
+        parsed["channels_per_step"])
+
+    got = read_t01(batoz_t01)
+    assert got.n_steps == 1605
+    assert len(got.channels) == 23 + 9, got.channels
+    assert np.all(np.diff(got.times) >= 0), "sample times must not go backwards"
+    assert np.all(np.isfinite(got.values))
+    with pytest.raises(KeyError, match="no channel"):
+        got.column("NO_SUCH_CHANNEL")
 
 
 @pytest.fixture(scope="module")
@@ -780,11 +792,9 @@ def test_the_hierarchy_is_not_mistaken_for_a_part_curve_code_record():
 
     The check is on :func:`tools.compare_t01._hierarchy_and_nglobth` directly
     rather than through :func:`read_t01`, because the *shared* walk
-    (``tools.oracle.oracle_selftest.parse_t01``) has the same first-match
-    weakness and would fail first -- with a misleading message about a "32-byte
-    global block".  That is a finding, not something this task fixes in another
-    task's module; it belongs with the stride work (see the module docstring's
-    "Per-step stride").
+    (``tools.oracle.oracle_selftest.parse_t01``) carries the same predecessor
+    check (fixed with the stride work) and the unit under test is the scan
+    itself, not the whole decode.
     """
     from tools.compare_t01 import _hierarchy_and_nglobth
     from tools.oracle.oracle_selftest import t01_records

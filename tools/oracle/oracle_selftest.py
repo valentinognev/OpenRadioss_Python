@@ -431,13 +431,30 @@ def _nglobth(records: Sequence[Tuple[int, bytes]]) -> Tuple[int, int]:
     therefore comes from the file instead of being assumed to be 23, and the
     index anchors the header walk (the hierarchy record is the one just before
     it, ``hist1.F:293-308``).
+
+    The **predecessor check is what makes that unambiguous**: a part
+    curve-code record (``hist1.F:376``) is also a run of int32, so a part that
+    asked for exactly codes ``1..8`` would match -- and the 60-byte part
+    description ahead of it (``hist1.F:357-366``) reinterpreted as six int32
+    gives ``IPART(4,N)`` followed by the first five words of the title, which
+    is a plausible-looking hierarchy with garbage in it.  So a candidate is
+    accepted only when the record ahead of it yields six int32 whose **sixth
+    equals ``n``** -- which is what ``hist1.F:300-316`` guarantees, since
+    ``IWA(6) = NGLOBTH`` is what ``WRTDES`` writes right after the six-integer
+    hierarchy record.
     """
     for index, (_, payload) in enumerate(records):
-        if len(payload) < 32 or len(payload) % 4:
+        if len(payload) < 32 or len(payload) % 4 or index == 0:
             continue
         values = _as_ints(payload)
-        if values == list(range(1, len(values) + 1)):
-            return len(values), index
+        if values != list(range(1, len(values) + 1)):
+            continue
+        if len(records[index - 1][1]) < 24:
+            continue
+        hierarchy = _as_ints(records[index - 1][1][:24])
+        if len(hierarchy) != 6 or hierarchy[5] != len(values):
+            continue          # not the hierarchy/curve-code pair hist1.F writes
+        return len(values), index
     raise T01FormatError(
         "no 1..N integer record found; hist1.F:311-316 writes one right after "
         "the hierarchy record when the T01 is the global history file"
@@ -483,7 +500,10 @@ def _header_codes(records: Sequence[Tuple[int, bytes]], nglo_index: int,
       the ``NVAR`` curve codes (``:509-513``);
     * ``NTHGRP2`` TH-group blocks (``:516-600``): five int32 then the title
       (``:545-553``), one int32+title per curve (``:556-584``), then the
-      ``NVAR`` curve codes (``:585-587``).
+      ``NVAR`` curve codes (``:585-587``).  The member count (``ITHGRP(4,N)``)
+      is returned alongside as ``group_nn``: the per-step record holds
+      ``NN*NVAR`` values (member-major, ``hist2.F:979-1403``) while the codes
+      are the ``NVAR`` variable list shared by every member.
 
     Anything else the header holds (the two additional records of
     ``hist1.F:237-291``, which only a ``TH_VERS>=50`` file carries, and the
@@ -541,6 +561,7 @@ def _header_codes(records: Sequence[Tuple[int, bytes]], nglo_index: int,
         return _as_ints(payload)
 
     out: Dict[str, List[List[int]]] = {"part": [], "subset": [], "group": []}
+    group_nn: List[int] = []
     for n in range(n_part_tot):
         who = f"part {n + 1}"
         nvar = description(1, 4, who)[-1]              # hist1.F:357-366
@@ -558,28 +579,42 @@ def _header_codes(records: Sequence[Tuple[int, bytes]], nglo_index: int,
     for n in range(n_grp):
         who = f"TH group {n + 1}"
         head = description(5, 0, who)                  # hist1.F:545-553
+        group_nn.append(head[3])  # ITHGRP(4,N): the member count; hist2.F
+        # writes NN*NVAR values per step for this group (member-major --
+        # THKIN at thkin.F:51-60, WRTDES0(NGROUP,WA,NN*NVAR) at
+        # hist2.F:1015), while the NVAR curve codes below are the variable
+        # list shared by every member.
         for j in range(head[3]):                       # ITHGRP(4,N) curves
             description(1, 0, f"{who} curve {j + 1}")  # :561-581
         out["group"].append(run(head[4], f"{who} curve codes"))   # :585-587
     out["hierarchy"] = hierarchy
+    out["group_nn"] = group_nn
     out["consumed"] = cursor["i"]
     return out
 
 
 def parse_t01(blob: bytes) -> Dict:
-    """Decode an ``ITTYP==3`` T01 into its header facts and its four step blocks.
+    """Decode an ``ITTYP==3`` T01 into its header facts and its step blocks.
 
     Per step ``hist2.F`` writes, in this order: ``TT`` (one value, :302-303),
-    the ``NGLOBTH`` global channels (:307-333), the per-part values (:338-477),
-    the subset values (:478-606, absent when every subset requests nothing) and
-    the TH-group values (:608-1403).  The stride is validated across every step,
-    so a shape this module did not expect is an error and not a mis-parsed.
+    the ``NGLOBTH`` global channels (:307-333), the per-part values (:338-477,
+    one record for all parts, absent when no part requests a curve), the
+    subset values (:478-606, absent when every subset requests nothing) and
+    one record per ``/TH`` group with curves (:608-1403).  The per-step stride
+    is therefore a property of the deck's ``/TH`` requests, not of the format
+    -- 4 records for the golden deck, 6 for a deck with three ``/TH``
+    families.  It is derived from the header (the per-part ``NVAR`` sum, the
+    per-subset ``NVAR`` sum, one record per TH group with curves) and
+    validated across every step, so a shape the header does not describe is an
+    error and not a mis-parse.
 
     The returned ``part_codes`` / ``subset_codes`` / ``group_codes`` are per
     GROUP (a list per part / subset / TH group), read out of the header by
     :func:`_header_codes`; ``channels_per_step`` says how many values each block
     carries per step, so a multi-part model's codes and its block width can be
-    compared by the caller.
+    compared by the caller.  ``th_group`` concatenates one step's per-group
+    records in header order; ``subset`` is empty for a deck whose subsets
+    request nothing.
     """
     records = t01_records(blob)
     if len(records) < 8:
@@ -609,31 +644,58 @@ def parse_t01(blob: bytes) -> Dict:
         ]
     else:
         header["unparsed_records"] = []
+    # The per-step block, derived from the header rather than fixed: TT and
+    # the globals always, then the part record unless no part asked for a
+    # curve (hist2.F:338-477 writes it only when II/=0), then the subset
+    # record unless no subset asked for one (:478-606, same guard), then one
+    # record per TH group with curves (:608-1403).
+    n_part = sum(len(codes) for codes in header["part"])
+    n_subset = sum(len(codes) for codes in header["subset"])
+    group_sizes = [nn * len(codes)
+                   for codes, nn in zip(header["group"], header["group_nn"])
+                   if codes]
+    expected = [4, glob_bytes]
+    if n_part:
+        expected.append(4 * n_part)
+    if n_subset:
+        expected.append(4 * n_subset)
+    expected.extend(4 * size for size in group_sizes)
+    stride = len(expected)
+    shape = tuple(expected)
     body = records[start:]
-    if len(body) % 4:
+    if len(body) % stride:
         raise T01FormatError(
-            f"data section has {len(body)} records, not a multiple of 4; the "
-            "per-step block shape is not what hist2.F writes"
+            f"data section has {len(body)} records, not a multiple of "
+            f"{stride}; the per-step block shape is not what hist2.F writes"
         )
-    n_blocks = len(body) // 4
-    shape = tuple(len(body[j][1]) for j in range(4))
-    for k in range(1, n_blocks):
-        other = tuple(len(body[4 * k + j][1]) for j in range(4))
+    n_blocks = len(body) // stride
+    for k in range(n_blocks):
+        other = tuple(len(body[stride * k + j][1]) for j in range(stride))
         if other != shape:
             raise T01FormatError(
                 f"per-step block {k} has record lengths {other}, expected "
                 f"{shape}; the block shape is not uniform"
             )
-    if shape[1] != glob_bytes or shape[0] != 4:
-        raise T01FormatError(
-            f"per-step block is {shape}, expected a 4-byte TT record followed "
-            f"by the {glob_bytes}-byte global block (hist2.F:302-303, :307-333)"
-        )
 
     def column(j: int) -> np.ndarray:
-        rows = [np.frombuffer(body[4 * k + j][1], dtype=">f4")
+        rows = [np.frombuffer(body[stride * k + j][1], dtype=">f4")
                 for k in range(n_blocks)]
         return np.array(rows, dtype=np.float64)
+
+    cursor = 2
+    if n_part:
+        part = column(cursor)
+        cursor += 1
+    else:
+        part = np.zeros((n_blocks, 0), dtype=np.float64)
+    if n_subset:
+        subset = column(cursor)
+        cursor += 1
+    else:
+        subset = np.zeros((n_blocks, 0), dtype=np.float64)
+    groups = [column(cursor + j) for j in range(len(group_sizes))]
+    th_group = (np.concatenate(groups, axis=1).astype(np.float64)
+                if groups else np.zeros((n_blocks, 0), dtype=np.float64))
 
     return {
         "n_nglobth": nglo,
@@ -649,15 +711,19 @@ def parse_t01(blob: bytes) -> Dict:
         "channels_per_step": {
             "time": 1,
             "global": nglo,
-            "part": shape[2] // 4,
-            "th_group": shape[3] // 4,
+            "part": n_part,
+            "th_group": sum(group_sizes),
         },
         "t_first": float(column(0)[0, 0]),
         "t_last": float(column(0)[-1, 0]),
         "time": column(0)[:, 0],
         "global": column(1),
-        "part": column(2),
-        "th_group": column(3),
+        "part": part,
+        "subset": subset,
+        "th_group": th_group,
+        "stride_records": stride,
+        "group_block_sizes": group_sizes,
+        "group_nn": header["group_nn"],
         "part_codes": header["part"],
         "subset_codes": header["subset"],
         "group_codes": header["group"],
@@ -717,6 +783,13 @@ def channel_maxima(parsed: Dict) -> Dict:
     * the TH-group (``/TH/NODE`` …) channels -- ``varn1_title``,
       ``th_titles.F90:168-189``.
 
+    A TH group with ``NN`` members carries ``NN*NVAR`` values per step
+    (member-major, ``hist2.F:979-1403``) while its header lists the ``NVAR``
+    variable codes once, so the codes are expanded member-major here and a
+    repeated channel carries ``member`` (1-based).  A single-member group --
+    the golden deck's case -- expands to itself and carries no ``member``
+    key, so the stored record is unchanged.
+
     Subset channels are the one gap: ``hist2.F`` writes them only when a subset
     requests a curve (``:481``, ``II/=0`` at ``:606``), so there is no block for
     a deck that requests none, and this deck's single subset requests none.  A
@@ -740,15 +813,33 @@ def channel_maxima(parsed: Dict) -> Dict:
     if any(codes for codes in parsed["subset_codes"]):
         raise T01FormatError(
             "this T01 carries subset curve codes; per-subset maxima are not "
-            "recorded (no per-subset block is decoded) -- transcribe the subset "
-            "table and extend channel_maxima rather than losing them silently"
+            "recorded (no per-subset name table is transcribed) -- transcribe "
+            "the subset table and extend channel_maxima rather than losing "
+            "them silently"
         )
     part_out = _named_maxima(
         parsed["part"], [c for codes in part_codes for c in codes],
         PART_CHANNEL_TITLES, "varpa_title", "part")
+    group_codes = parsed["group_codes"]
+    group_nn = parsed["group_nn"]
+    if len(group_nn) != len(group_codes):
+        raise T01FormatError(
+            f"{len(group_codes)} TH-group code list(s) for {len(group_nn)} "
+            f"member count(s)")
+    expanded: List[int] = []
+    members: List[Optional[int]] = []
+    for codes, nn in zip(group_codes, group_nn):
+        if not codes:
+            continue
+        for member in range(1, nn + 1):
+            expanded.extend(int(code) for code in codes)
+            members.extend([member if nn > 1 else None] * len(codes))
     group_out = _named_maxima(
-        parsed["th_group"], [c for codes in parsed["group_codes"] for c in codes],
+        parsed["th_group"], expanded,
         NODAL_CHANNEL_TITLES, "varn1_title", "TH group")
+    for entry, member in zip(group_out, members):
+        if member is not None:
+            entry["member"] = member
 
     return {"global": globals_out, "part": part_out, "th_group": group_out}
 

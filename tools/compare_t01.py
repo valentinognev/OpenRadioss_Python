@@ -32,9 +32,8 @@ test_stored_golden_t01_reproduces_the_stored_maxima``).  One record walk in the
 program, two consumers.  What this module adds on top is the part the golden
 record has no use for: the channel **names**, the header facts (format code,
 title width, unit scaling), upstream's exact value decoder, and the scorer.
-Generalising the per-step record stride belongs in that shared walk, not in a
-second reader; the measured truth about it is in "Per-step stride" below, and
-**the fix belongs there, before Phase 12 relies on this note**.
+The per-step stride generalisation lives in that shared walk (see "Per-step
+stride" below); the measured truth about it is quoted there.
 
 Upstream Fortran origins (``$OR_SRC`` = the read-only OpenCourant tree)
 ----------------------------------------------------------------------
@@ -123,28 +122,20 @@ so a verdict produced here means what a historical verdict meant.  Fewer than
 :data:`MIN_SAMPLES` comparable samples is ``NODATA`` (the harness uses three,
 this scorer two: the brief's own synthetic case scores two samples).
 
-Per-step stride: variable, and measured here, not guessed
---------------------------------------------------------
-``tools.oracle.oracle_selftest.parse_t01`` -- the shared walk -- fixes the
-per-step record count at **four**.  That is right for the committed golden and
-wrong for most decks, and the count is a property of *the deck's ``/TH``
-requests*, not of the format.  What ``hist2.F`` writes per step, in order:
+Per-step stride: variable, derived from the header
+--------------------------------------------------
+``tools.oracle.oracle_selftest.parse_t01`` -- the shared walk -- derives the
+per-step record count from the header: ``TT`` (one value, always,
+``hist2.F:302-303``) and the ``NGLOBTH`` global block (``:307-333``) always,
+then the part record unless no part asked for a curve (``:338-477``, written
+only when ``II/=0`` at ``:475``), then the subset record unless no subset
+asked for one (``:478-607``, same guard at ``:606``), then one record per
+``/TH`` group with curves (``:608-1403``), each holding ``NN*NVAR`` values
+member-major (``THKIN`` at ``thkin.F:51-60`` builds exactly that order, and
+``WRTDES0(NGROUP,WA,NN*NVAR,ITTYP)`` at ``hist2.F:1015`` is the same shape).
 
-* ``TT`` -- one value, always (``:302-303``);
-* the ``NGLOBTH`` global block, when this unit is the global history file
-  (``:307-333``);
-* one part block, when any part asked for curves (``:338-477``);
-* one subset block, when any subset asked for curves (``:481-607``) -- note
-  ``NSUBS`` is **never** zero: ``starter/source/starter/contrl.F:671-673`` does
-  ``CALL HM_OPTION_COUNT('SUBSET',NSUBS)`` and then ``NSUBS = NSUBS+1``
-  ("add 1 : for global subset"), so the guard at ``hist2.F:481`` is always open
-  and it is the *global* subset's ``NVARTH`` that decides whether a record
-  appears;
-* one record **per /TH group with curves** (``:608-1403``) -- ``/TH/NODE``,
-  ``/TH/SHEL``, ``/TH/PART``, ``/TH/RBODY``, sensors, interfaces, ... each
-  contributing its own record, sized by its members times its variables.
-
-Measured on this box, 2026-10-03, on the real oracle:
+The count is therefore a property of *the deck's ``/TH`` requests*, not of
+the format.  Measured on this box, on the real oracle:
 
 * ``examples/tensile_bar`` (the committed golden): **100 steps of 4 records**,
   ``[4, 92, 8, 8]`` bytes = ``TT``, the 23 globals, the part block (1 part x 2
@@ -155,23 +146,17 @@ Measured on this box, 2026-10-03, on the real oracle:
   variables), ``/TH/SHEL`` (6 elements x 11 variables) and ``/TH/RBODY`` (9
   variables).
 
-9630 records = 1605 steps x 6, and **stride 5 does not match** (checked
-mechanically: every step's record-length tuple is identical).  The BATOZ deck
-carries **no ``/TH/SUBSET`` card at all** -- its ``/TH`` requests are
-``/TH/SHEL``, ``/TH/PART``, ``/TH/RBODY``, ``/TH/NODE`` -- and its own hierarchy
-record is ``(1, 2, 1, 1, 3, 23)`` with ``NSUBS = 1``, i.e. the global subset
-alone, whose header record shows ``NVAR = 0``, so it contributes no record.  The
-extra records therefore come from the ordinary ``/TH`` group block
-(``:608-1403``), **not** from ``:478-607``.
+9630 records = 1605 steps x 6.  Note that the hierarchy record's ``NSUBS`` is
+**never** zero -- ``starter/source/starter/contrl.F:671-673`` does
+``CALL HM_OPTION_COUNT('SUBSET',NSUBS)`` and then ``NSUBS = NSUBS+1``
+("add 1 : for global subset") -- so the subset record's presence is decided
+by its ``NVAR``, not by the count; the BATOZ deck carries **no
+``/TH/SUBSET`` card at all** and its global subset's ``NVAR`` is 0, so it
+contributes no record either way.
 
-So the reader refuses such a file -- loudly, and with the measured stride in the
-message (:func:`_per_step_stride` computes it) rather than with a guess.  The
-fix belongs **here, in the shared walk, before Phase 12 relies on this note**:
-``parse_t01`` should derive the stride from the header (the per-part ``NVAR``
-sum of ``hist1.F:357-376``, the per-subset ``NVAR`` of ``:486-513``, and one
-record per /TH group with curves) instead of fixing it at four, and both
-consumers should be re-run against the BATOZ T01.  Until that happens this
-reader inherits the limitation instead of hiding it.
+:func:`_per_step_stride` still measures the stride straight from the record
+lengths -- the diagnostic a refusal quotes when a file's block matches no
+header-derived stride at all.
 
 Deliberate deviation from the brief
 -----------------------------------
@@ -704,8 +689,9 @@ def _per_step_stride(payloads: Sequence[bytes], nglo: int
     module docstring's "Per-step stride": it is 4 for the committed golden and 6
     for a deck with three ``/TH`` families).  ``None`` when nothing repeats.
 
-    This is diagnostics, not a second reader: it decodes no value and the reader
-    still refuses the file it is describing.
+    This is diagnostics, not a second reader: it decodes no value.  A refusal
+    for a file whose block matches no header-derived stride quotes this
+    measurement.
     """
     start = None
     for index in range(len(payloads) - 1):
@@ -737,8 +723,8 @@ def _stride_report(payloads: Sequence[bytes], nglo: int) -> str:
     stride, shape, steps = measured
     return (f"measured on this file: the data section is "
             f"{stride * steps} records = {steps} steps of {stride} "
-            f"(record lengths {list(shape)} bytes), which the shared walk's "
-            f"fixed stride of 4 does not describe")
+            f"(record lengths {list(shape)} bytes), which matches no "
+            f"header-derived stride the shared walk describes")
 
 
 def read_t01(path) -> T01:
@@ -751,9 +737,9 @@ def read_t01(path) -> T01:
     title, ``IPART(7,N)``, the node bounds and ``NVAR``), so the position in the
     file is the only identity available and the curve code is the only variable
     identity.  Subset, TH-group and per-node curve records are part of the
-    per-step block; a deck whose per-step stride is not the four the shared walk
-    fixes is refused with the stride **measured** on the file (see "Per-step
-    stride"), and those blocks are never named even when they are walked:
+    per-step block and are walked -- the stride is derived from the header, so
+    a six-record step decodes like a four-record one (see "Per-step stride")
+    -- but those blocks are never named even when they are walked:
     upstream ships no name table for them without the object-type dispatch
     ``hist2.F:608-1403`` performs, and no channel name is invented here.
 
