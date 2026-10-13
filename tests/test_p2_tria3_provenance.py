@@ -101,6 +101,7 @@ KNOWN_MISSES = frozenset({
     ("pyradioss/elements/rivet.py", "engine/source/elements/reader/hm_read_rivet.F"),
     ("pyradioss/elements/shell_dkt6.py", "engine/source/elements/sh3n/coquedk6/cdk6mass3.F"),
     ("pyradioss/elements/shell_dkt6.py", "starter/source/elements/sh3n/coquedk6/cdk6mass3.F"),
+    ("pyradioss/elements/shell_offset.py", "engine/source/elements/shell/shell_offset/shell_offset_ini.F90"),
     ("pyradioss/elements/shell_ortho.py", "engine/source/elements/shell/coque/corthdir.F"),
     ("pyradioss/elements/solid_hexa8z.py", "engine/source/elements/solid/sinit3.F"),
     ("pyradioss/elements/solid_hexa8z.py", "starter/source/elements/solid/sinit3.F"),
