@@ -1502,15 +1502,19 @@ def evidence_record(deck1_text: Optional[str] = None) -> Dict:
 # The binary-T01 comparison route (tools.compare_t01, commit c679734)
 # ----------------------------------------------------------------------------
 #
-# ``th_to_csv`` is upstream's own renderer and it is not obtainable on this box
-# (``tools/th_to_csv/README.md:1-7`` names a separate repository,
-# ``OpenRadioss/Tools``, that this machine cannot reach — the same class of
-# blockage as the extlib releases recorded in ``oracle_provenance.json``).
-# ``tools/compare_t01.py`` reads the very same binary file
-# (``engine/source/output/th/hist1.F:201-316`` for the header, ``hist2.F:302-477``
-# for the per-step records) and scores it against the port's own T01 CSV with
-# the same 5 % tolerance the recorded sweeps used
-# (``tools/validation_data/parity_m41.json`` ``tolerance_rel_rms``).
+# ``th_to_csv`` is upstream's own renderer; its source lives in the separate
+# ``OpenRadioss/Tools`` repository (``tools/th_to_csv/README.md:1-7``), which
+# this box cannot reach.  Until the route-restoration task the converter was
+# therefore not obtainable here at all; that task installed a compatible
+# reimplementation (``tools/t01_to_csv.py``, byte-identical at
+# ``$OR_ROOT/bin/th_to_csv_linux64_gf``) against the oracle prefix, so the
+# harness's CSV route runs again.  ``tools/compare_t01.py`` reads the very
+# same binary file (``engine/source/output/th/hist1.F:201-316`` for the
+# header, ``hist2.F:302-1403`` for the per-step records, whose stride the
+# shared walk derives from the header) and scores it against the port's own
+# T01 CSV with the same 5 % tolerance the recorded sweeps used
+# (``tools/validation_data/parity_m41.json`` ``tolerance_rel_rms``), and
+# stays the fallback whenever the converter is absent.
 #
 # Two things this route must never do, and does not:
 #   * compare raw bytes — the header carries ``ctime()``
@@ -1586,20 +1590,16 @@ def compare_binary_t01(fortran_t01: str, port_csv: str) -> Tuple[List[Dict],
 def measured_step_block(t01_path: str, limit: int = 6) -> Optional[Dict]:
     """Measure the T01's real per-step record block, or ``None``.
 
-    A stopgap diagnostic, and it exists because a refusal must be *informative*:
-    ``tools.oracle.oracle_selftest.parse_t01`` fixes the per-step stride at four
-    records (``hist2.F`` writes one record per ``/TH`` family that has curves,
-    so the shape is **variable**), and when it refuses a file this reports what
-    the file actually contains.  Measured on
+    A diagnostic for the ``t01-unreadable`` refusal path: when
+    ``tools.compare_t01.read_t01`` cannot use a file, this reports what the
+    file actually contains.  Measured on
     ``rd_e/RD-E-1000_Bending/10_Bending/BATOZ/Sf_0.6/ROLLING``: six records per
-    step, ``[4, 92, 36, 64, 264, 36]`` bytes, 1605 steps.  Note that the
-    hierarchy record's ``NSUBS`` is **not** evidence of a ``/TH/SUBSET``
-    request — ``starter/source/starter/contrl.F:671-673`` counts the option and
+    step, ``[4, 92, 36, 64, 264, 36]`` bytes, 1605 steps -- a shape the shared
+    walk derives from the header, so a file that still refuses is malformed
+    rather than merely wide.  Note that the hierarchy record's ``NSUBS`` is
+    **not** evidence of a ``/TH/SUBSET`` request —
+    ``starter/source/starter/contrl.F:671-673`` counts the option and
     then adds one "for global subset", so ``NSUBS >= 1`` always.
-
-    Delete this with the walk fix it works around: once ``parse_t01`` derives
-    the block from the header, the reader stops refusing and this has no
-    caller.
     """
     try:
         from tools.oracle.oracle_selftest import t01_records
@@ -2074,8 +2074,10 @@ def parity(args) -> int:
                               f"{block['block_byte_lengths']}, because "
                               f"hist2.F writes one record per /TH family that "
                               f"has curves, so the per-step block is variable "
-                              f"while tools.oracle.oracle_selftest.parse_t01 "
-                              f"assumes four")
+                              f"and this file's block matches no "
+                              f"header-derived stride "
+                              f"tools.oracle.oracle_selftest.parse_t01 "
+                              f"describes")
                 row["fortran"]["error"] = (
                     f"tools.compare_t01.read_t01 could not use the Fortran T01 "
                     f"at {f['t01']}: {type(exc).__name__}: {exc}{detail}")

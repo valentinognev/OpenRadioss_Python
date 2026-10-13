@@ -1,0 +1,46 @@
+{
+  "schema": "pyradioss/parity-comparison-route/1",
+  "task": "restore the parity comparison route (converter + header-derived stride)",
+  "branch": "fm/openradioss-parity-comparison-route",
+  "date": "2026-10-13",
+  "closure": {
+    "cause_1": "th_to_csv not installed in the oracle prefix ($OR_SRC/tools/th_to_csv/ ships README.md only; source in the unreachable OpenRadioss/Tools repository)",
+    "cause_2": "tools.compare_t01.read_t01 refused stride-6 T01s (c43: 7116 records = 1186 steps of 6) against the shared walk's fixed stride of 4",
+    "reproduced": "both solvers ran; Fortran status th2csv-missing with T01 written, port CSV written, read_t01 raised T01FormatError"
+  },
+  "restoration": {
+    "converter": "tools/t01_to_csv.py (stdlib-only compatible reimplementation); installed byte-identical (cmp) as $OR_ROOT/bin/th_to_csv_linux64_gf, executable; renders Time + 23 write_thnms1 descriptions + PART <pos> IE|KE; bit-exact vs read_t01 on golden and c43 (max abs diff 0.0)",
+    "reader": "tools/oracle/oracle_selftest.parse_t01 derives the per-step stride from the header (part NVAR sum, subset NVAR sum, one record per TH group with curves at NN*NVAR member-major per hist2.F:979-1403/thkin.F:51-60); 1..N scan carries the hierarchy predecessor check; channel_maxima expands multi-member groups member-major with a member label",
+    "unchanged": "golden T01 parses identically (100 steps, stride 4, channels_per_step and channel_maxima == oracle_smoke.json)"
+  },
+  "provenance": {
+    "backend": "numpy (PYRADIOSS_BACKEND=numpy pinned for every port run below)",
+    "tolerance_rel_rms": 0.05,
+    "decks": "vendored tests/data/rd_decks (bytes as committed; M41 rows were measured on a scratchpad extract whose bytes were never verified)",
+    "oracle": "$OR_ROOT/bin/{starter_linux64_gf,engine_linux64_gf} + installed th_to_csv_linux64_gf"
+  },
+  "c43_E1000_Bending_BT_BT_type3_Sf_0": {
+    "case_id": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type3/Sf_0.9/ROLLING_0000.rad",
+    "stored": {"class": "DEVIATION", "max_rel_rms": 0.2565737863252257, "worst": "HE", "source": "parity_m41.json (M41-fresh numpy; port aborted at 0.9558 coverage on its energy guard)"},
+    "fortran": {"status": "NORMAL TERMINATION", "cycles": 182341, "t01_steps": 1186, "stride": 6, "normalized_md5_twice": ["a1b85896ace6e191ad7bc5ed76ad5109", "a1b85896ace6e191ad7bc5ed76ad5109"]},
+    "port_numpy": {"status": "NORMAL", "cycles": 60555, "final_IE": 192843.7064, "note": "final IE bit-matches the P3.1 baseline: the port trajectory did not move since P3.1"},
+    "csv_route_full_window": {"class": "DEVIATION", "max_rel_rms": 0.1895123196223357, "worst": "HE"},
+    "csv_route_stored_window_0.9558": {"class": "DEVIATION", "max_rel_rms": 0.260564358313142, "worst": "HE", "note": "reproduces the stored row (0.2566) under its own window: the full-window delta is the window, not the route"},
+    "binary_route_full_window": {"class": "DEVIATION", "max_rel_rms": 1.8969861601863887, "worst": "YMOM", "significant": ["EFW", "IE", "MASS", "YMOM", "ZMOM"], "note": "same class, different value: its denominator is max(|ref|) where the CSV route uses max(|fort|,|port|), and Fortran HE is ~0 here so HE drops to noise"}
+  },
+  "c45_E1000_Bending_BT_BT_type4_Sf_0": {
+    "case_id": "rd_e/RD-E-1000_Bending/10_Bending/BT/BT_type4/Sf_0.9/ROLLING_0000.rad",
+    "stored": {"class": "DEVIATION", "max_rel_rms": 0.14961544161338852, "worst": "HE", "source": "parity_m41.json (M41-fresh numpy)"},
+    "fortran": {"status": "NORMAL TERMINATION", "cycles": 59175, "t01_steps": 1186, "stride": 6},
+    "port_numpy": {"status": "energy-guard abort at cycle 54500 (pre-existing, P3.2 record)", "final_IE": 334521.0605, "note": "2.4% off the P3.2 baseline 342854.9: six shell commits landed since its base (Ithick1, offset/warping, QBAT nip1, DKT18 lumped mass, coqini, QEPH-ortho)"},
+    "csv_route_overlap_window": {"class": "DEVIATION", "max_rel_rms": 0.17277602461076338, "worst": "MOMZ"},
+    "binary_route_overlap_window": {"class": "DEVIATION", "max_rel_rms": 0.1727763643743484, "worst": "ZMOM", "significant": ["EFW", "IE", "MASS", "YMOM", "ZMOM"], "note": "both routes agree here: no one-sided ~zero channel, so the denominators coincide"}
+  },
+  "discrimination_of_the_BT_decks": {
+    "reassociation_34pct": "stands (P3.1 parity_p3.json: one reassociated bit moves c43 final IE 1.9284e5 -> 2.5833e5). Not re-run: no physics was touched, the refactor stayed inert.",
+    "backend_swap_numpy_numba_c43": "final IE 192843.7064 -> 201819.0408 (4.6%) and 60555 -> 60554 cycles",
+    "window_c43": "max_rel_rms 0.1895 (full) vs 0.2606 (stored window): 37% from the window alone",
+    "code_motion_c45": "2.4% final-IE drift flips the worst channel HE -> MOMZ (0.1496 -> 0.1728)",
+    "finding": "The BT decks resolve the verdict CLASS (DEVIATION, stable across every variation above) but not four-decimal rows: quoting rel-RMS to 0.0001 overstates what a chaos-dominated deck discriminates. Any BT row must be read with its window, backend and tree stated. Reported as measured; nothing was tuned."
+  }
+}
