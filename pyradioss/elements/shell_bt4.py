@@ -391,25 +391,31 @@ def init_group(group, model, log):
     node_idx = group.conn.reshape(-1)
     mass_c = np.repeat(mass / 4.0, 4)
     # lumped rotational inertia — upstream's cinmas.F "INERTIES ELEMENTS /4"
-    # (lines 916-924 + 1379-1387), which is FAMILY-dependent:
+    # (lines 916-924 + 1379-1387):
     #
     #     IF(IHBE>=11) FAC=TWELVE ELSE FAC=NINE     (engine-numbering IHBE)
     #     XI = EMS*(AREA/FAC + THK^2/12)            EMS = rho t A / 4
     #
-    # i.e. the BT family (engine IHBE < 11: user cards 0..4 and 11) lumps
-    # the AREA share as A/9 — 4/3 MORE than the QBAT/QEPH/DKT A/12 — and
-    # the engine's chvis3.F nodal-stiffness claim mirrors exactly that
+    # This kernel owns the BT family only (engine IHBE < 11: user cards
+    # 0..4 and 11), so it lumps the AREA share as A/9 unconditionally —
+    # and the engine's chvis3.F nodal-stiffness claim mirrors exactly that
     # (STIR = STI*(THK02/12 + AREA/9), chvis3 'STIFFNESS - DT' block), so
-    # dt_rot == dt_tra stays exact on element-lumped nodes for EVERY
-    # family.  Before M41 this file lumped (t^2+A)/12 — the FAC=TWELVE
-    # value — for ALL shells; measured on the RD-E-1000 c41 mini-roll rig
-    # the FAC=9 value reproduces the Fortran starter's printed /RBODY
-    # principal inertia EXACTLY (Ixx 4403.541 = sum of the members'
-    # m/4*(A/9+t^2/12) — nodes collinear with the axis, so the m*d^2 term
-    # vanishes and the print isolates the nodal lumping), and it moves the
-    # BT-family /DT/NODA + /RBODY-transported dt floor 1.86540e-2 ->
-    # 1.95667e-2 against the Fortran 2.004e-2 (the residual is the
-    # chvis3.F STI/STIR claim formulas, still the documented M40 cut).
+    # dt_rot == dt_tra stays exact on element-lumped nodes.  The IHBE>=11
+    # (card >= 12: QBAT/QEPH/DKT) A/12 branch this file carried through
+    # M41 is deleted (P3.12): the starter dispatch
+    # (_dispatch_shell_formulations) routes those slices to the owning
+    # kernels before init_group runs, and each owning kernel lumps its own
+    # inertia (shell_qbat.py:378) — one owner per family, no shadowed
+    # duplicate here.  Before M41 this file lumped (t^2+A)/12 — the
+    # FAC=TWELVE value — for ALL shells; measured on the RD-E-1000 c41
+    # mini-roll rig the FAC=9 value reproduces the Fortran starter's
+    # printed /RBODY principal inertia EXACTLY (Ixx 4403.541 = sum of the
+    # members' m/4*(A/9+t^2/12) — nodes collinear with the axis, so the
+    # m*d^2 term vanishes and the print isolates the nodal lumping), and
+    # it moves the BT-family /DT/NODA + /RBODY-transported dt floor
+    # 1.86540e-2 -> 1.95667e-2 against the Fortran 2.004e-2 (the residual
+    # is the chvis3.F STI/STIR claim formulas, still the documented
+    # M40 cut).
     # dt_iner: the per-NODE inertia share, kept for the ROTATIONAL
     # nodal-dt claim of /DT/NODA (M40, engine/mass_scaling.py) — the same
     # array the nodal inertia below is built from, so the claimed
@@ -417,16 +423,7 @@ def init_group(group, model, log):
     # factor that MATCHES this lumping: on a free element-lumped node the
     # rotational dt equals the translational one and never binds; it
     # bites through the /RBODY master transport.
-    fac = np.full(n, 9.0)                    # cinmas.F FAC=NINE (BT, DKT18)
-    for sl, mat, prop in group.state["slices"]:
-        card = int(prop.params.get("ishell", 0))
-        # hm_read_prop01.F 302-315 card -> engine IHBE: 0/2 -> 0, 1 -> 1,
-        # 4 -> 4, else (3..99) -> card-1.  IHBE >= 11 <=> card >= 12.
-        ihbe = {0: 0, 1: 1, 2: 0, 4: 4}.get(card,
-                                            card - 1 if card >= 3 else 0)
-        if ihbe >= 11:
-            fac[sl] = 12.0                   # QBAT/QEPH/DKT18 keep A/12
-    group.state["dt_iner"] = mass / 4.0 * (area / fac + thick ** 2 / 12.0)
+    group.state["dt_iner"] = mass / 4.0 * (area / 9.0 + thick ** 2 / 12.0)
     inertia_c = np.repeat(group.state["dt_iner"], 4)
     group._model = model
     return node_idx, mass_c, inertia_c
