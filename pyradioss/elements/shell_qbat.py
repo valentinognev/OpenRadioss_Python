@@ -796,6 +796,46 @@ def _warp_geometry(g, rr, v13, v24, vhi):
 # per-Gauss-point operators + velocity strains (cbadef.F)
 # ----------------------------------------------------------------------------
 
+def _shear_bc_ops(mx13, my13, mx23, my23, mx34, my34, detJ, ksi, eta):
+    """Shear BC coefficients (cbadef.F 106-161), shared by ``_flat_gp`` and
+    ``tangent()`` (P3.10): the stiffness linearizes the assembly term by
+    term. Entries 0-11 ride the first beta set, 12-17 the second."""
+    m = np.asarray(detJ).shape[0]
+    a_1 = 0.25 / np.maximum(detJ, EM20)
+    c11 = (my34 + my13 * ksi) * a_1
+    c12 = -(my23 + my13 * eta) * a_1
+    c21 = -(mx34 + mx13 * ksi) * a_1
+    c22 = (mx23 + mx13 * eta) * a_1
+    b1a = my13 + my23 * eta
+    k1a = my13 + my34 * ksi
+    b2a = mx13 + mx23 * eta
+    k2a = mx13 + mx34 * ksi
+    b1b = my23 + my13 * eta
+    k1b = my34 + my13 * ksi
+    b2b = mx23 + mx13 * eta
+    k2b = mx34 + mx13 * ksi
+    bc = np.empty((m, 18))
+    bc[:, 0] = -c11 - c12
+    bc[:, 1] = -c21 - c22
+    bc[:, 2] = b1a * c11 + k1a * c12
+    bc[:, 3] = b1a * c21 + k1a * c22
+    bc[:, 4] = -b2a * c11 - k2a * c12
+    bc[:, 5] = -b2a * c21 - k2a * c22
+    bc[:, 6] = c11 - c12
+    bc[:, 7] = c21 - c22
+    bc[:, 8] = b1a * c11 - k1a * c12
+    bc[:, 9] = b1a * c21 - k1a * c22
+    bc[:, 10] = -b2a * c11 + k2a * c12
+    bc[:, 11] = -b2a * c21 + k2a * c22
+    bc[:, 12] = c11 * eta + c12 * ksi
+    bc[:, 13] = c21 * eta + c22 * ksi
+    bc[:, 14] = -b1b * c11 - k1b * c12
+    bc[:, 15] = -b1b * c21 - k1b * c22
+    bc[:, 16] = c11 * b2b + c12 * k2b
+    bc[:, 17] = c21 * b2b + c22 * k2b
+    return bc
+
+
 def _flat_gp(g, ng):
     """FLAT branch of CBADEF for Gauss point ``ng``: the 8-entry membrane/
     bending row operators BM, the 24-entry transverse-shear operator BC
@@ -830,43 +870,13 @@ def _flat_gp(g, ng):
         + bm[:, 4] * r[:, 0, 1] + bm[:, 5] * r[:, 1, 1] \
         + bm[:, 6] * r[:, 2, 1]
 
-    # transverse shear BC(24) (cbadef.F 106-161)
+    # transverse shear BC(24) (cbadef.F 106-161) — shared operator
     cdet = g["jac"][i, ng]
     ksi, eta = _VPG[ng]
-    a_1 = 0.25 / np.maximum(cdet, EM20)
     my34, my23, my13 = g["my34"][i], g["my23"][i], g["my13"][i]
     mx34, mx23, mx13 = g["mx34"][i], g["mx23"][i], g["mx13"][i]
-    c11 = (my34 + my13 * ksi) * a_1
-    c12 = -(my23 + my13 * eta) * a_1
-    c21 = -(mx34 + mx13 * ksi) * a_1
-    c22 = (mx23 + mx13 * eta) * a_1
-    beta1 = my13 + my23 * eta
-    ksi1 = my13 + my34 * ksi
-    beta2 = mx13 + mx23 * eta
-    ksi2 = mx13 + mx34 * ksi
-    bc = np.empty((len(i), 24))
-    bc[:, 0] = -c11 - c12
-    bc[:, 1] = -c21 - c22
-    bc[:, 2] = beta1 * c11 + ksi1 * c12
-    bc[:, 3] = beta1 * c21 + ksi1 * c22
-    bc[:, 4] = -beta2 * c11 - ksi2 * c12
-    bc[:, 5] = -beta2 * c21 - ksi2 * c22
-    bc[:, 6] = c11 - c12
-    bc[:, 7] = c21 - c22
-    bc[:, 8] = beta1 * c11 - ksi1 * c12
-    bc[:, 9] = beta1 * c21 - ksi1 * c22
-    bc[:, 10] = -beta2 * c11 + ksi2 * c12
-    bc[:, 11] = -beta2 * c21 + ksi2 * c22
-    beta1 = my23 + my13 * eta
-    ksi1 = my34 + my13 * ksi
-    beta2 = mx23 + mx13 * eta
-    ksi2 = mx34 + mx13 * ksi
-    bc[:, 12] = c11 * eta + c12 * ksi
-    bc[:, 13] = c21 * eta + c22 * ksi
-    bc[:, 14] = -beta1 * c11 - ksi1 * c12
-    bc[:, 15] = -beta1 * c21 - ksi1 * c22
-    bc[:, 16] = c11 * beta2 + c12 * ksi2
-    bc[:, 17] = c21 * beta2 + c22 * ksi2
+    bc = _shear_bc_ops(mx13, my13, mx23, my23, mx34, my34,
+                       cdet, ksi, eta)
     # (BC 19-24 of the Fortran are the node-2 copies with sign flips,
     # only used through the closed forms below — not materialized)
 
@@ -1927,7 +1937,6 @@ def tangent(group, x, epsp_incr=None):
         for g in range(4):
             xi_g, eta_g = xi_pts[g], eta_pts[g]
             wg = weights[g]
-            N = 0.25 * (1.0 + xi_n * xi_g) * (1.0 + eta_n * eta_g)
             dN_dxi = 0.25 * xi_n * (1.0 + eta_n * eta_g)
             dN_deta = 0.25 * eta_n * (1.0 + xi_n * xi_g)
 
@@ -1963,11 +1972,21 @@ def tangent(group, x, epsp_incr=None):
                 Bb[:, 1, 6 * a + 3] = -b2[:, a]
                 Bb[:, 2, 6 * a + 3] = -b1[:, a]
                 Bb[:, 2, 6 * a + 4] = b2[:, a]
-                # Shear
+                # Shear (w rows: shape derivatives; th rows: BC operator)
                 Bs[:, 0, 6 * a + 2] = b1[:, a]
-                Bs[:, 0, 6 * a + 4] = N[a]
                 Bs[:, 1, 6 * a + 2] = b2[:, a]
-                Bs[:, 1, 6 * a + 3] = -N[a]
+
+            # Shear rotation rows: the ksi/eta BC operator (cbadef.F 106-161,
+            # shared _shear_bc_ops) — not the N[a] interpolation.
+            mx13 = 0.5 * (cx_sl[:, 0] + cx_sl[:, 2]); my13 = 0.5 * (cy_sl[:, 0] + cy_sl[:, 2])
+            mx23 = 0.5 * (cx_sl[:, 1] + cx_sl[:, 2]); my23 = 0.5 * (cy_sl[:, 1] + cy_sl[:, 2])
+            mx34 = 0.5 * (cx_sl[:, 2] + cx_sl[:, 3]); my34 = 0.5 * (cy_sl[:, 2] + cy_sl[:, 3])
+            bc = _shear_bc_ops(mx13, my13, mx23, my23, mx34, my34, detJ, xi_g, eta_g)
+            p13 = np.array([1.0, 0.0, -1.0, 0.0]); p24 = np.array([0.0, 1.0, 0.0, -1.0])
+            Bs[:, 0, 3::6] = bc[:, 2:3] * p13 + bc[:, 8:9] * p24 + bc[:, 14:15]
+            Bs[:, 0, 4::6] = bc[:, 4:5] * p13 + bc[:, 10:11] * p24 + bc[:, 16:17]
+            Bs[:, 1, 3::6] = bc[:, 3:4] * p13 + bc[:, 9:10] * p24 + bc[:, 15:16]
+            Bs[:, 1, 4::6] = bc[:, 5:6] * p13 + bc[:, 11:12] * p24 + bc[:, 17:18]
 
             dA = (wg * detJ)[:, None, None]
 
@@ -2116,6 +2135,11 @@ def kgeo(group, x):
                     )
                     k_geo[sl, 6 * a:6 * a + 3, 6 * b:6 * b + 3] += gab[:, None, None] * I3
 
+    # local to global (same triad rotation as tangent(); kgeo() previously
+    # returned the local frame — wrong on rotated elements, P3.10)
+    k_geo = np.einsum("nap,nIpJq,nbq->nIaJb",
+                      R, k_geo.reshape(n, 8, 3, 8, 3), R).reshape(n, 24, 24)
+
     off = st.get("off")
     if off is not None:
         dead = off <= 0.0
@@ -2130,36 +2154,40 @@ def kgeo(group, x):
 # ----------------------------------------------------------------------------
 
 def static_internal_forces(group, x, u, ur, fint, mint):
-    """Evaluate and scatter static internal forces and moments in deformed state x + u."""
+    """End-configuration static assembly from the CURRENT resultants.
+
+    Zero-rate evaluation of the explicit assembly (``forces()`` with zero
+    velocities): strain increments vanish, so the updates are exact no-ops
+    and the state is bit-preserved (asserted by the P3.10 test), while the
+    resultant transpose assembles on THIS geometry. ``u``/``ur`` unused —
+    the state was advanced by the caller's midpoint ``forces()`` (M9)."""
     n = group.n
     if n == 0 or len(group.conn) == 0:
         return
-    ke, edofs = tangent(group, x + u)
-    conn = group.conn
-    u_el = np.zeros((n, 24), dtype=float)
-    for a in range(4):
-        u_el[:, 6 * a:6 * a + 3] = u[conn[:, a]]
-        u_el[:, 6 * a + 3:6 * a + 6] = ur[conn[:, a]]
-    f_el = np.einsum("nij,nj->ni", ke, u_el)
-    for a in range(4):
-        scatter_add3(fint, conn[:, a], -f_el[:, 6 * a:6 * a + 3])
-        scatter_add3(mint, conn[:, a], -f_el[:, 6 * a + 3:6 * a + 6])
+    if fint is None and mint is None:
+        return
+    forces(group, x, np.zeros_like(x), np.zeros_like(x), 1.0, fint, mint)
 
 
 def implicit_internal_forces(group, x_ref, u, ur, fint, mint, nlgeom=False):
-    """Assemble implicit internal forces into fint and mint."""
+    """Implicit residual: linear K.u, or midpoint-advance + static (M9)."""
     n = group.n
     if n == 0 or len(group.conn) == 0:
         return
-    x_curr = x_ref + u if nlgeom else x_ref
-    ke, edofs = tangent(group, x_curr)
-    conn = group.conn
-    u_el = np.zeros((n, 24), dtype=float)
-    for a in range(4):
-        u_el[:, 6 * a:6 * a + 3] = u[conn[:, a]]
-        u_el[:, 6 * a + 3:6 * a + 6] = ur[conn[:, a]]
-    f_el = np.einsum("nij,nj->ni", ke, u_el)
-    for a in range(4):
-        scatter_add3(fint, conn[:, a], -f_el[:, 6 * a:6 * a + 3])
-        scatter_add3(mint, conn[:, a], -f_el[:, 6 * a + 3:6 * a + 6])
+    if not nlgeom:
+        ke, edofs = tangent(group, x_ref)
+        conn = group.conn
+        u_el = np.zeros((n, 24), dtype=float)
+        for a in range(4):
+            u_el[:, 6 * a:6 * a + 3] = u[conn[:, a]]
+            u_el[:, 6 * a + 3:6 * a + 6] = ur[conn[:, a]]
+        f_el = np.einsum("nij,nj->ni", ke, u_el)
+        for a in range(4):
+            scatter_add3(fint, conn[:, a], -f_el[:, 6 * a:6 * a + 3])
+            scatter_add3(mint, conn[:, a], -f_el[:, 6 * a + 3:6 * a + 6])
+        return
+    nn = len(x_ref)
+    forces(group, x_ref + 0.5 * u, u, ur, 1.0,
+           np.zeros((nn, 3)), np.zeros((nn, 3)))
+    static_internal_forces(group, x_ref + u, u, ur, fint, mint)
 

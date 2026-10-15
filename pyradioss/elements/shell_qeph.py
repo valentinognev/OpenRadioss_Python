@@ -93,7 +93,7 @@ from __future__ import annotations
 import numpy as np
 
 from .. import materials
-from . import shell_ortho, shell_qeph_ortho
+from . import shell_ortho, shell_qeph_hg, shell_qeph_ortho
 from .shell_bt4 import (_element_deletion, _init_material_state,
                         _layer_extra, _layer_failure)
 from .shell_ithick import apply_qeph_thickness, thin_layer_increment
@@ -1351,18 +1351,6 @@ def tangent(group, x, epsp_incr=None):
     B2[:, 2] = a_inv * (corx[:, 1] - corx[:, 3])
     B2[:, 3] = a_inv * (corx[:, 2] - corx[:, 0])
 
-    # Orthogonalized hourglass shape vector gamma
-    hx = corx[:, 0] - corx[:, 1] + corx[:, 2] - corx[:, 3]
-    hy = cory[:, 0] - cory[:, 1] + cory[:, 2] - cory[:, 3]
-    gam = np.empty((n, 4), dtype=float)
-    gam[:, 0] = 1.0
-    gam[:, 1] = -1.0
-    gam[:, 2] = 1.0
-    gam[:, 3] = -1.0
-    gam -= hx[:, None] * B1
-    gam -= hy[:, None] * B2
-    GG = np.einsum("ni,nj->nij", gam, gam)
-
     # 24 local DOFs: for node a in 0..3: [u_a, v_a, w_a, th_xa, th_ya, th_za]
     Bm = np.zeros((n, 3, 24), dtype=float)
     for a in range(4):
@@ -1379,11 +1367,16 @@ def tangent(group, x, epsp_incr=None):
         Bb[:, 2, 6 * a + 4] = B2[:, a]
 
     Bs = np.zeros((n, 2, 24), dtype=float)
-    for a in range(4):
-        Bs[:, 0, 6 * a + 2] = B1[:, a]
-        Bs[:, 0, 6 * a + 4] = 0.25
-        Bs[:, 1, 6 * a + 2] = B2[:, a]
-        Bs[:, 1, 6 * a + 3] = -0.25
+    hpat = np.array([1.0, -1.0, 1.0, -1.0])
+    mx13 = 0.5 * (corx[:, 0] + corx[:, 2])
+    my13 = 0.5 * (cory[:, 0] + cory[:, 2])
+    Bs[:, 0, 2::6] = B1
+    Bs[:, 1, 2::6] = B2
+    # shear rotation rows (czdef.F via _rates — h-weighted, not 0.25)
+    Bs[:, 0, 3::6] = -my13[:, None] * (hpat * B1)
+    Bs[:, 0, 4::6] = mx13[:, None] * (hpat * B1) + 0.25
+    Bs[:, 1, 3::6] = -my13[:, None] * (hpat * B2) - 0.25
+    Bs[:, 1, 4::6] = mx13[:, None] * (hpat * B2)
 
     Kl = np.zeros((n, 24, 24), dtype=float)
 
@@ -1426,38 +1419,10 @@ def tangent(group, x, epsp_incr=None):
 
         Kl[sl] += (A_sl * kGt)[:, None, None] * np.einsum("nai,naj->nij", Bss, Bss)
 
-        # Physical assumed-strain hourglass stiffness
-        A11_sl = E_mod / np.maximum(1.0 - nu ** 2, EM20)
-        km = A11_sl * t_sl / 3.0
-        kw = (2.0 / 3.0) * G_mod * SHEAR_FACTOR * t_sl
-        kr = A11_sl * t_sl ** 3 / 36.0
-
-        for a in range(4):
-            for b in range(4):
-                g_ab = GG[sl, a, b]
-                Kl[sl, 6 * a, 6 * b] += km * g_ab
-                Kl[sl, 6 * a + 1, 6 * b + 1] += km * g_ab
-                Kl[sl, 6 * a + 2, 6 * b + 2] += kw * g_ab
-                Kl[sl, 6 * a + 3, 6 * b + 3] += kr * g_ab
-                Kl[sl, 6 * a + 4, 6 * b + 4] += kr * g_ab
-
-        # Saddle divergence mode stabilization: s = sum_a (B1_a * th_xa + B2_a * th_ya)
-        s = np.zeros((len(A_sl), 24), dtype=float)
-        for a in range(4):
-            s[:, 6 * a + 3] = B1[sl, a]
-            s[:, 6 * a + 4] = B2[sl, a]
-        k_saddle = (A_sl * t_sl ** 3 / 12.0 * G_mod)[:, None, None]
-        Kl[sl] += k_saddle * np.einsum("ni,nj->nij", s, s)
-
-        # Drilling penalty coupled to continuum spin omega = 0.5 * sum_b (B1_b * v_b - B2_b * u_b)
-        kdrill = (1e-3 * E_mod * t_sl ** 3 * A_sl / 12.0)[:, None, None]
-        for i in range(4):
-            gi = np.zeros((len(A_sl), 24), dtype=float)
-            gi[:, 6 * i + 5] = 1.0
-            for b in range(4):
-                gi[:, 6 * b + 0] += 0.5 * B2[sl, b]
-                gi[:, 6 * b + 1] += -0.5 * B1[sl, b]
-            Kl[sl] += kdrill * np.einsum("ni,nj->nij", gi, gi)
+    # Hourglass stiffness (shell_qeph_hg.hg_tangent: CZLKEN3 membrane/
+    # bending, the shear-modal chain, and the DHZ spin term).
+    Kl += shell_qeph_hg.hg_tangent(G, st["a11"], st["a12"], st["gs"],
+                                   thick, area)
 
     # Local to global transformation via triad R = [e1, e2, e3]
     # u_global = R u_local, th_global = R th_local
@@ -1541,6 +1506,12 @@ def kgeo(group, x):
             )
             k_geo[:, 6 * a:6 * a + 3, 6 * b:6 * b + 3] += gab[:, None, None] * I3
 
+    # local to global (same Tg rotation as tangent(); kgeo() previously
+    # returned the local frame — wrong on rotated elements, P3.10)
+    E = G["E"]
+    k_geo = np.einsum("nap,nIpJq,nbq->nIaJb",
+                      E, k_geo.reshape(n, 8, 3, 8, 3), E).reshape(n, 24, 24)
+
     off = st.get("off")
     if off is not None:
         dead = off <= 0.0
@@ -1555,43 +1526,47 @@ def kgeo(group, x):
 # ---------------------------------------------------------------------------
 
 def static_internal_forces(group, x, u, ur, fint, mint):
-    """Evaluate and scatter static internal forces and moments in deformed state x + u."""
+    """End-configuration static assembly from the CURRENT resultants.
+
+    Zero-rate evaluation of the explicit assembly (``forces()`` with zero
+    velocities): strain increments vanish, so the updates are exact no-ops
+    and the state is bit-preserved (asserted by the P3.10 test), while the
+    resultant transpose assembles on THIS geometry. ``u``/``ur`` unused —
+    the state was advanced by the caller's midpoint ``forces()`` (M9)."""
     n = group.n
     if n == 0 or len(group.conn) == 0:
         return
-    x_curr = x + u
-    forces(group, x_curr, None, None, 0.0, fint, mint)
+    if fint is None and mint is None:
+        return
+    forces(group, x, np.zeros_like(x), np.zeros_like(x), 1.0, fint, mint)
 
 
 def implicit_internal_forces(group, x_ref, u, ur, fint, mint, nlgeom=False):
-    """Compute and scatter implicit internal forces and moments.
-
-    If nlgeom is True:
-        Evaluates full nonlinear internal forces at deformed state x_ref + u.
-    If nlgeom is False:
-        Linear evaluation using material tangent stiffness Ke @ u_elem.
-    """
+    """Implicit residual: linear K.u, or midpoint-advance + static (M9)."""
     n = group.n
     conn = group.conn
     if n == 0 or len(conn) == 0:
         return
 
     if nlgeom:
-        static_internal_forces(group, x_ref, u, ur, fint, mint)
-    else:
-        ke, edofs = tangent(group, x_ref)
-        u_elem = np.zeros((n, 24), dtype=float)
-        for i in range(4):
-            c_nodes = conn[:, i]
-            u_elem[:, 6 * i:6 * i + 3] = u[c_nodes]
-            if ur is not None:
-                u_elem[:, 6 * i + 3:6 * i + 6] = ur[c_nodes]
+        nn = len(x_ref)
+        forces(group, x_ref + 0.5 * u, u, ur, 1.0,
+               np.zeros((nn, 3)), np.zeros((nn, 3)))
+        static_internal_forces(group, x_ref + u, u, ur, fint, mint)
+        return
+    ke, edofs = tangent(group, x_ref)
+    u_elem = np.zeros((n, 24), dtype=float)
+    for i in range(4):
+        c_nodes = conn[:, i]
+        u_elem[:, 6 * i:6 * i + 3] = u[c_nodes]
+        if ur is not None:
+            u_elem[:, 6 * i + 3:6 * i + 6] = ur[c_nodes]
 
-        f_elem = np.einsum("nij,nj->ni", ke, u_elem)
-        for i in range(4):
-            c_nodes = conn[:, i]
-            if fint is not None:
-                np.add.at(fint, c_nodes, -f_elem[:, 6 * i:6 * i + 3])
-            if mint is not None:
-                np.add.at(mint, c_nodes, -f_elem[:, 6 * i + 3:6 * i + 6])
+    f_elem = np.einsum("nij,nj->ni", ke, u_elem)
+    for i in range(4):
+        c_nodes = conn[:, i]
+        if fint is not None:
+            np.add.at(fint, c_nodes, -f_elem[:, 6 * i:6 * i + 3])
+        if mint is not None:
+            np.add.at(mint, c_nodes, -f_elem[:, 6 * i + 3:6 * i + 6])
 
