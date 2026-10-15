@@ -118,10 +118,10 @@ finis", vol. 3; the Q4gamma24 / DKQ12-style shell):
   Idrill > 0 (ISROT) is NOT ported — the deck reader does not surface
   Idrill; the Idrill=0 branch is what every RD-E-1000 QBAT deck runs.
 
-Implicit: ``tangent()``/``kgeo()`` are DELIBERATELY not provided — a QBAT
-group in an /IMPL deck is refused by implicit/assembly.py's supported-
-kernel gate with the explicit supported list (the documented refusal;
-consistent_mass() is provided for completeness of the kernel contract).
+Implicit (P3.10): ``tangent()``/``kgeo()`` are provided — the material
+tangent (per-GP ``bm``/``bc`` operators of ``shell_qbat_ke`` plus the mean
+shear block) and the von-Karman geometric stiffness, both proven by
+finite differences of the residual in ``tests/test_p3_qbat_qeph_tangent.py``.
 
 Sign convention: like every kernel, forces are ACCUMULATED NEGATED into
 ``fint``/``mint`` (cupdtn3.F line 133: F(1,N1) = F(1,N1) - F11).
@@ -135,6 +135,7 @@ from .. import materials
 from ..common.constants import EM20, EP30, SHEAR_FACTOR
 from ..common.fastmath import scatter_add3
 from .shell_bt4 import _init_material_state, _layer_extra, _layer_failure
+from . import shell_qbat_ke
 from .shell_ithick import apply_qbat_thickness, thin_layer_increment
 from .shell_qbat_nip1 import _cbavisnp1, _fori_flat, _fori_np1, _nip_array
 
@@ -796,46 +797,6 @@ def _warp_geometry(g, rr, v13, v24, vhi):
 # per-Gauss-point operators + velocity strains (cbadef.F)
 # ----------------------------------------------------------------------------
 
-def _shear_bc_ops(mx13, my13, mx23, my23, mx34, my34, detJ, ksi, eta):
-    """Shear BC coefficients (cbadef.F 106-161), shared by ``_flat_gp`` and
-    ``tangent()`` (P3.10): the stiffness linearizes the assembly term by
-    term. Entries 0-11 ride the first beta set, 12-17 the second."""
-    m = np.asarray(detJ).shape[0]
-    a_1 = 0.25 / np.maximum(detJ, EM20)
-    c11 = (my34 + my13 * ksi) * a_1
-    c12 = -(my23 + my13 * eta) * a_1
-    c21 = -(mx34 + mx13 * ksi) * a_1
-    c22 = (mx23 + mx13 * eta) * a_1
-    b1a = my13 + my23 * eta
-    k1a = my13 + my34 * ksi
-    b2a = mx13 + mx23 * eta
-    k2a = mx13 + mx34 * ksi
-    b1b = my23 + my13 * eta
-    k1b = my34 + my13 * ksi
-    b2b = mx23 + mx13 * eta
-    k2b = mx34 + mx13 * ksi
-    bc = np.empty((m, 18))
-    bc[:, 0] = -c11 - c12
-    bc[:, 1] = -c21 - c22
-    bc[:, 2] = b1a * c11 + k1a * c12
-    bc[:, 3] = b1a * c21 + k1a * c22
-    bc[:, 4] = -b2a * c11 - k2a * c12
-    bc[:, 5] = -b2a * c21 - k2a * c22
-    bc[:, 6] = c11 - c12
-    bc[:, 7] = c21 - c22
-    bc[:, 8] = b1a * c11 - k1a * c12
-    bc[:, 9] = b1a * c21 - k1a * c22
-    bc[:, 10] = -b2a * c11 + k2a * c12
-    bc[:, 11] = -b2a * c21 + k2a * c22
-    bc[:, 12] = c11 * eta + c12 * ksi
-    bc[:, 13] = c21 * eta + c22 * ksi
-    bc[:, 14] = -b1b * c11 - k1b * c12
-    bc[:, 15] = -b1b * c21 - k1b * c22
-    bc[:, 16] = c11 * b2b + c12 * k2b
-    bc[:, 17] = c21 * b2b + c22 * k2b
-    return bc
-
-
 def _flat_gp(g, ng):
     """FLAT branch of CBADEF for Gauss point ``ng``: the 8-entry membrane/
     bending row operators BM, the 24-entry transverse-shear operator BC
@@ -875,8 +836,8 @@ def _flat_gp(g, ng):
     ksi, eta = _VPG[ng]
     my34, my23, my13 = g["my34"][i], g["my23"][i], g["my13"][i]
     mx34, mx23, mx13 = g["mx34"][i], g["mx23"][i], g["mx13"][i]
-    bc = _shear_bc_ops(mx13, my13, mx23, my23, mx34, my34,
-                       cdet, ksi, eta)
+    bc = shell_qbat_ke._shear_bc_ops(mx13, my13, mx23, my23, mx34, my34,
+                                     cdet, ksi, eta)
     # (BC 19-24 of the Fortran are the node-2 copies with sign flips,
     # only used through the closed forms below — not materialized)
 
@@ -1860,17 +1821,13 @@ def consistent_mass(group, x=None):
 # ----------------------------------------------------------------------------
 
 def tangent(group, x, epsp_incr=None):
-    """24-DOF material tangent stiffness matrix for 4-node fully-integrated QBAT shell.
+    """24-DOF material tangent stiffness matrix for 4-node QBAT shell.
 
-    Evaluates 2x2 in-plane Gauss numerical integration combining:
-      1. Membrane 2x2 Gauss integration: sum_g dA_g * t * B_m^T C_m B_m
-      2. Bending 2x2 Gauss integration: sum_g dA_g * (t^3 / 12) * B_b^T C_b B_b
-      3. Transverse shear 2x2 Gauss integration: sum_g dA_g * k_s G t * B_s^T B_s (k_s = 5/6)
-      4. Drilling penalty coupled to continuum spin omega_z:
-         g_i = theta_zi - 0.5 * sum_b (B1_b v_b - B2_b u_b), k_drill * sum_i g_i x g_i
-         strictly preserving exact 6 rigid-body null modes.
-      5. Frame transformation via orthonormal triad R = [e1, e2, e3]:
-         ke = np.einsum("nap,nIpJq,nbq->nIaJb", R, Kl.reshape(n, 8, 3, 8, 3), R).reshape(n, 24, 24)
+    Per-Gauss-point B_m/B_b/B_s rows from ``shell_qbat_ke`` (the explicit
+    ``bm``/``bc``/CBADEFSH operators, not naive shape derivatives) with
+    consistent/layer moduli, plus the mean membrane-shear block and the
+    spin drilling regularization; rotated by the triad R. Proven by
+    finite differences of the residual (P3.10 gate, not symmetry).
 
     Returns:
         ke (n, 24, 24): Symmetric tangent stiffness matrix.
@@ -1899,10 +1856,8 @@ def tangent(group, x, epsp_incr=None):
     eta_pts = np.array([gp[0], gp[0], gp[1], gp[1]])
     weights = np.ones(4)
 
-    xi_n = _KSI_N
-    eta_n = _ETA_N
-
     Kl = np.zeros((n, 24, 24), dtype=float)
+    Gshear = np.zeros(n, dtype=float)
 
     for isl, (sl, mat, prop) in enumerate(st.get("slices", [])):
         if getattr(mat, "law", 1) == 0:
@@ -1918,6 +1873,7 @@ def tangent(group, x, epsp_incr=None):
         if is_elastic:
             Cm = materials.shell_membrane_tangent(mat)
             Cb = Cm
+            Gshear[sl] = Cm[2, 2]
         else:
             zrel, wrel = st["zw"][isl]
             Am_ = np.zeros((m, 3, 3), dtype=float)
@@ -1933,60 +1889,15 @@ def tangent(group, x, epsp_incr=None):
                 Am_ += wk[:, None, None] * Dk
                 Bm_ += (wk * zk)[:, None, None] * Dk
                 Dm_ += (wk * zk * zk)[:, None, None] * Dk
+            Gshear[sl] = Am_[:, 2, 2] / np.maximum(t_sl, EM20)
 
         for g in range(4):
             xi_g, eta_g = xi_pts[g], eta_pts[g]
             wg = weights[g]
-            dN_dxi = 0.25 * xi_n * (1.0 + eta_n * eta_g)
-            dN_deta = 0.25 * eta_n * (1.0 + xi_n * xi_g)
-
-            cx_sl = cx[sl]
-            cy_sl = cy[sl]
-
-            J11 = np.sum(dN_dxi[None, :] * cx_sl, axis=1)
-            J12 = np.sum(dN_dxi[None, :] * cy_sl, axis=1)
-            J21 = np.sum(dN_deta[None, :] * cx_sl, axis=1)
-            J22 = np.sum(dN_deta[None, :] * cy_sl, axis=1)
-            detJ = np.maximum(J11 * J22 - J12 * J21, EM20)
-
-            invJ11 = J22 / detJ
-            invJ12 = -J12 / detJ
-            invJ21 = -J21 / detJ
-            invJ22 = J11 / detJ
-
-            b1 = invJ11[:, None] * dN_dxi[None, :] + invJ12[:, None] * dN_deta[None, :]
-            b2 = invJ21[:, None] * dN_dxi[None, :] + invJ22[:, None] * dN_deta[None, :]
-
-            Bm = np.zeros((m, 3, 24), dtype=float)
-            Bb = np.zeros((m, 3, 24), dtype=float)
-            Bs = np.zeros((m, 2, 24), dtype=float)
-
-            for a in range(4):
-                # Membrane
-                Bm[:, 0, 6 * a + 0] = b1[:, a]
-                Bm[:, 1, 6 * a + 1] = b2[:, a]
-                Bm[:, 2, 6 * a + 0] = b2[:, a]
-                Bm[:, 2, 6 * a + 1] = b1[:, a]
-                # Bending
-                Bb[:, 0, 6 * a + 4] = b1[:, a]
-                Bb[:, 1, 6 * a + 3] = -b2[:, a]
-                Bb[:, 2, 6 * a + 3] = -b1[:, a]
-                Bb[:, 2, 6 * a + 4] = b2[:, a]
-                # Shear (w rows: shape derivatives; th rows: BC operator)
-                Bs[:, 0, 6 * a + 2] = b1[:, a]
-                Bs[:, 1, 6 * a + 2] = b2[:, a]
-
-            # Shear rotation rows: the ksi/eta BC operator (cbadef.F 106-161,
-            # shared _shear_bc_ops) — not the N[a] interpolation.
-            mx13 = 0.5 * (cx_sl[:, 0] + cx_sl[:, 2]); my13 = 0.5 * (cy_sl[:, 0] + cy_sl[:, 2])
-            mx23 = 0.5 * (cx_sl[:, 1] + cx_sl[:, 2]); my23 = 0.5 * (cy_sl[:, 1] + cy_sl[:, 2])
-            mx34 = 0.5 * (cx_sl[:, 2] + cx_sl[:, 3]); my34 = 0.5 * (cy_sl[:, 2] + cy_sl[:, 3])
-            bc = _shear_bc_ops(mx13, my13, mx23, my23, mx34, my34, detJ, xi_g, eta_g)
-            p13 = np.array([1.0, 0.0, -1.0, 0.0]); p24 = np.array([0.0, 1.0, 0.0, -1.0])
-            Bs[:, 0, 3::6] = bc[:, 2:3] * p13 + bc[:, 8:9] * p24 + bc[:, 14:15]
-            Bs[:, 0, 4::6] = bc[:, 4:5] * p13 + bc[:, 10:11] * p24 + bc[:, 16:17]
-            Bs[:, 1, 3::6] = bc[:, 3:4] * p13 + bc[:, 9:10] * p24 + bc[:, 15:16]
-            Bs[:, 1, 4::6] = bc[:, 5:6] * p13 + bc[:, 11:12] * p24 + bc[:, 17:18]
+            # corrected per-GP rows (shell_qbat_ke: the explicit bm/bc
+            # operators, not naive shape derivatives — P3.10 FD gate)
+            Bm, Bb, Bs, detJ = shell_qbat_ke.flat_gp_rows(
+                cx[sl], cy[sl], area[sl], g, xi_g, eta_g)
 
             dA = (wg * detJ)[:, None, None]
 
@@ -2004,6 +1915,8 @@ def tangent(group, x, epsp_incr=None):
             Kl[sl] += (dA * (ks * G_mod * t_sl)[:, None, None]) * np.einsum("mai,maj->mij", Bs, Bs)
 
         # Spin-coupled drilling penalty
+        cx_sl = cx[sl]
+        cy_sl = cy[sl]
         a_inv = (0.5 / area[sl])[:, None]
         B1_sl = np.empty((m, 4), dtype=float)
         B1_sl[:, 0] = a_inv[:, 0] * (cy_sl[:, 1] - cy_sl[:, 3])
@@ -2025,6 +1938,15 @@ def tangent(group, x, epsp_incr=None):
                 gi[:, 6 * b + 0] += 0.5 * B2_sl[:, b]
                 gi[:, 6 * b + 1] += -0.5 * B1_sl[:, b]
             Kl[sl] += kdrill * np.einsum("mi,mj->mij", gi, gi)
+
+    # Constant membrane-shear treatment (shell_qbat_ke.mean_shear_block):
+    # the GP loop carries membrane/bending; shear stiffness is the mean
+    # operator, like the explicit CBAFORCT correction (P3.10 FD gate).
+    # GVOL = stress shear modulus (Gshear, NO thickness) times VOLUME.
+    Kl += shell_qbat_ke.mean_shear_block(
+        0.5 * (cx[:, 0] - cx[:, 2]), 0.5 * (cy[:, 0] - cy[:, 2]),
+        0.5 * (cx[:, 1] - cx[:, 3]), 0.5 * (cy[:, 1] - cy[:, 3]),
+        area, Gshear, area * thick)
 
     # Local to global transformation via triad R = [e1, e2, e3]
     Kl_blocks = Kl.reshape(n, 8, 3, 8, 3)
@@ -2062,6 +1984,7 @@ def kgeo(group, x):
 
     xe = x[conn]
     R, det = _frame(xe)
+    area = np.maximum(0.25 * det, EM20)
     thick = st["thick"]
 
     # Local centered coordinates
@@ -2070,16 +1993,21 @@ def kgeo(group, x):
     cx = xl[:, :, 0] - xl[:, :, 0].mean(axis=1)[:, None]
     cy = xl[:, :, 1] - xl[:, :, 1].mean(axis=1)[:, None]
 
-    gp = np.array([-_PG, _PG])
-    xi_pts = np.array([gp[0], gp[1], gp[1], gp[0]])
-    eta_pts = np.array([gp[0], gp[0], gp[1], gp[1]])
     weights = np.ones(4)
-
-    xi_n = _KSI_N
-    eta_n = _ETA_N
 
     k_geo = np.zeros((n, 24, 24), dtype=float)
     I3 = np.eye(3, dtype=float)
+
+    # Mean gradient operators (section-level, GP-independent): the
+    # geometric stiffness sees the constant part — the bm hourglass
+    # corrections belong to the material tangent, not here (P3.10 FD).
+    ai = 1.0 / np.maximum(area, EM20)
+    x13 = 0.5 * (cx[:, 0] - cx[:, 2])
+    y13 = 0.5 * (cy[:, 0] - cy[:, 2])
+    x24 = 0.5 * (cx[:, 1] - cx[:, 3])
+    y24 = 0.5 * (cy[:, 1] - cy[:, 3])
+    g1 = np.stack([y24, -y13, -y24, y13], axis=1) * ai[:, None]
+    g2 = np.stack([-x24, x13, x24, -x13], axis=1) * ai[:, None]
 
     for isl, (sl, mat, prop) in enumerate(st.get("slices", [])):
         if getattr(mat, "law", 1) == 0:
@@ -2102,24 +2030,10 @@ def kgeo(group, x):
         cy_sl = cy[sl]
 
         for g in range(4):
-            xi_g, eta_g = xi_pts[g], eta_pts[g]
             wg = weights[g]
-            dN_dxi = 0.25 * xi_n * (1.0 + eta_n * eta_g)
-            dN_deta = 0.25 * eta_n * (1.0 + xi_n * xi_g)
-
-            J11 = np.sum(dN_dxi[None, :] * cx_sl, axis=1)
-            J12 = np.sum(dN_dxi[None, :] * cy_sl, axis=1)
-            J21 = np.sum(dN_deta[None, :] * cx_sl, axis=1)
-            J22 = np.sum(dN_deta[None, :] * cy_sl, axis=1)
-            detJ = np.maximum(J11 * J22 - J12 * J21, EM20)
-
-            invJ11 = J22 / detJ
-            invJ12 = -J12 / detJ
-            invJ21 = -J21 / detJ
-            invJ22 = J11 / detJ
-
-            b1 = invJ11[:, None] * dN_dxi[None, :] + invJ12[:, None] * dN_deta[None, :]
-            b2 = invJ21[:, None] * dN_dxi[None, :] + invJ22[:, None] * dN_deta[None, :]
+            detJ = shell_qbat_ke.gauss_jac(cx_sl, cy_sl, area[sl], g)
+            b1 = g1[sl]
+            b2 = g2[sl]
 
             Nxx = Nres[:, g, 0]
             Nyy = Nres[:, g, 1]

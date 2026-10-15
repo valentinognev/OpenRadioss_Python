@@ -83,9 +83,12 @@ czfintcrz — the isotropic RD decks run Idrill=0), ISMSTR=1/11 frozen-
 geometry small strain, thermal/XFEM/non-local, the NPT=0 "global
 integration" flag (the port's prop reader resolves N=0 to 3 Gauss
 stations — elastically identical, and only the plastic-relaxation
-weight COEF1 16-vs-25 of czfintn.F line 92-96 differs), and the
-implicit tangent (shell_group raises — deferred, like the M41 brief
-allows).
+weight COEF1 16-vs-25 of czfintn.F line 92-96 differs).
+Implicit (P3.10): ``tangent()``/``kgeo()`` are provided — the constant
+part plus the ``shell_qeph_hg`` hourglass stiffness (``GAMA``/``CHM``,
+shear-modal chain) and the spin-coupled drilling regularization, proven
+by finite differences of the residual in
+``tests/test_p3_qbat_qeph_tangent.py``.
 """
 
 from __future__ import annotations
@@ -107,9 +110,8 @@ _TOL_PLAT = 1.0e-8      # czcorc.F line 135 (double precision; EM7 single)
 #   the gate compares Z1^2 < LM*TOL with LM = (L13+L24)/2 the MEAN
 #   squared half-diagonal (czcorc.F line 397, passed into CZCORP5's LL
 #   dummy at line 581; czcorp5.F line 84) — a length^2, dimensionally
-#   consistent with Z1^2.  The implicit-only floor LM >= 0.1*THK^2
-#   (czcorc.F line 408, IMPL_S>0) is not ported: QEPH has no implicit
-#   tangent (the assembly raises).
+#   consistent with Z1^2.  The czcorc.F line 408 IMPL_S>0 floor
+#   (LM >= 0.1*THK^2) is not ported (warped-implicit refinement).
 _CVIS = 1.0             # GEO(17) after hm_read_prop01.F 197-230 (Ishell=24)
 _DN_DEFAULT = 0.015     # ZEP015 — card Dn default (hm_read_prop01.F 199)
 _COEF = 0.85            # ZEP85   (czfintn.F line 87)
@@ -1309,15 +1311,9 @@ def consistent_mass(group, x=None):
 def tangent(group, x, epsp_incr=None):
     """Element tangent stiffness for 4-node QEPH shell group.
 
-    Combines:
-    - 1-point reduced integration membrane (A * t * Bm^T C Bm)
-    - 1-point reduced integration bending (A * t^3 / 12 * Bb^T C Bb)
-    - Transverse shear (A * ks * G * t * Bs^T Bs)
-    - Flanagan-Belytschko assumed-strain physical hourglass stabilization
-      across membrane, bending, and shear using orthogonalized gamma
-    - Saddle divergence mode stabilization k_saddle (s (x) s)
-    - Spin-coupled drilling penalty k_drill (gi (x) gi)
-    - Local-to-global frame transformation via triad E = [e1, e2, e3]
+    1-point constant membrane/bending/shear plus the hourglass stiffness
+    of ``shell_qeph_hg`` and the spin-coupled drilling regularization.
+    Proven by finite differences of the residual (P3.10 gate).
 
     Returns:
         ke (n, 24, 24): Dense element tangent matrices.
@@ -1418,6 +1414,19 @@ def tangent(group, x, epsp_incr=None):
                 + np.einsum("nai,nab,nbj->nij", Bbs, Dm_, Bbs))
 
         Kl[sl] += (A_sl * kGt)[:, None, None] * np.einsum("nai,naj->nij", Bss, Bss)
+
+        # Spin-coupled drilling regularization (implicit-only, like the
+        # BT4 rotational-hourglass term): the explicit Idrill = 0 path has
+        # no spin response, so this block is outside the FD gate by design,
+        # but it keeps the assembled K at rank 18 (the nullspace test).
+        kdrill = (1e-3 * E_mod * t_sl ** 3 * A_sl / 12.0)[:, None, None]
+        for i in range(4):
+            gi = np.zeros((len(A_sl), 24), dtype=float)
+            gi[:, 6 * i + 5] = 1.0
+            for b in range(4):
+                gi[:, 6 * b + 0] += 0.5 * B2[sl, b]
+                gi[:, 6 * b + 1] += -0.5 * B1[sl, b]
+            Kl[sl] += kdrill * np.einsum("ni,nj->nij", gi, gi)
 
     # Hourglass stiffness (shell_qeph_hg.hg_tangent: CZLKEN3 membrane/
     # bending, the shear-modal chain, and the DHZ spin term).

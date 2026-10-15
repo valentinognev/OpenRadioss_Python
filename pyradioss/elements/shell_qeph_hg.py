@@ -20,9 +20,6 @@
 #     chain of CZFINTN1 lines 353-434 — generalized stresses sc5/sc6/ss3
 #     and their nodal assembly — linearized here; the damper, plastic
 #     relaxation and energy booking do not enter a stiffness)
-#   engine/source/elements/shell/coqueba/cmatc3.F (added: HZ, the
-#     drilling-dof modulus at lines 231-237 — MAX(HF)*KZ_TOL with the
-#     /IMPL KZ_TOL default 1e-3 — behind the Mzz term)
 
 """QEPH implicit hourglass stiffness (P3.10).
 
@@ -42,19 +39,17 @@ by ``tests/test_p3_qbat_qeph_tangent.py``:
 * transverse: the shear-modal chain (``vhg[4:5]`` -> ``dg`` -> ``sc5``/
   ``sc6``/``ss3`` -> nodal forces AND the ``s1geo`` shear-moment lever),
   which is the same stiffness upstream's ``CZLKECT3`` ``HS`` block
-  states directly (both give the FD-measured response);
-* spin: the ``DHZ`` ``Mzz`` term (upstream's ``HZ``/``KZ_TOL``
-  regularization) on the drilling rotations, which the explicit
-  ``Idrill = 0`` path does not resist — hence implicit-only, hence
-  outside the finite-difference gate by the same token as upstream.
+  states directly (both give the FD-measured response).
+
+Spin (drilling) regularization lives in ``shell_qeph.tangent`` (the
+spin-coupled penalty, implicit-only like the BT4 term): the explicit
+``Idrill = 0`` path has no spin response, and the penalty's translation
+coupling is what keeps the assembled K at rank 18.
 """
 
 from __future__ import annotations
 
 import numpy as np
-
-#: /IMPL KZ_TOL default (impl2_c.inc): the drilling-modulus scale.
-_KZ_TOL = 1.0e-3
 
 #: hourglass sign pattern h = (1,-1,1,-1).
 _HPAT = np.array([1.0, -1.0, 1.0, -1.0])
@@ -159,13 +154,4 @@ def hg_tangent(G, a11, a12, gs, thick, area):
     kl[:, 10, :] += -mx23c * l5 + mx34c * l6 + mx13c * lss
     kl[:, 16, :] += mx23c * l5 + mx34c * l6 + mx13c * lss
     kl[:, 22, :] += mx23c * l5 - mx34c * l6 + mx13c * lss
-
-    # spin regularization (cmatc3 HZ = MAX(HF)*KZ_TOL behind DHZ; the
-    # explicit Idrill = 0 path has no spin response, so this block is
-    # implicit-only like upstream's — outside the FD gate by design)
-    hz = np.maximum(a11, gs) / 12.0 * _KZ_TOL
-    dhz = hz * thick * thick * vol
-    for a in range(4):
-        for b in range(4):
-            kl[:, 6 * a + 5, 6 * b + 5] += dhz * (hxx + hyy) * gg[:, a, b]
     return kl
