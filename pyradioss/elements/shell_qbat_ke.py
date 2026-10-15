@@ -20,10 +20,8 @@
 #     through the 13/24/HI slot maps)
 #   engine/source/elements/shell/coqueba/cbaforc3.F (added: the CBADEFSH
 #     constant assumed membrane shear and the CBAFORCT mean-shear force
-#     correction whose stiffness counterpart is mean_shear_block)
-#   engine/source/elements/shell/coqueba/cbalke3.F (added: CBALKEC3 lines
-#     1635-1730 — the constant membrane-shear treatment, i.e. the
-#     upstream statement of the mean_shear_block distribution pattern)
+#     correction whose exact linearization is mean_shear_block; upstream
+#     states the same correction as CBALKEC3 in cbalke3.F lines 1635-1730)
 
 """QBAT implicit stiffness operators (P3.10).
 
@@ -41,9 +39,9 @@ gate (``tests/test_p3_qbat_qeph_tangent.py``) fails with the naive rows.
 The rows below transcribe the explicit operators (same slot maps), so the
 tangent linearizes the assembly term by term.
 
-The membrane shear row is the ``CBADEFSH`` constant assumed shear (not a
-shape derivative), and :func:`mean_shear_block` is the stiffness of the
-``CBAFORCT`` mean-shear force correction (upstream ``CBALKEC3``).
+The vdef3 assumed-shear row feeds ONLY :func:`mean_shear_block` (the
+per-GP shear resultant is never assembled); ``Bm`` row 2 stays zero.
+``mean_shear_block`` is the exact linearization of that correction.
 """
 
 from __future__ import annotations
@@ -103,7 +101,6 @@ def _shear_bc_ops(mx13, my13, mx23, my23, mx34, my34, detJ, ksi, eta):
 
 def gauss_jac(cx, cy, area, g):
     """Analytic Gauss Jacobian at Gauss point ``g`` (cbacoor.F 478-486)."""
-    m = np.shape(cx)[0]
     mx13 = 0.5 * (cx[:, 0] + cx[:, 2])
     my13 = 0.5 * (cy[:, 0] + cy[:, 2])
     mx23 = 0.5 * (cx[:, 1] + cx[:, 2])
@@ -119,9 +116,9 @@ def gauss_jac(cx, cy, area, g):
 
 
 def flat_gp_rows(cx, cy, area, g, xi_g, eta_g):
-    """Per-Gauss-point (Bm, Bb, Bs) rows (m,3/3/2,24) at Gauss point ``g``.
+    """Per-Gauss-point (Bm, Bb, Bs, detJ) at Gauss point ``g``.
 
-    ``cx``/``cy`` are centered corner coords (m,4), ``area``/``detJ`` (m,),
+    ``cx``/``cy`` are centered corner coords (m,4), ``area`` (m,),
     ``xi_g``/``eta_g`` scalars. Flat-branch formulas throughout (warped
     elements reuse them — the same standing approximation as the previous
     tangent, now with the correct operators)."""

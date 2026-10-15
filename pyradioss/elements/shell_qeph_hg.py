@@ -15,7 +15,7 @@
 #     transcribed as the hourglass shape data below)
 #   engine/source/elements/shell/coquez/czlken3.F (added: CZLKEN3 lines
 #     72-140 — the CHM/CHF moduli and the GAMA outer-product membrane/
-#     bending hourglass assembly, plus the DHZ Mzz spin term)
+#     bending hourglass assembly)
 #   engine/source/elements/shell/coquez/czfintn.F (added: the shear-modal
 #     chain of CZFINTN1 lines 353-434 — generalized stresses sc5/sc6/ss3
 #     and their nodal assembly — linearized here; the damper, plastic
