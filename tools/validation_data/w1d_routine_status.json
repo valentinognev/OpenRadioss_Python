@@ -1,0 +1,1512 @@
+[
+ {
+  "fortran": "engine/source/elements/truss/tbilan.F",
+  "routine": "tbilan",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "Per-part PARTSAV booking (grelem_sav/sensor_energy_bilan, per the file's !|| block); the port keeps per-element st['eint'] only (truss.py:139) and has no PARTSAV array \u2014 same rationale as the solid sbilan refusal.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/truss/tcoor3.F",
+  "routine": "tcoor3",
+  "port_module": "pyradioss.elements.truss",
+  "port_symbol": "init_group",
+  "status": "ported",
+  "deviation_note": "Nodal gather plus initial axis/length into st['L0'] (truss.py:31); the small-strain SAV coordinate swap is absent.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/truss/tcoork3.F",
+  "routine": "tcoork3",
+  "port_module": "pyradioss.elements.truss",
+  "port_symbol": "tangent",
+  "status": "ported",
+  "deviation_note": "KE-frame helper folded into truss.tangent (truss.py:233); the file is not cited by name in the module.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/truss/tdefo3.F",
+  "routine": "tdefo3",
+  "port_module": "pyradioss.elements.truss",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Axial strain rate (v2-v1).a/L inside forces (truss.py:69).",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/truss/tdlen3.F",
+  "routine": "tdlen3",
+  "port_module": "pyradioss.elements.truss",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "dt = L/c named in the module docstring as the tdlen3.F origin; claimed through the dt return of forces.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/truss/tfcum3.F",
+  "routine": "tfcum3",
+  "port_module": "pyradioss.elements.truss",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Nodal force scatter folded into forces via np.add.at (engine assembly); the file is not cited by name.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/truss/tfcum3p.F",
+  "routine": "tfcum3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "SPMD partition scatter (FSKY/IADR); mpi4py is not installed so every -np N path runs single-rank.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/truss/tforc3.F",
+  "routine": "tforc3",
+  "port_module": "pyradioss.elements.truss",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Documented cycle end to end (gather, LAW1/2 update, scatter, energy, dt).",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/truss/tke3.F",
+  "routine": "tke3",
+  "port_module": "pyradioss.elements.truss",
+  "port_symbol": "tangent",
+  "status": "ported",
+  "deviation_note": "Material tangent (truss.py:233); exact RKENONL-style law correspondence unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/truss/tkeg3.F",
+  "routine": "tkeg3",
+  "port_module": "pyradioss.elements.truss",
+  "port_symbol": "kgeo",
+  "status": "ported",
+  "deviation_note": "Geometric stiffness (F/L)(I-aa^T) (truss.py:280).",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/truss/tmat3.F",
+  "routine": "tmat3",
+  "port_module": "pyradioss.elements.truss",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "LAW1 elastic plus LAW2 1-D radial return on the Johnson-Cook yield inside forces (module docstring).",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/fail_beam18.F",
+  "routine": "fail_beam18",
+  "port_module": "pyradioss.elements.beam_fiber",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Named in the beam_fiber origin block; fiber rupture-criterion correspondence unverified in this audit.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/fail_beam3.F",
+  "routine": "fail_beam3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No fail/off/rupture handling found in beam_type3.py; the TYPE3 element-deletion path is unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/main_beam18.F",
+  "routine": "main_beam18",
+  "port_module": "pyradioss.elements.beam_fiber",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Integrated-fiber driver named in the origin block; NIP/law-branch correspondence unverified in this audit.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/main_beam3.F",
+  "routine": "main_beam3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Resultant driver: the module docstring cites it as pmain.F but the on-disk file is main_beam3.F; constitutive correspondence unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/mulaw_ib.F",
+  "routine": "mulaw_ib",
+  "port_module": "pyradioss.elements.beam_fiber",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Fiber material update named in the origin block; law-branch correspondence unverified in this audit.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pbilan.F",
+  "routine": "pbilan",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "Per-part PARTSAV booking (grelem_sav/sensor_energy_bilan, per the !|| block); the port keeps per-element eint only (beam_type3.py:291).",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pcoor3.F",
+  "routine": "pcoor3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Corotational frame from N1/N2/N3 in _frame (beam_type3.py:130), named in the module cycle path.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pcoork3.F",
+  "routine": "pcoork3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "tangent",
+  "status": "ported",
+  "deviation_note": "KE-frame helper folded into tangent (beam_type3.py:598); the file is not cited by name.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pcurv3.F",
+  "routine": "pcurv3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Not cited by name; curvature rates enter through _b_operator (beam_type3.py:175) \u2014 exact correspondence unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pdamp3.F",
+  "routine": "pdamp3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "beam_rayleigh_damping",
+  "status": "partial",
+  "deviation_note": "Damping ported as beam_rayleigh_damping (beam_type3.py:1085); viscous-damping branch correspondence unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pdefo3.F",
+  "routine": "pdefo3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Generalized strain rates (axial, shear, torsion, curvature) in _forces_core (beam_type3.py:412), named in the cycle path.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pdlen3.F",
+  "routine": "pdlen3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Critical step via _exact_dt (beam_type3.py:191), named in the cycle path.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/peoff.F",
+  "routine": "peoff",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "tangent",
+  "status": "partial",
+  "deviation_note": "Called by pke3/r13ke3/r4ke3/r8ke3 (KE deactivation); OFF-gating lives inside tangent \u2014 exact correspondence unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pevec3.F",
+  "routine": "pevec3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Orientation-node frame helper folded into _frame (beam_type3.py:130); the file is not cited by name.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pfcum3.F",
+  "routine": "pfcum3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Force scatter folded into _forces_core via np.add.at; the file is not cited by name.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pfcum3p.F",
+  "routine": "pfcum3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "SPMD partition scatter; mpi4py is not installed so every run is single-rank.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pfint3.F",
+  "routine": "pfint3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Internal nodal forces/moments as the transpose of the strain rates in _forces_core (cycle path).",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pforc3.F",
+  "routine": "pforc3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Documented driver end to end (gather, frame, chain, scatter).",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pke3.F",
+  "routine": "pke3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "tangent",
+  "status": "ported",
+  "deviation_note": "Element tangent stiffness (beam_type3.py:598).",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pmat3.F",
+  "routine": "pmat3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "LAW2 resultant-space return in _global_plastic_return (beam_type3.py:324).",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pmcum3.F",
+  "routine": "pmcum3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Moment scatter folded into _forces_core; the module names the file.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/pmcum3p.F",
+  "routine": "pmcum3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "SPMD partition moment scatter; single-rank only.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/ppxpy3.F",
+  "routine": "ppxpy3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Not cited by name; DL/AL sectional update folded into _forces_core \u2014 correspondence unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/psumg3.F",
+  "routine": "psumg3",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "tangent",
+  "status": "partial",
+  "deviation_note": "Called by pke3 (section stiffness assembly); folded into tangent \u2014 correspondence unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/beam/thermexpp.F",
+  "routine": "thermexpp",
+  "port_module": "pyradioss.elements.beam_type3",
+  "port_symbol": "beam_thermal_step",
+  "status": "partial",
+  "deviation_note": "Thermal step ported as beam_thermal_step (beam_type3.py:992); coupling scope unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/preload_axial.F90",
+  "routine": "preload_axial",
+  "port_module": "pyradioss.elements.spring_pretensioner",
+  "port_symbol": "forces_pretensioner_type32",
+  "status": "partial",
+  "deviation_note": "Displacement/force locking lives in forces_pretensioner_type32; the GET_PRELOAD_AXIAL sensor/funct path (forint.F) is unverified.",
+  "parity_case": null,
+  "igtyp": 32
+ },
+ {
+  "fortran": "engine/source/elements/spring/r12ke3.F",
+  "routine": "r12ke3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No TYPE12 tangent in the port \u2014 the implicit path stays TYPE4-only (implicit/assembly.py).",
+  "parity_case": null,
+  "igtyp": 12
+ },
+ {
+  "fortran": "engine/source/elements/spring/r12mat3.F",
+  "routine": "r12mat3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "init_pulley_type12",
+  "status": "partial",
+  "deviation_note": "Pulley property/mass init (spring_advanced.py:67); exact R12MAT3 correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 12
+ },
+ {
+  "fortran": "engine/source/elements/spring/r12sumg3.F",
+  "routine": "r12sumg3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_pulley_type12",
+  "status": "partial",
+  "deviation_note": "Stiffness-sum assembly folded into forces_pulley_type12 (dt return); exact correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 12
+ },
+ {
+  "fortran": "engine/source/elements/spring/r13ke3.F",
+  "routine": "r13ke3",
+  "port_module": "pyradioss.elements.spring_beam",
+  "port_symbol": "ke_spring_beam_type13",
+  "status": "ported",
+  "deviation_note": "12x12 tangent with shear-moment coupling blocks (docstring cites r13ke3.F lines 56-150).",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r13mat3.F",
+  "routine": "r13mat3",
+  "port_module": "pyradioss.elements.spring_beam",
+  "port_symbol": "init_spring_beam_type13",
+  "status": "partial",
+  "deviation_note": "RKENONL nonlinear per-DOF stiffness eval folded into init/forces; exact law correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r13sumg3.F",
+  "routine": "r13sumg3",
+  "port_module": "pyradioss.elements.spring_beam",
+  "port_symbol": "forces_spring_beam_type13",
+  "status": "partial",
+  "deviation_note": "Stiffness-sum/dt claim folded into the forces return; PARTSAV-free; exact correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r1coor3.F",
+  "routine": "r1coor3",
+  "port_module": "pyradioss.elements.spring",
+  "port_symbol": "init_group",
+  "status": "ported",
+  "deviation_note": "Axial gather plus L0 into state (spring.py:92).",
+  "parity_case": null,
+  "igtyp": 4
+ },
+ {
+  "fortran": "engine/source/elements/spring/r1coork3.F",
+  "routine": "r1coork3",
+  "port_module": "pyradioss.elements.spring",
+  "port_symbol": "tangent",
+  "status": "ported",
+  "deviation_note": "KE-frame helper folded into spring.tangent (spring.py:467); not cited by name.",
+  "parity_case": null,
+  "igtyp": 4
+ },
+ {
+  "fortran": "engine/source/elements/spring/r1cum3.F",
+  "routine": "r1cum3",
+  "port_module": "pyradioss.elements.spring",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Axial scatter folded into _forces_axial via np.add.at; not cited by name.",
+  "parity_case": null,
+  "igtyp": 4
+ },
+ {
+  "fortran": "engine/source/elements/spring/r1cum3p.F",
+  "routine": "r1cum3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "SPMD partition scatter; single-rank only.",
+  "parity_case": null,
+  "igtyp": 4
+ },
+ {
+  "fortran": "engine/source/elements/spring/r1def3.F",
+  "routine": "r1def3",
+  "port_module": "pyradioss.elements.spring",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Axial law F = K(L-L0) + C*Ldot in _forces_axial (spring.py:260); the TYPE4 branch of rforc3.F.",
+  "parity_case": null,
+  "igtyp": 4
+ },
+ {
+  "fortran": "engine/source/elements/spring/r1len3.F",
+  "routine": "r1len3",
+  "port_module": "pyradioss.elements.spring",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Two-mass-oscillator dt with damping reduction (module docstring); the module names the file.",
+  "parity_case": null,
+  "igtyp": 4
+ },
+ {
+  "fortran": "engine/source/elements/spring/r1sens3.F",
+  "routine": "r1sens3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No sensor gating in spring.py (no SENSOR refs outside comments); TYPE4 sensor activation is absent.",
+  "parity_case": null,
+  "igtyp": 4
+ },
+ {
+  "fortran": "engine/source/elements/spring/r1tors.F",
+  "routine": "r1tors",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_torsion_type19",
+  "status": "partial",
+  "deviation_note": "Attribution conflict recorded: rforc3.F:290,366,431 CALL it with (FOR,TANI,H3D_DATA) \u2014 an output duty \u2014 while spring_advanced cites the same file as the TYPE19 torsion origin; the audit could not reconcile this without reading the file.",
+  "parity_case": null,
+  "igtyp": 19
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23bilan.F",
+  "routine": "r23bilan",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "Per-part PARTSAV booking; the port keeps per-element eint only.",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23coor3.F",
+  "routine": "r23coor3",
+  "port_module": "pyradioss.elements.spring_mat",
+  "port_symbol": "forces_spring_mat_type23",
+  "status": "partial",
+  "deviation_note": "Not cited by name; frame duty folded into _get_skew_frame/_compute_beam_corotational_frame (spring_mat.py:80,108).",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23forc3.F",
+  "routine": "r23forc3",
+  "port_module": "pyradioss.elements.spring_mat",
+  "port_symbol": "forces_spring_mat_type23",
+  "status": "partial",
+  "deviation_note": "TYPE23 driver ported (dispatched spring.py:forces); LAW135 plus rate/hysteresis branches unverified.",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23l108def3.F",
+  "routine": "r23l108def3",
+  "port_module": "pyradioss.elements.spring_mat",
+  "port_symbol": "forces_spring_mat_type23",
+  "status": "partial",
+  "deviation_note": "LAW108 kinematics/dispatch via Law108Params/build_law108 (spring_mat.py:37,444).",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23l113def3.F",
+  "routine": "r23l113def3",
+  "port_module": "pyradioss.elements.spring_mat",
+  "port_symbol": "forces_spring_mat_type23",
+  "status": "partial",
+  "deviation_note": "LAW113 beam-axis dispatch via Law113Params/build_law113 (spring_mat.py:38,464).",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23l114def3.F",
+  "routine": "r23l114def3",
+  "port_module": "pyradioss.elements.spring_mat",
+  "port_symbol": "forces_spring_mat_type23",
+  "status": "partial",
+  "deviation_note": "LAW114 seatbelt driver via Law114Seatbelt (spring_mat.py:39).",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23l135def3.F90",
+  "routine": "r23l135def3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No LAW135 in the port (no law135 module, no references).",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23law108.F",
+  "routine": "r23law108",
+  "port_module": "pyradioss.elements.spring_mat",
+  "port_symbol": "forces_spring_mat_type23",
+  "status": "partial",
+  "deviation_note": "LAW108 constitutive update via Law108Params; unloading-hysteresis correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23law113.F",
+  "routine": "r23law113",
+  "port_module": "pyradioss.elements.spring_mat",
+  "port_symbol": "forces_spring_mat_type23",
+  "status": "partial",
+  "deviation_note": "LAW113 update via Law113Params; transverse-shear arm correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23law114.F",
+  "routine": "r23law114",
+  "port_module": "pyradioss.elements.spring_mat",
+  "port_symbol": "forces_spring_mat_type23",
+  "status": "partial",
+  "deviation_note": "LAW114 update via Law114Seatbelt; slack/rate correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23law135.F90",
+  "routine": "r23law135",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No LAW135 in the port.",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r23sens3.F",
+  "routine": "r23sens3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "TYPE23 sensor gating absent (sensor activation is a documented cut family).",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/r26def3.F",
+  "routine": "r26def3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_tab_type26",
+  "status": "partial",
+  "deviation_note": "TAB law ported; the python_funct_mod callback is not wired (P4.5) so curves are curve-only.",
+  "parity_case": null,
+  "igtyp": 26
+ },
+ {
+  "fortran": "engine/source/elements/spring/r26sig.F",
+  "routine": "r26sig",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_tab_type26",
+  "status": "partial",
+  "deviation_note": "TAB stress eval folded into forces_tab_type26; funct-callback path unverified.",
+  "parity_case": null,
+  "igtyp": 26
+ },
+ {
+  "fortran": "engine/source/elements/spring/r27def3.F",
+  "routine": "r27def3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_bdamp_type27",
+  "status": "partial",
+  "deviation_note": "BDAMP law ported; the finter callback is not wired (P4.5).",
+  "parity_case": null,
+  "igtyp": 27
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2coor3.F",
+  "routine": "r2coor3",
+  "port_module": "pyradioss.elements.spring_general",
+  "port_symbol": "init6",
+  "status": "ported",
+  "deviation_note": "6-DOF gather plus local frame in init6/_slice_frame (spring_general.py:66,121).",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2coork3.F",
+  "routine": "r2coork3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "TYPE8 KE-frame helper; no TYPE8 tangent exists (implicit stays TYPE4-only).",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2cum3.F",
+  "routine": "r2cum3",
+  "port_module": "pyradioss.elements.spring_general",
+  "port_symbol": "forces6",
+  "status": "ported",
+  "deviation_note": "6-DOF scatter folded into forces6; the module names the file.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2cum3p.F",
+  "routine": "r2cum3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "SPMD partition scatter; single-rank only.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2def3.F",
+  "routine": "r2def3",
+  "port_module": "pyradioss.elements.spring_general",
+  "port_symbol": "forces6",
+  "status": "partial",
+  "deviation_note": "Linear K/C core over 6 uncoupled DOFs ported (closed-form-matched); the eight documented cuts live in @cut rows, not here.",
+  "parity_case": "tests/test_m502_spring_general.py",
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2len3.F",
+  "routine": "r2len3",
+  "port_module": "pyradioss.elements.spring_general",
+  "port_symbol": "forces6",
+  "status": "partial",
+  "deviation_note": "The module names the file; the 6-DOF dt claim is folded into the forces6 return \u2014 exact R2LEN3 formula unverified.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2len3law135.F90",
+  "routine": "r2len3law135",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "LAW135 dt path; no LAW135 in the port.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2sens3.F",
+  "routine": "r2sens3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "R2SENS3 OFF/sensor gating absent (no SENSOR refs in spring_general.py); see @cut:sensor_activation.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2tors.F",
+  "routine": "r2tors",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "Called at rforc3.F:525 with (FOR,TANI,...) \u2014 TANI/H3D output duty; the port writes no spring TANI.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r3bilan.F",
+  "routine": "r3bilan",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_pulley_type12",
+  "status": "partial",
+  "deviation_note": "Cited in-module (spring_advanced.py:187,366): tension plus friction-sliding work booked to per-element eint; PARTSAV side absent.",
+  "parity_case": null,
+  "igtyp": 12
+ },
+ {
+  "fortran": "engine/source/elements/spring/r3coor3.F",
+  "routine": "r3coor3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "init_pulley_type12",
+  "status": "partial",
+  "deviation_note": "Not cited by name; 3-node pulley gather folded into init_pulley_type12 (L0 = L01+L02 per r3buf3.F:97-99).",
+  "parity_case": null,
+  "igtyp": 12
+ },
+ {
+  "fortran": "engine/source/elements/spring/r3coork3.F",
+  "routine": "r3coork3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "TYPE12 KE helper; no TYPE12 tangent exists.",
+  "parity_case": null,
+  "igtyp": 12
+ },
+ {
+  "fortran": "engine/source/elements/spring/r3cum3.F",
+  "routine": "r3cum3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_pulley_type12",
+  "status": "ported",
+  "deviation_note": "3-node scatter folded into forces_pulley_type12 via np.add.at (spring_advanced.py:360); the module names the file.",
+  "parity_case": null,
+  "igtyp": 12
+ },
+ {
+  "fortran": "engine/source/elements/spring/r3cum3p.F",
+  "routine": "r3cum3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "SPMD partition scatter; single-rank only.",
+  "parity_case": null,
+  "igtyp": 12
+ },
+ {
+  "fortran": "engine/source/elements/spring/r3def3.F",
+  "routine": "r3def3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_pulley_type12",
+  "status": "partial",
+  "deviation_note": "Pulley cable law with friction ported; sliding-friction branch correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 12
+ },
+ {
+  "fortran": "engine/source/elements/spring/r3len3.F",
+  "routine": "r3len3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_pulley_type12",
+  "status": "ported",
+  "deviation_note": "Cited in-module (spring_advanced.py:379-384, r3len3.F lines 80-100): two-mass dt with damping reduction.",
+  "parity_case": null,
+  "igtyp": 12
+ },
+ {
+  "fortran": "engine/source/elements/spring/r3tors.F",
+  "routine": "r3tors",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_torsion_type19",
+  "status": "partial",
+  "deviation_note": "Port drives TYPE19 through forces_torsion_type19 (dispatched spring.py:371), but upstream rforc3.F has NO IGTYP==19 branch \u2014 R3TORS is called at :609 inside the TYPE12 branch \u2014 and the starter ships no hm_read_prop19.F; the port reads /PROP/TYPE19 as an extension (prop_reader.py:57). Formulation correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 19
+ },
+ {
+  "fortran": "engine/source/elements/spring/r4coor3.F",
+  "routine": "r4coor3",
+  "port_module": "pyradioss.elements.spring_beam",
+  "port_symbol": "init_spring_beam_type13",
+  "status": "ported",
+  "deviation_note": "Initial triad from N1/N2/[N3|skew] folded into init_spring_beam_type13 (docstring cites starter r4buf3.F:146-244); the engine file is not cited by name.",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r4coork3.F",
+  "routine": "r4coork3",
+  "port_module": "pyradioss.elements.spring_beam",
+  "port_symbol": "ke_spring_beam_type13",
+  "status": "partial",
+  "deviation_note": "KE-frame duty folded into ke_spring_beam_type13; exact correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r4cum3.F",
+  "routine": "r4cum3",
+  "port_module": "pyradioss.elements.spring_beam",
+  "port_symbol": "forces_spring_beam_type13",
+  "status": "ported",
+  "deviation_note": "Scatter with moment-arm shear equilibrium m1+m2+r\u00d7f2=0 (docstring cites r4cum3.F:80-138); implemented with np.cross (spring_beam.py:179-191).",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r4cum3p.F",
+  "routine": "r4cum3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "SPMD partition scatter; single-rank only.",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r4def3.F",
+  "routine": "r4def3",
+  "port_module": "pyradioss.elements.spring_beam",
+  "port_symbol": "forces_spring_beam_type13",
+  "status": "partial",
+  "deviation_note": "Generalized displacements/rates plus redef3 HFLAG laws ported per docstring; per-DOF rupture/deactivation branches unverified.",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r4evec3.F",
+  "routine": "r4evec3",
+  "port_module": "pyradioss.elements.spring_beam",
+  "port_symbol": "init_spring_beam_type13",
+  "status": "ported",
+  "deviation_note": "Local triad plus dynamic torsion reorientation (docstring cites r4evec3.F:119-255).",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r4ke3.F",
+  "routine": "r4ke3",
+  "port_module": "pyradioss.elements.spring_beam",
+  "port_symbol": "ke_spring_beam_type13",
+  "status": "partial",
+  "deviation_note": "Material KE folded into ke_spring_beam_type13; exact R4KE3 correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r4mat3.F",
+  "routine": "r4mat3",
+  "port_module": "pyradioss.elements.spring_beam",
+  "port_symbol": "forces_spring_beam_type13",
+  "status": "partial",
+  "deviation_note": "Nonlinear per-DOF stiffness eval folded into init/forces; exact correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r4sumg3.F",
+  "routine": "r4sumg3",
+  "port_module": "pyradioss.elements.spring_beam",
+  "port_symbol": "forces_spring_beam_type13",
+  "status": "partial",
+  "deviation_note": "Stiffness-sum/dt claim folded into the forces return; exact correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r4tors.F",
+  "routine": "r4tors",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "Called with (FOR,MOM,TANI,AL,H3D_DATA) \u2014 TANI/H3D output duty; the port writes no spring TANI.",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r5bilan.F",
+  "routine": "r5bilan",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "Per-part PARTSAV booking for the 29-46 branches; per-element eint only.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/r5cum3.F",
+  "routine": "r5cum3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Shared scatter for the 29/30/31, 32, 35/36, 44, 46 branches; folded into the forces_* routines \u2014 the module names the file.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/r5cum3p.F",
+  "routine": "r5cum3p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "SPMD partition scatter; single-rank only.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/r5def3.F",
+  "routine": "r5def3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Shared 6-DOF nonlinear kernel behind the 29/30/31, 32, 35/36, 44, 46 branches (rforc3.F:882,1082,1204,1312,1410); branch coverage lives in the ruser*/@branch rows.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/r5evec3.F",
+  "routine": "r5evec3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces",
+  "status": "ported",
+  "deviation_note": "Shared frame for the R4COOR3-led branches; folded into the forces_* routines \u2014 the module names the file.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/r5len3.F",
+  "routine": "r5len3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Shared dt claim folded into the forces_* returns; exact formula unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/r6def3.F",
+  "routine": "r6def3",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_axi_type25",
+  "status": "partial",
+  "deviation_note": "TYPE25 (SPR_AXI) law ported; redef3/repla3/python_funct_mod integration unverified (P4.1/P4.5). NOTE: P4.1's 'IGTYP 6' premise is stale \u2014 R6DEF3 is called from the IGTYP==25 branch (rforc3.F:785) and no IGTYP==6 branch exists; see the @gap:igtyp6 row.",
+  "parity_case": null,
+  "igtyp": 25
+ },
+ {
+  "fortran": "engine/source/elements/spring/r8ke3.F",
+  "routine": "r8ke3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "TYPE8 tangent stiffness unported \u2014 the implicit path stays TYPE4-only; see @cut:implicit_type4_only.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r8sumg3.F",
+  "routine": "r8sumg3",
+  "port_module": "pyradioss.elements.spring_general",
+  "port_symbol": "forces6",
+  "status": "partial",
+  "deviation_note": "TYPE8 assembly folded into forces6 scatter; stiffness-sum details unverified.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/rbilan.F",
+  "routine": "rbilan",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "Per-part PARTSAV booking for the TYPE4/26/27 path; per-element eint only.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/redef3.F90",
+  "routine": "redef3",
+  "port_module": "pyradioss.elements.spring_mat",
+  "port_symbol": "forces_spring_mat_type23",
+  "status": "partial",
+  "deviation_note": "Shared 6-DOF nonlinear constitutive law (HFLAG 0/1/2/4/7, rate, damping) behind TYPE13/TYPE23/TYPE25 via _update_dof_redef3 (spring_mat.py:142) and spring_beam; P4.1's warning stands \u2014 it must be factored once, not copied per branch.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/redef3_law113.F",
+  "routine": "redef3_law113",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No module cites this LAW113 variant; LAW113 coverage lives in spring_mat via build_law113 (correspondence with this file unverified).",
+  "parity_case": null,
+  "igtyp": 23
+ },
+ {
+  "fortran": "engine/source/elements/spring/repla3.F",
+  "routine": "repla3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No module cites REPLA3 (the R6DEF3 plasticity return); owned by P4.1 alongside r6def3.F.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/rforc3.F",
+  "routine": "rforc3",
+  "port_module": "pyradioss.elements.spring",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Dispatch ported for 4/8/12/13/19/23/25/26/27/28/32/33/35/36/44/45/46 (spring.py:forces); the 29/30/31 user-spring arm has no ENG_USERLIB_RUSER equivalent \u2014 it needs the P4.2 refusal (see @branch rows). Upstream has no trailing ELSE either, so unknown IGTYP falls through silently on both sides.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/ruser32.F",
+  "routine": "ruser32",
+  "port_module": "pyradioss.elements.spring_pretensioner",
+  "port_symbol": "forces_pretensioner_type32",
+  "status": "partial",
+  "deviation_note": "Module plus dispatch exist (spring.py:202,311) but spring.py's own comment still says 'the pretensioner physics is unported, so the Engine refuses the group' (M39-BUG-SPRPRE era) \u2014 stale. ITYP-law correspondence plus preload_axial init unverified (P4.4).",
+  "parity_case": null,
+  "igtyp": 32
+ },
+ {
+  "fortran": "engine/source/elements/spring/ruser32ke3.F",
+  "routine": "ruser32ke3",
+  "port_module": "pyradioss.elements.spring_pretensioner",
+  "port_symbol": "implicit_stiffness_type32",
+  "status": "partial",
+  "deviation_note": "Pretensioner tangent exists as implicit_stiffness_type32 (spring_pretensioner.py:325); implicit routing unverified.",
+  "parity_case": null,
+  "igtyp": 32
+ },
+ {
+  "fortran": "engine/source/elements/spring/ruser32mat3.F",
+  "routine": "ruser32mat3",
+  "port_module": "pyradioss.elements.spring_pretensioner",
+  "port_symbol": "implicit_stiffness_type32",
+  "status": "partial",
+  "deviation_note": "Tangent-selection duty folded into the same symbol; UVAR-4 correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 32
+ },
+ {
+  "fortran": "engine/source/elements/spring/ruser35.F",
+  "routine": "ruser35",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_stitch_type35",
+  "status": "partial",
+  "deviation_note": "STITCH law ported; user-material branch correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 35
+ },
+ {
+  "fortran": "engine/source/elements/spring/ruser36.F",
+  "routine": "ruser36",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_predit_type36",
+  "status": "partial",
+  "deviation_note": "PREDIT law ported; user-material branch correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 36
+ },
+ {
+  "fortran": "engine/source/elements/spring/ruser44.F",
+  "routine": "ruser44",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_crushing_type44",
+  "status": "partial",
+  "deviation_note": "Crushing law with plateau plus elastic unloading ported; non-recoverable-d displacement correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 44
+ },
+ {
+  "fortran": "engine/source/elements/spring/ruser46.F",
+  "routine": "ruser46",
+  "port_module": "pyradioss.elements.spring_advanced",
+  "port_symbol": "forces_muscle_type46",
+  "status": "partial",
+  "deviation_note": "Hill-type muscle law ported; activation dynamics correspondence unverified.",
+  "parity_case": null,
+  "igtyp": 46
+ },
+ {
+  "fortran": "engine/source/elements/joint/joint_block_stiffness.F",
+  "routine": "joint_block_stiffness",
+  "port_module": "pyradioss.engine.kjoint",
+  "port_symbol": "KJointEngine",
+  "status": "partial",
+  "deviation_note": "Block-stiffness duty inside the KJoint solve; exact correspondence unverified. P4.6 owns the nine-reader topology matrix.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/joint/joint_elem_timestep.F",
+  "routine": "joint_elem_timestep",
+  "port_module": "pyradioss.engine.kjoint",
+  "port_symbol": "build_kjoints",
+  "status": "partial",
+  "deviation_note": "Timestep duty folded into the KJoint build/stepping; correspondence unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/joint/ranim33.F",
+  "routine": "ranim33",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "Joint animation output; the port writes no joint ANIM.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/joint/rbilan33.F",
+  "routine": "rbilan33",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "Per-part PARTSAV booking; per-element energy only.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/joint/rcum33.F",
+  "routine": "rcum33",
+  "port_module": "pyradioss.engine.kjoint",
+  "port_symbol": "KJointEngine",
+  "status": "partial",
+  "deviation_note": "Constraint-force scatter folded into the KJoint solve; the module names the file. Carries IGTYP 33 (ruser33 carries 45).",
+  "parity_case": null,
+  "igtyp": 33
+ },
+ {
+  "fortran": "engine/source/elements/joint/rcum33p.F",
+  "routine": "rcum33p",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "SPMD partition scatter; single-rank only. (Upstream ruser33.F notes TYPE33/45 compute once on the owning domain \u2014 Phase 13 material.)",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/joint/rdtime33.F",
+  "routine": "rdtime33",
+  "port_module": "pyradioss.engine.kjoint",
+  "port_symbol": "KJointEngine",
+  "status": "partial",
+  "deviation_note": "Element-dt duty folded into the KJoint stepping; correspondence unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/joint/rgjoint.F",
+  "routine": "rgjoint",
+  "port_module": "pyradioss.engine.kjoint",
+  "port_symbol": "build_kjoints",
+  "status": "ported",
+  "deviation_note": "Joint manager: KJointEngine plus build_kjoints (kjoint.py:127,672), dispatched from engine.py:651. (The /GJOINT gear/diff/rack mechanisms are gjoint.py \u2014 a different card, kept separate.)",
+  "parity_case": null,
+  "igtyp": 33
+ },
+ {
+  "fortran": "engine/source/elements/joint/rskew33.F",
+  "routine": "rskew33",
+  "port_module": "pyradioss.engine.kjoint",
+  "port_symbol": "KJointEngine",
+  "status": "partial",
+  "deviation_note": "Skew-frame duty inside the KJoint solve; the module names the file \u2014 correspondence unverified.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/joint/ruser33.F",
+  "routine": "ruser33",
+  "port_module": "pyradioss.engine.kjoint",
+  "port_symbol": "KJointEngine",
+  "status": "partial",
+  "deviation_note": "Joint constitutive over the JointType topology enum (kjoint.py:53: revolute, spherical, cylindrical, planar, universal, slider/prismatic, oldham, fixed, free); free-DOF counts still to be read off the nine hm_read_prop33_* readers (P4.6). Carries IGTYP 45.",
+  "parity_case": null,
+  "igtyp": 45
+ },
+ {
+  "fortran": "engine/source/elements/rivet/rivet1.F",
+  "routine": "rivet1",
+  "port_module": "pyradioss.elements.rivet",
+  "port_symbol": "rivet_step",
+  "status": "partial",
+  "deviation_note": "Kernel ported (rivet_step, IMOD1 rigid-body plus IMOD2 rigid-link, elliptic failure surface); the module cites hm_read_rivet.F/hm_read_prop05.F and transcribes the GEO layout, so reader code is folded into the kernel module \u2014 the P4.7 split is owed.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/xelem/xanim28.F",
+  "routine": "xanim28",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "Strand animation output; the port writes no xelem ANIM.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/xelem/xbilan3.F",
+  "routine": "xbilan3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "Per-part PARTSAV booking; per-element energy only.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/xelem/xcoor3.F",
+  "routine": "xcoor3",
+  "port_module": "pyradioss.elements.nstrand",
+  "port_symbol": "init_nstrand_type28",
+  "status": "partial",
+  "deviation_note": "Not cited by name; gather duty folded into init_nstrand_type28.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/xelem/xcum3.F",
+  "routine": "xcum3",
+  "port_module": "pyradioss.elements.nstrand",
+  "port_symbol": "forces_nstrand_type28",
+  "status": "ported",
+  "deviation_note": "Scatter folded into the forces return via np.add.at.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/xelem/xdefo3.F",
+  "routine": "xdefo3",
+  "port_module": "pyradioss.elements.nstrand",
+  "port_symbol": "forces_nstrand_type28",
+  "status": "partial",
+  "deviation_note": "Not cited by name; deformation duty folded into forces_nstrand_type28.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/xelem/xforc28.F",
+  "routine": "xforc28",
+  "port_module": "pyradioss.elements.nstrand",
+  "port_symbol": "forces_nstrand_type28",
+  "status": "partial",
+  "deviation_note": "TYPE28 (NSTRAND) law \u2014 capstan pulley friction, damping, rupture, energy, dt \u2014 per the module docstring; GET_U_FUNC/funct correspondence unverified. IGTYP 28 is outside the plan's 24-value list and rides along.",
+  "parity_case": null,
+  "igtyp": 28
+ },
+ {
+  "fortran": "engine/source/elements/xelem/xforc29.F",
+  "routine": "xforc29",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No module covers xforc29.F.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/xelem/xforc3.F",
+  "routine": "xforc3",
+  "port_module": "pyradioss.elements.nstrand",
+  "port_symbol": "forces",
+  "status": "partial",
+  "deviation_note": "Multi-purpose driver; TYPE28 is routed (spring.py idx28, nstrand.forces) and the other branches are missing.",
+  "parity_case": null,
+  "igtyp": 28
+ },
+ {
+  "fortran": "engine/source/elements/xelem/xforc30.F",
+  "routine": "xforc30",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No module covers xforc30.F.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/xelem/xforc31.F",
+  "routine": "xforc31",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No module covers xforc31.F.",
+  "parity_case": null,
+  "igtyp": null
+ },
+ {
+  "fortran": "engine/source/elements/spring/rforc3.F",
+  "routine": "rforc3@legacy:igtyp1",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "No IGTYP==1 branch in the rforc3.F:243-1489 ladder and no starter reader (properties/spring/ ships no hm_read_prop01.F): legacy spring type, silent fall-through upstream.",
+  "parity_case": null,
+  "igtyp": 1
+ },
+ {
+  "fortran": "engine/source/elements/spring/rforc3.F",
+  "routine": "rforc3@legacy:igtyp2",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "No IGTYP==2 branch and no hm_read_prop02.F: legacy spring type, silent fall-through upstream.",
+  "parity_case": null,
+  "igtyp": 2
+ },
+ {
+  "fortran": "engine/source/elements/spring/rforc3.F",
+  "routine": "rforc3@legacy:igtyp3",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "No IGTYP==3 branch and no hm_read_prop03.F: legacy spring type, silent fall-through upstream.",
+  "parity_case": null,
+  "igtyp": 3
+ },
+ {
+  "fortran": "engine/source/elements/spring/rforc3.F",
+  "routine": "rforc3@legacy:igtyp5",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "refused",
+  "deviation_note": "R5DEF3 exists but no IGTYP==5 branch calls it, and no hm_read_prop05.F exists for springs (the hm_read_prop05.F on disk is the RIVET reader).",
+  "parity_case": null,
+  "igtyp": 5
+ },
+ {
+  "fortran": "engine/source/elements/spring/rforc3.F",
+  "routine": "rforc3@gap:igtyp6",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No IGTYP==6 branch anywhere: R6DEF3 serves IGTYP==25 (rforc3.F:785). Owned by P4.1 once its 'IGTYP 6' premise is re-verified against this ladder.",
+  "parity_case": null,
+  "igtyp": 6
+ },
+ {
+  "fortran": "engine/source/elements/spring/rforc3.F",
+  "routine": "rforc3@branch:igtyp29",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "The IGTYP 29 arm (rforc3.F:862-1059) calls ENG_USERLIB_RUSER out of common_source; the port has no user-spring registry \u2014 owned by P4.2 (loud refusal, never a silent zero force).",
+  "parity_case": null,
+  "igtyp": 29
+ },
+ {
+  "fortran": "engine/source/elements/spring/rforc3.F",
+  "routine": "rforc3@branch:igtyp30",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "Same as IGTYP 29 (rforc3.F:945): ENG_USERLIB_RUSER with no port registry \u2014 P4.2.",
+  "parity_case": null,
+  "igtyp": 30
+ },
+ {
+  "fortran": "engine/source/elements/spring/rforc3.F",
+  "routine": "rforc3@branch:igtyp31",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "Same as IGTYP 29 (rforc3.F:963): ENG_USERLIB_RUSER with no port registry \u2014 P4.2.",
+  "parity_case": null,
+  "igtyp": 31
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2def3.F",
+  "routine": "r2def3@cut:fct_IDji",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "Force functions fct_IDji (finter.F curves) are parsed onto the property but never evaluated \u2014 closed-form K/C only. PORTING_GUIDE.md:67.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2def3.F",
+  "routine": "r2def3@cut:hardening_Hi_IECROU",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "Hardening flags (A/B/D coeffs, Hi/IECROU) not acted on. PORTING_GUIDE.md:67.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2def3.F",
+  "routine": "r2def3@cut:rupture_DeltaMinMax",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "DeltaMin/DeltaMax rupture limits not enforced. PORTING_GUIDE.md:67.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2def3.F",
+  "routine": "r2def3@cut:rate_ISRATE_Fcut",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "Strain-rate smoothing (ISRATE/Fcut) not applied. PORTING_GUIDE.md:67.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2sens3.F",
+  "routine": "r2sens3@cut:sensor_activation",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "R2SENS3 OFF/sensor gating absent (no SENSOR refs in spring_general.py). PORTING_GUIDE.md:67.",
+  "parity_case": null,
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r2def3.F",
+  "routine": "r2def3@cut:skew_ID_frame",
+  "port_module": "pyradioss.elements.spring_general",
+  "port_symbol": "forces6",
+  "status": "partial",
+  "deviation_note": "WIRED after the guide row was written (M39): _slice_frame resolves skew_ID verbatim off the /SKEW axes with MOV reload per the docstring, covered by tests/test_m502_spring_general.py. Guide row stale. PORTING_GUIDE.md:67.",
+  "parity_case": "tests/test_m502_spring_general.py",
+  "igtyp": 8
+ },
+ {
+  "fortran": "engine/source/elements/spring/r13ke3.F",
+  "routine": "r13ke3@cut:type13_corotational_frame",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "TYPE13 frame is frozen at init (spring_general.py: element frame, no per-cycle reorientation); upstream reorients every cycle through GBUF%SKEW (r13ke3.F:42,73,222). Listed under the TYPE8 row at PORTING_GUIDE.md:67.",
+  "parity_case": null,
+  "igtyp": 13
+ },
+ {
+  "fortran": "engine/source/elements/spring/r8ke3.F",
+  "routine": "r8ke3@cut:implicit_type4_only",
+  "port_module": null,
+  "port_symbol": null,
+  "status": "missing",
+  "deviation_note": "No TYPE8 tangent/kgeo anywhere \u2014 implicit/assembly.py covers truss, beam and the TYPE4 spring only. PORTING_GUIDE.md:67.",
+  "parity_case": null,
+  "igtyp": 8
+ }
+]
