@@ -78,8 +78,17 @@ Conventions shared with the rest of the port (see shell_bt4):
 * lumped mass rho*t*A/4 and the generous rotational inertia
   m*(t^2+A)/12 (cinmas.F FAC=TWELVE for IHBE >= 11) — identical to BT.
 
-Deliberate cuts (documented): Idrill=1 drilling stiffness (czdefrz/
-czfintcrz — the isotropic RD decks run Idrill=0), ISMSTR=1/11 frozen-
+Drilling stiffness ``Isrot`` (P3.5) IS ported on FLAT rows: ``CZDERIRZ``
++ ``CZDEFRZ`` on the strain side (``RLZ`` = nodal spin about the normal
+over area, ``czcorc.F:518-534``), ``CZFINTCRZ`` on the force side
+(``VSRZ(19)`` drill stress with ``KRZ = 1e-3 * G`` per
+``cncoef3.F:86-91``, nodal drill moments ``VMZ``, in-plane force
+corrections, trapezoidal ``EINT`` work), leaving through ``CZPROJN``'s
+flat leg. Warped rows run WITHOUT drill stiffness (loud init warning).
+
+Deliberate cuts (documented): the drill *hourglass* stabilization
+(``CZFINTNRZ``'s ``VHGZK``/``VHGZE`` rows — the ``CZFINTN1`` stabilization
+keeps running unchanged); ``ISMSTR=1/11`` frozen-
 geometry small strain, thermal/XFEM/non-local, the NPT=0 "global
 integration" flag (the port's prop reader resolves N=0 to 3 Gauss
 stations — elastically identical, and only the plastic-relaxation
@@ -99,6 +108,7 @@ from .. import materials
 from . import shell_ortho, shell_qeph_hg, shell_qeph_ortho
 from .shell_bt4 import (_element_deletion, _init_material_state,
                         _layer_extra, _layer_failure)
+from .shell_drill import KRZ_FAC, derirz, group_isrot
 from .shell_ithick import apply_qeph_thickness, thin_layer_increment
 from ..common.constants import EM20, EP30, SHEAR_FACTOR
 from ..common.fastmath import cross3, norm3, scatter_add3
@@ -419,6 +429,7 @@ def _kinematics(G, ve, vre, dt, npt1):
     v13 *= a_i[:, None]
     v24 *= a_i[:, None]
     vhi *= 0.25
+    G["v13s"], G["v24s"] = v13, v24   # scaled set, reused by _drill_strain
     return v13, v24, vhi, rl, plat, vqn, di, db
 
 
@@ -509,6 +520,7 @@ def init_group(group, model, log):
             eint=np.empty(0, dtype=float),
             ehour=np.empty(0, dtype=float),
             hgstr=np.empty((0, 12), dtype=float),
+            vsrz=np.empty(0, dtype=float),
             zw=[],
             a11=np.empty(0, dtype=float),
             a12=np.empty(0, dtype=float),
@@ -689,6 +701,7 @@ def init_group(group, model, log):
         # GBUF%HOURG: the 12 persistent hourglass stresses VGLAS
         # (czfintn.F: 1-6 the eta family, 7-12 the ksi family)
         hgstr=np.zeros((n, 12)),
+        vsrz=np.zeros(n),             # CZFINTCRZ drill stress VSRZ(19)
         zw=zw,
         a11=a11, a12=a12, gmod=gmod, gs=gs, shf=shf, shfsr=shfsr,
         gsr=gsr, a11sr=a11sr, a12sr=a12sr, amu=amu, cspd=cspd,
@@ -717,6 +730,16 @@ def init_group(group, model, log):
     group.state["dt_iner"] = mass / 4.0 * (thick ** 2 + area) / 12.0
     inertia_c = np.repeat(group.state["dt_iner"], 4)
     group._model = model
+    if group_isrot(group) > 0 and log is not None:
+        # P3.5: drill stiffness runs on flat rows only (the CZPROJN
+        # warped VQN leg is unported) — say so once, loudly.
+        warped0 = ~(G["z1"] ** 2 < G["lm"] * _TOL_PLAT)
+        if bool(np.any(warped0)):
+            log.warning(
+                f"QEPH Isrot>0: {int(warped0.sum())} warped row(s) run "
+                "WITHOUT drill stiffness (warped CZPROJN leg unported; "
+                "flat rows carry the full CZDEFRZ/CZFINTCRZ path)",
+                "SHELL INIT")
     return node_idx, mass_c, inertia_c
 
 
@@ -1009,10 +1032,12 @@ def _fint_stab(G, st, vhg, dt, alive, Nres, Mres, VF, VM, thick):
 # reconstruction + projection to global (czproj.F CZPROJV, IFINI = 0)
 # ---------------------------------------------------------------------------
 
-def _project(G, VF, VM, plat, vqn, di, db):
+def _project(G, VF, VM, plat, vqn, di, db, vmz=None):
     """FL/ML from the antisym/sym slots, the warped-element force
     re-projection, and the local -> global transform.  Returns the
-    INTERNAL nodal forces/moments (n,4,3) in global axes (czproj.F)."""
+    INTERNAL nodal forces/moments (n,4,3) in global axes (czproj.F).
+    ``vmz`` (n,4) is the P3.5 drill moment about the local normal —
+    nonzero only on flat drill rows (``CZPROJN`` flat leg)."""
     E, z1 = G["E"], G["z1"]
     n = len(z1)
     FL = np.empty((n, 3, 4))
@@ -1027,6 +1052,8 @@ def _project(G, VF, VM, plat, vqn, di, db):
         ML3[:, c, 1] = VM[:, c, 1] + VM[:, c, 3]
         ML3[:, c, 2] = -VM[:, c, 0] + VM[:, c, 2]
         ML3[:, c, 3] = -VM[:, c, 1] + VM[:, c, 3]
+    if vmz is not None:
+        ML3[:, 2, :] += vmz
 
     if not plat.all():
         # full re-projection (czproj.F 480-556): remove the net torque and
@@ -1087,15 +1114,89 @@ def _pre(x_conn, v_conn, vr_conn, dt, st_npt1, alive):
     vdef, vhg = _rates(G, v13, v24, vhi, rl, alive)
     return G, vdef, vhg, plat, vqn, di, db
 
+# ---------------------------------------------------------------------------
+# Drilling stiffness (P3.5): CZDEFRZ + CZFINTCRZ, flat rows
+# ---------------------------------------------------------------------------
+
+def _drill_strain(G, vdef, vre, thick, dt, alive, plat, st):
+    """CZDEFRZ (``czdef.F:212``) with the ``CZDERIRZ`` operators.
+
+    ``rlz`` is the nodal spin about the element normal over the area
+    (``czcorc.F:518-534``); the membrane augment and ``VRLZ`` use the
+    scaled ``v13s``/``v24s`` set, matching ``_rates``' convention. Also
+    carries the ``CZFINTCRZ`` constant-part update (``VSRZ(19)`` drill
+    stress + trapezoidal ``EINT`` work — needs only ``dt``, no
+    resultants). Stashes ``rlz``/``vrlz``/``bm0rz``/``vmz`` inputs on
+    ``G`` for ``_drill_moments``/``_post``. Flat live rows only.
+    """
+    n = len(G["area"])
+    flat = np.asarray(plat) & np.asarray(alive)
+    rlz = np.zeros((n, 4))
+    vrlz = np.zeros(n)
+    b0 = np.zeros((n, 4, 4))
+    if np.any(flat):
+        rr = np.einsum("njk,nka->nja", vre, G["E"])
+        rlz[flat] = rr[flat][:, :, 2] * G["a_i"][flat, None]
+        b0, _bk, _be = derirz(G["x13"], G["x24"], G["y13"], G["y24"],
+                              G["mx13"], G["mx23"], G["mx34"],
+                              G["my13"], G["my23"], G["my34"],
+                              G["area"])
+        v13s, v24s = G["v13s"], G["v24s"]
+        bxv2 = G["y24"] * v13s[:, 1] - G["y13"] * v24s[:, 1]
+        byv1 = -G["x24"] * v13s[:, 0] + G["x13"] * v24s[:, 0]
+        rl = rlz[flat]
+        vdef[flat, 0] += (b0[flat, 0] * rl).sum(axis=1)
+        vdef[flat, 1] += (b0[flat, 1] * rl).sum(axis=1)
+        vdef[flat, 2] += (b0[flat, 2] * rl).sum(axis=1)
+        vrlz[flat] = 0.5 * ((bxv2 - byv1)[flat]
+                            + (b0[flat, 3] * rl).sum(axis=1))
+        vol = G["area"][flat] * thick[flat]
+        erz = vrlz[flat] * dt
+        off01 = alive[flat].astype(float)
+        off05 = 0.5 * off01 * vol
+        vs = st["vsrz"]
+        krz = KRZ_FAC * st["gmod"][flat]      # cncoef3.F: KRZ = KFAC * G
+        st["eint"][flat] += vs[flat] * erz * off05
+        vs[flat] = vs[flat] + krz * erz * off01
+        st["eint"][flat] += vs[flat] * erz * off05
+    G["rlz"], G["vrlz"], G["bm0rz"] = rlz, vrlz, b0
+
+
+def _drill_moments(G, Nres, thick, alive, plat, st):
+    """Nodal drill moments ``VMZ`` (``CZFINTCRZ`` force part)."""
+    n = len(G["area"])
+    vmz = np.zeros((n, 4))
+    flat = np.asarray(plat) & np.asarray(alive)
+    if np.any(flat):
+        b0 = G["bm0rz"]
+        vs = np.where(np.asarray(alive), st["vsrz"], 0.0)
+        c2 = thick * vs * 0.5
+        n1, n2, n3 = Nres[:, 0], Nres[:, 1], Nres[:, 2]
+        for j in range(4):
+            vmz[flat, j] = (b0[flat, 0, j] * n1[flat]
+                            + b0[flat, 1, j] * n2[flat]
+                            + b0[flat, 2, j] * n3[flat]) * thick[flat] \
+                + b0[flat, 3, j] * c2[flat]
+    return vmz
+
+
 def _post(G, thick, Nres, Mres, qres, st, vhg, dt, alive, plat, vqn, di, db):
     VF, VM = _fint_const(G, thick, Nres, Mres, qres)
     if not alive.all():
         VF[~alive] = 0.0
         VM[~alive] = 0.0
     _fint_stab(G, st, vhg, dt, alive, Nres, Mres, VF, VM, thick)
-    fg, mg = _project(G, VF, VM, plat, vqn, di, db)
-    
-    import numpy as np
+    vmz = G.get("vmz")
+    if vmz is not None:
+        # CZFINTCRZ in-plane force corrections (nodes 1, 2 slots).
+        vs = np.where(np.asarray(alive), st["vsrz"], 0.0)
+        c2 = thick * vs * 0.5
+        VF[:, 0, 0] += c2 * G["x24"]
+        VF[:, 1, 0] += c2 * G["y24"]
+        VF[:, 0, 1] -= c2 * G["x13"]
+        VF[:, 1, 1] -= c2 * G["y13"]
+    fg, mg = _project(G, VF, VM, plat, vqn, di, db, vmz=vmz)
+
     visc = np.sqrt(1.0 + st["amu"] ** 2) - st["amu"]
     dt_e = np.where(st["cspd"] > 0.0,
                     visc * G["ll"] / np.maximum(st["cspd"], EM20), EP30)
@@ -1125,13 +1226,20 @@ def forces(group, x, v, vr, dt, fint, mint):
     ve = v[conn]
     vre = vr[conn] if vr is not None else np.zeros_like(ve)
 
+    # P3.5 drilling: group-level ISROT = IPARG(41). The numba mirrors do
+    # not know the drill path, so drill groups stay on numpy.
+    drill = group_isrot(group) > 0
+
     from pyradioss.accel import get as accel_get
-    jit_pre = accel_get("qeph_pre")
+    jit_pre = accel_get("qeph_pre") if not drill else None
     if jit_pre is not None:
         vdef, vhg, plat, vqn, di, db, E, area, a_i, z1, corx, cory, x13, x24, y13, y24, mx13, mx23, mx34, my13, my23, my34, l13, l24, ll, lm = jit_pre(xe, ve, vre, dt, st["npt1"], alive)
         G = dict(E=E, area=area, a_i=a_i, z1=z1, corx=corx, cory=cory, x13=x13, x24=x24, y13=y13, y24=y24, mx13=mx13, mx23=mx23, mx34=mx34, my13=my13, my23=my23, my34=my34, l13=l13, l24=l24, ll=ll, lm=lm)
     else:
         G, vdef, vhg, plat, vqn, di, db = _pre(xe, ve, vre, dt, st["npt1"], alive)
+
+    if drill:
+        _drill_strain(G, vdef, vre, thick, dt, alive, plat, st)
 
     dm = vdef[:, 0:3] * dt
     gsr2 = vdef[:, 3:5]
@@ -1208,12 +1316,16 @@ def forces(group, x, v, vr, dt, fint, mint):
     qres = st["qshear"] * thick[:, None]
     st["eint"] += area * de_layers
 
+    if drill:
+        G["vmz"] = _drill_moments(G, Nres, thick, alive, plat, st)
+
     jit_post = accel_get("qeph_post")
     # P3.3: the numba mirror only knows CZFINTN1's isotropic rows.  An
     # orthotropic (hm-carrying) group stays on the numpy _post — which
     # selects the CZFINTN_OR branch — rather than silently running the
     # isotropic mirror.  Porting the mirror is Phase 3 task P3.13's job.
-    if jit_post is not None and "E" in G and st.get("hm") is None:
+    # P3.5: drill groups likewise stay on numpy (no drill mirror yet).
+    if jit_post is not None and "E" in G and st.get("hm") is None and not drill:
         fg, mg, dt_e = jit_post(thick, Nres, Mres, qres, st["amu"], st["cspd"], st["yld"], st["fmat"], vhg, dt, alive, plat, vqn, di, db, G["E"], G["area"], G["a_i"], G["z1"], G["corx"], G["cory"], G["x13"], G["x24"], G["y13"], G["y24"], G["mx13"], G["mx23"], G["mx34"], G["my13"], G["my23"], G["my34"], G["l13"], G["l24"], G["ll"], G["lm"], st["a11"], st["a12"], st["npt1"], st["gs"], st["hgstr"])
     else:
         fg, mg, dt_e = _post(G, thick, Nres, Mres, qres, st, vhg, dt, alive, plat, vqn, di, db)

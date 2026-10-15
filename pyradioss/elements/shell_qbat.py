@@ -115,8 +115,17 @@ finis", vol. 3; the Q4gamma24 / DKQ12-style shell):
 
 * **Ithick**: CNCOEF3's ITHK gate is ported — 0 keeps deck THK0, 1 evolves
   it (sigeps01c thinning + cbaforc3.F:865 relaxation; pinch owns its own).
-  Idrill > 0 (ISROT) is NOT ported — the deck reader does not surface
-  Idrill; the Idrill=0 branch is what every RD-E-1000 QBAT deck runs.
+* **Idrill/Isrot** (P3.5): the drilling stiffness IS ported on FLAT rows —
+  ``CBADEFRZ`` (strain side + ``VRLZ``) and ``CBAFORRZ`` (``VSRZ`` drill
+  stress with ``KRZ = 1e-3 * G`` per ``cncoef3.F:86-91``, nodal drill
+  moments ``VMZ``, in-plane force corrections, trapezoidal ``EINT``
+  work) with the upstream ``IDRIL > 0`` skips of the ``CBAENER``/
+  ``CBAFORCT``/``CBAENERS`` constant-shear treatment (``cbaforc3.F:718,
+  855, 989``) and the compatible-shear ``VDEF(3)`` (``cbadef.F`` "no more
+  constant shear"); warped rows run WITHOUT drill stiffness (loud
+  init warning — the ``CBAFORRZ`` warped leg's ``BRZ`` rows are
+  unported). The flat gate itself loosens to ``TOL=EM8`` with drill
+  (``cbacoork.F:131``).
 
 Implicit (P3.10): ``tangent()``/``kgeo()`` are provided — the material
 tangent (per-GP ``bm``/``bc`` operators of ``shell_qbat_ke`` plus the mean
@@ -135,7 +144,8 @@ from .. import materials
 from ..common.constants import EM20, EP30, SHEAR_FACTOR
 from ..common.fastmath import scatter_add3
 from .shell_bt4 import _init_material_state, _layer_extra, _layer_failure
-from . import shell_qbat_ke
+<from . import shell_qbat_ke
+from .shell_drill import KRZ_FAC, derirz, group_isrot, qbat_flat_mask
 from .shell_ithick import apply_qbat_thickness, thin_layer_increment
 from .shell_qbat_nip1 import _cbavisnp1, _fori_flat, _fori_np1, _nip_array
 
@@ -247,6 +257,7 @@ def init_group(group, model, log):
             epsp=np.empty((0, 4), dtype=float),
             forpg=np.empty((0, 4, 5), dtype=float),
             mompg=np.empty((0, 4, 3), dtype=float),
+            vsrz=np.empty((0, 4), dtype=float),
             for_mean=np.empty((0, 5), dtype=float),
             thick=np.empty(0, dtype=float),
             area0=np.empty(0, dtype=float),
@@ -346,6 +357,7 @@ def init_group(group, model, log):
         epsp=np.zeros((n, nk)),
         forpg=np.zeros((n, 4, 5)),     # GBUF%FORPG (stress units, incl. dn
         mompg=np.zeros((n, 4, 3)),     # viscosity) / GBUF%MOMPG (M/t^2)
+        vsrz=np.zeros((n, 4)),         # drill stress per Gauss point
         for_mean=np.zeros((n, 5)),     # GBUF%FOR = 4-GP mean, previous cycle
         thick=thick,
         thk0=thick.copy(),
@@ -374,6 +386,16 @@ def init_group(group, model, log):
         epg_pinch_zz=np.zeros((n, 4)),
     )
     _init_material_state(group, nk)
+    if group_isrot(group) > 0 and log is not None:
+        # P3.5: drill stiffness runs on flat rows only (the CBAFORRZ
+        # warped leg's BRZ rows are unported) — say so once, loudly.
+        flat0 = qbat_flat_mask(xe, E, tol=1.0e-8)
+        if not bool(np.all(flat0)):
+            log.warning(
+                f"QBAT Idrill>0: {int((~flat0).sum())} warped row(s) run "
+                "WITHOUT drill stiffness (warped CBAFORRZ leg unported; "
+                "flat rows carry the full CBADEFRZ/CBAFORRZ path)",
+                "SHELL INIT")
     node_idx = group.conn.reshape(-1)
     mass_c = np.repeat(mass / 4.0, 4)
     group.state["dt_iner"] = mass / 4.0 * (thick ** 2 + area) / 12.0
@@ -385,7 +407,7 @@ def init_group(group, model, log):
 # geometry + kinematics (cbacoor.F)
 # ----------------------------------------------------------------------------
 
-def _cbacoor(xe, ve, vre, off, dt, force_flat):
+def _cbacoor(xe, ve, vre, off, dt, force_flat, tol_flat=_TOL_FLAT):
     """The full CBACOOR pass, vectorized. Returns a dict ``g`` holding the
     frame, the flat/warped index sets and every geometric operand the
     Gauss loop needs, in cbacoor.F's own naming."""
@@ -445,8 +467,9 @@ def _cbacoor(xe, ve, vre, off, dt, force_flat):
     # nodal rotation rates in the local frame (3 components, warp needs z)
     rr = np.einsum("njk,nka->nja", vre, E)       # (n, node, comp)
 
-    # ---- flat / warped split (cbacoor.F 442-451) -------------------------
-    flat = (zl1 ** 2 < _TOL_FLAT * ll) | force_flat
+    # ---- flat / warped split (cbacoor.F 442-451; cbacoork.F:131 raises
+    # TOL EM12 -> EM8 when ISROT > 0, threaded through tol_flat) --------
+    flat = (zl1 ** 2 < tol_flat * ll) | force_flat
     i_f = np.where(flat)[0]
     i_w = np.where(~flat)[0]
 
@@ -1302,16 +1325,23 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
 
     has_pinch = bool(st.get("ipinch", False) or (vpinch is not None))
 
+    # P3.5 drilling: group-level ISROT = IPARG(41). The numba mirrors do
+    # not know the drill path, so drill groups stay on numpy; the flat
+    # gate loosens EM12 -> EM8 with drill (cbacoork.F:131).
+    drill = group_isrot(group) > 0
+    tol_flat = 1.0e-8 if drill else _TOL_FLAT
+
     from pyradioss.accel import get as accel_get
-    jit_pre = accel_get("qbat_pre") if not has_pinch else None
-    jit_post = accel_get("qbat_post") if not has_pinch else None
+    jit_pre = accel_get("qbat_pre") if not has_pinch and not drill else None
+    jit_post = accel_get("qbat_post") if not has_pinch and not drill else None
     if jit_pre is None or jit_post is None:
         jit_pre = jit_post = None
     if jit_pre is not None:
         E, area, lc, vdef3, cdet, vdef, i_f, i_w, bm_f, bc_f, bmw_w, bmfw_w, bfw_w, bcq_w, tc_w, vqn_w, corel_w, di_w, x13n_f, x24n_f, y13n_f, y24n_f, x13n_w, x24n_w, y13n_w, y24n_w = jit_pre(x[conn], v[conn], vr[conn], off, dt, force_flat)
         g = {"lc": lc}
     else:
-        g = _cbacoor(x[conn], v[conn], vr[conn], off, dt, force_flat)
+        g = _cbacoor(x[conn], v[conn], vr[conn], off, dt, force_flat,
+                     tol_flat)
         i_f, i_w = g["i_f"], g["i_w"]
         area = g["area"]
 
@@ -1332,6 +1362,9 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
         vdef3[~alive] = 0.0
         g["vdef3"] = vdef3
     volg = area * thick
+
+    if drill:
+        _drill_kinematics(g, vr[conn])
 
     if has_pinch:
         if vpinch is not None:
@@ -1354,7 +1387,9 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
         ezzpg = np.zeros((n, 4))
 
     # CBAENERS (pre): + FOR3_mean_old * vdef3 * A*t*dt/2  (cbaforc3 l.566)
-    st["eint"] += off * volg * dt * 0.5 * st["for_mean"][:, 2] * vdef3
+    # skipped with drill (cbaforc3.F:989 — no constant-shear treatment)
+    if not drill:
+        st["eint"] += off * volg * dt * 0.5 * st["for_mean"][:, 2] * vdef3
 
     # per-slice constants
     gs_mod = np.zeros(n)                          # GS = G*SHF (0 if nip==1)
@@ -1420,6 +1455,9 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
             # VDEF(3) keeps the CBADEFSH constant assumed shear from vdef3.
             vdef_[nip1, 3:8] = 0.0
 
+        if drill and len(i_f):
+            _drill_strain(g, vdef_, ops_f[ng][0], nip1, alive, ng)
+
         # strains (cbastra3.F): EXZ=VDEF4, EYZ=VDEF5
         exx = vdef_[:, 0] * dt
         eyy = vdef_[:, 1] * dt
@@ -1431,7 +1469,9 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
         kxy = vdef_[:, 7] * dt
 
         # CBAENER (pre): remove the per-GP old-stress shear work
-        de -= 0.5 * off * thick * cdet_ * forpg[:, ng, 2] * exy
+        # (skipped with drill — cbaforc3.F:718)
+        if not drill:
+            de -= 0.5 * off * thick * cdet_ * forpg[:, ng, 2] * exy
 
         # ---- layer stress updates + resultants ---------------------------
         npg_ = np.zeros((n, 3))                  # membrane N (force/length)
@@ -1525,8 +1565,10 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
             )
 
         # CBAENER (post): remove the per-GP NEW-stress (pre-viscous) work
-        de -= 0.5 * off * thick * cdet_ * (npg_[:, 2] / np.maximum(
-            thick, EM20)) * exy
+        # (skipped with drill — cbaforc3.F:718)
+        if not drill:
+            de -= 0.5 * off * thick * cdet_ * (npg_[:, 2] / np.maximum(
+                thick, EM20)) * exy
 
         # ---- CBAVISC: dn numerical damping ------------------------------
         visc = _ONEP414 * off * st["amu"] * st["rho0"] * st["ssp0"] \
@@ -1581,14 +1623,18 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
                                cdet_, npg_v, mpg_v, q_pg)
             if len(i_w):
                 _fori_warp(vf, vm, g, ops_w[ng], cdet_, npg_v, mpg_v, q_pg)
+            if drill and len(i_f):
+                _drill_forces(g, vf, ops_f[ng][0], npg_v, cdet_, thick,
+                              off, dt, ng, st, de, alive, gshear)
 
     # ---- after the Gauss loop --------------------------------------------
     for_mean = forpg.mean(axis=1)                # GBUF%FOR (cbaforc3 962)
     st["for_mean"] = for_mean
 
     # CBAFORCT: constant membrane shear force from the MEAN resultant
+    # (skipped with drill — cbaforc3.F:989)
     thoff = volg * for_mean[:, 2] * off
-    if jit_pre is None:
+    if jit_pre is None and not drill:
         if len(i_f):
             th_f = thoff[i_f]
             vf[i_f, 0, 0] += -th_f * g["x24n"][i_f]
@@ -1611,7 +1657,9 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
             vf[i_w, 1, 3] -= sy2
 
     # CBAENERS (post): + FOR3_mean_new * vdef3 * A*t*dt/2
-    de += off * volg * dt * 0.5 * for_mean[:, 2] * vdef3
+    # (skipped with drill — cbaforc3.F:989)
+    if not drill:
+        de += off * volg * dt * 0.5 * for_mean[:, 2] * vdef3
 
     # CBAVISNP1 (cbaforc3 line ~999): rotation-damping z-forces + TESY work,
     # NPT==1 only. Runs after CBAFORCT/CBAENERS like upstream, before CBAPROJ.
@@ -1640,7 +1688,7 @@ def forces(group, x, v, vr, dt, fint, mint, vpinch=None, fpinch=None):
     if jit_post is not None:
         fg, mg = jit_post(n, E, off, thick, volg, forpg, mompg, for_mean, cdet, i_f, i_w, bm_f, bc_f, bmw_w, bmfw_w, bfw_w, bcq_w, tc_w, vqn_w, corel_w, di_w, x13n_f, x24n_f, y13n_f, y24n_f, x13n_w, x24n_w, y13n_w, y24n_w)
     else:
-        fg, mg = _cbaproj(g, vf, vm, off)
+        fg, mg = _cbaproj(g, vf, vm, off, vmz=g["vmz"] if drill else None)
 
     # accumulate NEGATED (cupdtn3.F: F -= F11)
     flat_idx = conn.reshape(-1)
@@ -1695,10 +1743,123 @@ def _fori_warp(vf, vm, g, ops, cdet, npg, mpg, q_pg):
                 + bfw[:, j, a, 2] * mm[:, 2])
 
 
-def _cbaproj(g, vf, vm, off):
+# ----------------------------------------------------------------------------
+# Drilling stiffness (P3.5): CBADEFRZ + CBAFORRZ, flat rows
+# ----------------------------------------------------------------------------
+
+def _drill_kinematics(g, vre):
+    """P3.5 strain-side drill setup: RLZ + B-operators (CBADERIRZ).
+
+    ``RLZ`` is the raw nodal spin about the element normal
+    (``cbacoor.F:939-942`` — no ``/AREA``); the operators come from
+    ``shell_drill.derirz`` (``CBADERIRZ0``). Warped rows keep zero
+    drill state (explicitly refused — see the init warning).
+    """
+    n = g["n"]
+    i_f = g["i_f"]
+    rlz = np.zeros((n, 4))
+    if len(i_f):
+        rr = np.einsum("njk,nka->nja", vre, g["E"])
+        rlz[i_f] = rr[i_f][:, :, 2]
+        b0, bk, be = derirz(g["x13"], g["x24"], g["y13"], g["y24"],
+                            g["mx13"], g["mx23"], g["mx34"],
+                            g["my13"], g["my23"], g["my34"],
+                            g["area"], qbat=True)
+    else:
+        b0 = bk = be = np.zeros((n, 4, 4))
+    g.update(bm0rz=b0, bmksz=bk, bmerz=be, rlz=rlz,
+             vrlz=np.zeros((n, 4)), vmz=np.zeros((n, 4)))
+
+
+def _drill_gp_operators(g, ng):
+    """BMRZ rows 1-3 + BRZ row 4 at Gauss point ``ng`` (CBADEFRZ)."""
+    i = g["i_f"]
+    ksi, eta = _VPG[ng]
+    b0, bk, be = g["bm0rz"][i], g["bmksz"][i], g["bmerz"][i]
+    bmrz = np.empty((len(i), 3, 4))
+    for r in range(3):
+        bmrz[:, r, :] = b0[:, r, :] + bk[:, r, :] * ksi + be[:, r, :] * eta
+    brz4 = b0[:, 3, :] + bk[:, 3, :] * ksi + be[:, 3, :] * eta
+    return bmrz, brz4
+
+
+def _drill_strain(g, vdef_, bm_ng, nip1, alive, ng):
+    """CBADEFRZ flat leg: membrane augment + VRLZ, and the ISROT>0
+    compatible-shear VDEF(3) replacing the CBADEFSH constant
+    (``cbadef.F`` "no more constant shear")."""
+    i = g["i_f"]
+    v = g["vxyz_f"][i]
+    bmrz, brz4 = _drill_gp_operators(g, ng)
+    bxv2 = (bm_ng[:, 0] * v[:, 0, 1] + bm_ng[:, 1] * v[:, 1, 1]
+            + bm_ng[:, 2] * v[:, 2, 1])
+    byv1 = (bm_ng[:, 4] * v[:, 0, 0] + bm_ng[:, 5] * v[:, 1, 0]
+            + bm_ng[:, 6] * v[:, 2, 0])
+    rlz = g["rlz"][i]
+    live = alive[i]
+    use = live & ~nip1[i]
+    if np.any(use):
+        vdef_[i[use], 2] = (bxv2 + byv1)[use]
+    if np.any(live):
+        w = np.where(live)[0]
+        rl = rlz[w]
+        vdef_[i[w], 0] += (bmrz[w, 0] * rl).sum(axis=1)
+        vdef_[i[w], 1] += (bmrz[w, 1] * rl).sum(axis=1)
+        vdef_[i[w], 2] += (bmrz[w, 2] * rl).sum(axis=1)
+        g["vrlz"][i[w], ng] = 0.5 * ((bxv2 - byv1)[w]
+                                     + (brz4[w] * rl).sum(axis=1))
+
+
+def _drill_forces(g, vf, bm_ng, npg_v, cdet_, thick, off, dt, ng, st, de,
+                  alive, gshear):
+    """CBAFORRZ flat leg (``cbafori.F:358``): VSRZ update with the
+    trapezoidal EINT work, VMZ accumulation, and the shear+drill VF
+    assembly (``C3``/``CSRZ``). Port assembly convention (``_fori_flat``
+    docstring): ``C2 = VOL`` x stress-unit ``FF`` is ``cdet`` x the
+    physical resultants ``npg_v``."""
+    i = g["i_f"]
+    live = alive[i]
+    if not np.any(live):
+        return
+    w = np.where(live)[0]
+    rows = i[w]
+    vol = thick[rows] * cdet_[rows]
+    erz = g["vrlz"][rows, ng] * dt
+    dev = erz * vol * 0.5 * off[rows]
+    krz = KRZ_FAC * gshear[rows]          # cncoef3.F: KRZ = KFAC * G
+    vs_old = st["vsrz"][rows, ng]
+    de[rows] += (2.0 * vs_old + krz * erz * off[rows]) * dev
+    vs_new = vs_old + krz * erz * off[rows]
+    st["vsrz"][rows, ng] = vs_new
+    nn = npg_v[rows]
+    c = cdet_[rows]
+    bmrz, brz4 = _drill_gp_operators(g, ng)
+    bmrz, brz4 = bmrz[w], brz4[w]
+    b = bm_ng[w]
+    c3 = c * nn[:, 2]
+    csrz = vol * vs_new * 0.5
+    vf[rows, 0, 0] += (c3 - csrz) * b[:, 4]
+    vf[rows, 1, 0] += (c3 + csrz) * b[:, 0]
+    fx3 = (c3 - csrz) * b[:, 6]
+    fy3 = (c3 + csrz) * b[:, 2]
+    vf[rows, 0, 2] += fx3
+    vf[rows, 1, 2] += fy3
+    vf[rows, 0, 1] += (c3 - csrz) * b[:, 5]
+    vf[rows, 1, 1] += (c3 + csrz) * b[:, 1]
+    vf[rows, 0, 3] = -vf[rows, 0, 2]
+    vf[rows, 1, 3] = -vf[rows, 1, 2]
+    vmz = g["vmz"]
+    for j in range(4):
+        vmz[rows, j] += (bmrz[:, 0, j] * nn[:, 0]
+                         + bmrz[:, 1, j] * nn[:, 1]
+                         + bmrz[:, 2, j] * nn[:, 2]) * c \
+            + brz4[:, j] * (vol * vs_new * 0.5)
+
+
+def _cbaproj(g, vf, vm, off, vmz=None):
     """CBAPROJ: decode the reduced slots (flat) / project out the free
     rigid modes (warped), rotate to global, apply OFF. Returns global
-    per-node forces fg (n,4,3) and moments mg (n,4,3)."""
+    per-node forces fg (n,4,3) and moments mg (n,4,3). ``vmz`` (n,4) is
+    the accumulated P3.5 drill moment about the local normal."""
     n = g["n"]
     E = g["E"]
     fg = np.zeros((n, 4, 3))
@@ -1722,6 +1883,10 @@ def _cbaproj(g, vf, vm, off):
         # F_global[b] = sum_a E[b,a] * FL[a]; moments have no local z
         fg[i] = np.einsum("nba,naj->njb", Ei, fl)
         mg[i, :, :] = np.einsum("nba,naj->njb", Ei[:, :, 0:2], ml2)
+        if vmz is not None:
+            # P3.5 drill: M += VQ(:,3) * VMZ per node (CBAPROJ flat leg).
+            # vmz is zero on every row the drill path skipped, so no mask.
+            mg[i] += Ei[:, :, 2][:, None, :] * vmz[i][:, :, None]
 
     iw = g["i_w"]
     if len(iw):

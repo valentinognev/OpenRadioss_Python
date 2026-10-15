@@ -189,6 +189,41 @@ def test_idrill0_leaves_a_node_spin_answered(tmp_path, ishell, group_name):
     assert np.array_equal(f1, f0) and np.array_equal(m1, m0)
 
 
+@pytest.mark.parametrize("ishell,group_name", [(12, "shells_qbat"),
+                                               (24, "shells_qeph")])
+def test_rigid_rotation_grows_no_drill_stress(tmp_path, ishell, group_name):
+    """Objectivity: a rigid rotation (``v = Om x r``, ``vr = Om``) is no
+    drill deformation, so the drill path adds nothing over ``isrot=0`` —
+    while a single-node spin does (contrast
+    ``test_drilling_stiffness_resists_a_node_spin``)."""
+    def _run(name, isrot, rigid):
+        m = _build(tmp_path, name, ishell=ishell, idrill_field=isrot)
+        g = getattr(m, group_name)
+        x = np.asarray(m.x, dtype=float)
+        v = np.zeros_like(x)
+        vr = np.zeros_like(x)
+        if rigid == "spin":
+            vr[int(g.conn[0, 0]), 2] = SPIN
+        elif rigid == "rigid":
+            v[:, 0] = -SPIN * x[:, 1]
+            v[:, 1] = SPIN * x[:, 0]
+            vr[:, 2] = SPIN
+        f = np.zeros_like(x)
+        mm = np.zeros_like(x)
+        if group_name == "shells_qbat":
+            from pyradioss.elements import shell_qbat as mod
+        else:
+            from pyradioss.elements import shell_qeph as mod
+        mod.forces(g, x, v, vr, DT, f, mm)
+        return f, mm
+
+    f_rigid1, m_rigid1 = _run(f"G{ishell}r1", 1, "rigid")
+    f_rigid0, m_rigid0 = _run(f"G{ishell}r0", 0, "rigid")
+    np.testing.assert_allclose(m_rigid1, m_rigid0, rtol=1e-9, atol=1e-12)
+    f_spin1, m_spin1 = _run(f"G{ishell}s1", 1, "spin")
+    assert np.abs(m_spin1 - m_rigid1).sum() > 0.0
+
+
 def test_bt_ignores_isrot_like_upstream(tmp_path):
     """``coque/cforc3.F`` + ``cfint3.F`` carry no ``ISROT`` term
     (``shell_internal_forces.F90:510`` reads it into an unused

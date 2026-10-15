@@ -106,6 +106,13 @@ Theory (Belytschko, Lin & Tsay, CMAME 42 (1984) 225-251; also BLM ch. 9):
   — chvis3.F lines 181-192 zero every coefficient. shell_tri3.py is fully
   integrated and has no hourglass block for the same reason.
 
+* **Drilling stiffness** (P3.5): BT has NONE upstream — ``ISROT`` is read
+  into an unused variable (``shell_internal_forces.F90:510``) and neither
+  ``cforc3.F`` nor ``cfint3.F`` mentions ``ISROT``/``IDRIL``/``RLZ``/
+  ``VMZ``. The reader still surfaces ``isrot`` on BT props (the
+  ``hm_read_prop01.F:214-215`` rule is formulation-blind) and this kernel
+  ignores it; the QBAT/QEPH drill lives in ``shell_drill.py``.
+
 * **Lumped inertia**: m_i = rho t A / 4; rotational inertia per
   cinmas.F's family split (M41) — I_i = m_i (A/FAC + t^2/12) with
   FAC = 9 for the BT family (engine IHBE < 11) and FAC = 12 for
