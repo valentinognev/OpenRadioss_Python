@@ -63,6 +63,28 @@ from ..deck_reader import Card, KeywordBlock, _to_float, parse_fortran_float
 # Small helpers shared by the parsers
 # ----------------------------------------------------------------------------
 
+def resolve_isrot(idrill_raw, def_shell=None):
+    """Resolve the card ``Idrill`` field to engine ``ISROT``.
+
+    ``starter/source/properties/shell/hm_read_prop01.F:145`` reads the
+    card field into ``ISROT``; ``:214`` ``IF(ISROT==0)ISROT=IDRIL_D``
+    (the ``/DEF_SHELL`` default from ``hm_read_defshell.F``);
+    ``:215`` ``IF(ISROT==2) ISROT = 0``; ``:216`` stores ``IGEO(20)``.
+    The kernels gate their drilling branches on the resolved value.
+    """
+    try:
+        isrot = int(idrill_raw or 0)
+    except (TypeError, ValueError):
+        isrot = 0
+    if isrot == 0:
+        try:
+            isrot = int((def_shell or {}).get("idrill", 0) or 0)
+        except (TypeError, ValueError):
+            isrot = 0
+    if isrot == 2:
+        isrot = 0
+    return isrot
+
 
 
 
@@ -309,7 +331,7 @@ def read_prop(block: KeywordBlock, model: Model, log: MessageLog) -> None:
     if ptype == 1:  # SHELL
         def_sh = getattr(model, "def_shell", {}) or {}
         params = {"thick": 1.0, "nip": 3, "hm": 0.01, "hf": 0.01, "hr": 0.01,
-                  "ishell": def_sh.get("ishell", 0)}
+                  "ishell": def_sh.get("ishell", 0), "idrill": 0}
         if "ish3n" in def_sh:
             params["ish3n"] = def_sh["ish3n"]
         if block.fixed:
@@ -327,6 +349,8 @@ def read_prop(block: KeywordBlock, model: Model, log: MessageLog) -> None:
                     params["ismstr"] = _ival(f[1])
                 if len(f) > 2 and f[2].strip():
                     params["ish3n"] = _ival(f[2])
+                if len(f) > 3 and f[3].strip():
+                    params["idrill"] = _ival(f[3])
             hm_d, hf_d, hr_d = _hourglass_defaults(params["ishell"])
             if len(cards) >= 2 and not cards[1].is_blank:
                 h = cards[1].cut("F20X5")
@@ -381,6 +405,11 @@ def read_prop(block: KeywordBlock, model: Model, log: MessageLog) -> None:
                         params["ish3n"] = 0
                 else:
                     params["ish3n"] = 0
+                if len(toks) > 3:
+                    try:
+                        params["idrill"] = int(toks[3])
+                    except ValueError:
+                        params["idrill"] = 0
             else:
                 params["ish3n"] = 0
             hm_d, hf_d, hr_d = _hourglass_defaults(params["ishell"])
@@ -2636,6 +2665,11 @@ def read_prop(block: KeywordBlock, model: Model, log: MessageLog) -> None:
             shear=shear,
             title=title,
         )
+    if "idrill" in params:
+        # hm_read_prop01.F:214-216 — ISROT==0 takes the /DEF_SHELL
+        # default, ISROT==2 maps to 0; stored as IGEO(20) upstream.
+        params["isrot"] = resolve_isrot(params.get("idrill", 0),
+                                        getattr(model, "def_shell", None))
     model.properties[block.user_id] = Property(
         id=block.user_id, type=ptype, title=title, params=params)
     if ptype == 5:
@@ -4018,6 +4052,7 @@ def read_prop_type11(block: KeywordBlock, model: Model, log: MessageLog) -> None
         params={
             "thick": thick, "ashear": ashear, "nip": nip or len(layers),
             "ishell": ishell, "ismstr": ismstr, "ish3n": ish3n, "idrill": idrill,
+            "isrot": resolve_isrot(idrill, getattr(model, "def_shell", None)),
             "p_thick_fail": p_thick_fail, "hm": hm, "hf": hf, "hr": hr, "dm": dm, "dn": dn,
             "istrain": istrain, "ithick": ithick, "iplas": iplas, "vx": vx, "vy": vy, "vz": vz,
             "skew_csid": skew_csid, "iorth": iorth, "ipos": ipos, "ip": ip,
@@ -4263,6 +4298,7 @@ def read_prop_type17(block: KeywordBlock, model: Model, log: MessageLog) -> None
         params={
             "thick": thick, "ashear": ashear,
             "ishell": ishell, "ismstr": ismstr, "ish3n": ish3n, "idrill": idrill,
+            "isrot": resolve_isrot(idrill, getattr(model, "def_shell", None)),
             "plyxfem": plyxfem, "z0": z0, "vinterply": vinterply,
             "hm": hm, "hf": hf, "hr": hr, "dm": dm, "dn": dn,
             "ithick": ithick, "iplas": iplas,
@@ -5694,6 +5730,7 @@ def read_prop_type9(block: KeywordBlock, model: Model, log: MessageLog) -> None:
         id=prop_id, type=9, title=title,
         params={
             "ishell": ishell, "ismstr": ismstr, "ish3n": ish3n, "idrill": idrill,
+            "isrot": resolve_isrot(idrill, getattr(model, "def_shell", None)),
             "hm": hm, "hf": hf, "hr": hr, "dm": dm, "dn": dn,
             "nip": nip, "istrain": istrain, "thick": thick, "ashear": ashear,
             "ithick": ithick, "iplas": iplas, "vx": vx, "vy": vy, "vz": vz,
@@ -5809,6 +5846,7 @@ def read_prop_type10(block: KeywordBlock, model: Model, log: MessageLog) -> None
         id=prop_id, type=10, title=title,
         params={
             "ishell": ishell, "ismstr": ismstr, "ish3n": ish3n, "idrill": idrill,
+            "isrot": resolve_isrot(idrill, getattr(model, "def_shell", None)),
             "p_thick_fail": p_thick_fail, "hm": hm, "hf": hf, "hr": hr, "dm": dm, "dn": dn,
             "nip": nip, "istrain": istrain, "thick": thick, "ashear": ashear,
             "ithick": ithick, "iplas": iplas, "vx": vx, "vy": vy, "vz": vz,
@@ -5934,6 +5972,7 @@ def read_prop_type51(block: KeywordBlock, model: Model, log: MessageLog) -> None
         id=prop_id, type=51, title=title,
         params={
             "ishell": ishell, "ismstr": ismstr, "ish3n": ish3n, "idrill": idrill,
+            "isrot": resolve_isrot(idrill, getattr(model, "def_shell", None)),
             "pthk": pthk, "zshift": zshift, "z0": zshift,
             "hm": hm, "hf": hf, "hr": hr, "dm": dm, "dn": dn,
             "ashear": ashear, "iint": iint, "ithick": ithick,
