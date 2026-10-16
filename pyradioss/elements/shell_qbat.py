@@ -144,7 +144,7 @@ from .. import materials
 from ..common.constants import EM20, EP30, SHEAR_FACTOR
 from ..common.fastmath import scatter_add3
 from .shell_bt4 import _init_material_state, _layer_extra, _layer_failure
-<from . import shell_qbat_ke
+from . import shell_qbat_ke
 from .shell_drill import group_isrot
 from .shell_ithick import apply_qbat_thickness, thin_layer_increment
 from .shell_qbat_drill import (_drill_forces, _drill_kinematics,
