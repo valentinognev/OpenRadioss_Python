@@ -54,7 +54,7 @@ from pyradioss.model.model import ElementGroup, Model
 def test_only_element_branches_have_mirrors():
     """Curve-iterating branches must not gain a mirror (plan P4.9)."""
     assert list(spring_mir.__all__) == [
-        "spring_linear", "spring_t32_linear",
+        "spring_linear", "spring_t32_linear", "spring_t8_linear",
     ]
     assert list(beam_mir.__all__) == []
 
@@ -246,4 +246,139 @@ def test_t32_mirror_refuses_curve_ityps_loudly():
                 np.ones(n, dtype=bool), o, np.ones(n), o, 1e-3,
                 np.ones(n), np.ones(n),
             )
+
+
+# ---------------------------------------------------------------------------
+# spring_t8_linear <-> type8_forces closed-form path (P4.3)
+# ---------------------------------------------------------------------------
+
+def _t8_group(n, rng):
+    """N-element all-linear TYPE8 group built through the real reader."""
+    x0_nodes = np.zeros((2 * n, 3))
+    x0_nodes[1::2, 0] = rng.uniform(0.5, 2.0, size=n)
+    x0_nodes[1::2, 1] = rng.uniform(-0.5, 0.5, size=n)
+    m = Model()
+    m.add_nodes(np.arange(1, 2 * n + 1, dtype=np.int64), x0_nodes)
+    conn = np.stack([np.arange(0, 2 * n, 2),
+                     np.arange(1, 2 * n, 2)], axis=1)
+    g = ElementGroup(ids=np.arange(1, n + 1), conn=conn,
+                     part=np.zeros(n, dtype=np.int64))
+    params = dict(mass=2.0, inertia=1.0, skew_id=0)
+    for d in range(1, 7):
+        params[f"k{d}"] = float(rng.uniform(100.0, 5000.0))
+        params[f"c{d}"] = float(rng.uniform(0.0, 20.0))
+    if rng.random() < 0.5:                    # rupture limits, sometimes
+        params["min_rup1"] = -0.5
+        params["max_rup1"] = 0.5
+    g.state["slices"] = [(slice(0, n), None,
+                           Property(id=1, type=8, params=dict(params)))]
+    log = MessageLog()
+    spring.init_group(g, m, log)
+    assert not log.errors
+    return m, g
+
+
+def test_1d_mirror_is_bitwise_spring_t8_linear():
+    rng = np.random.default_rng(40903)
+    n = 23
+    m, g = _t8_group(n, rng)
+    x = np.array(m.x0, dtype=float)
+    x[1::2, 0] += rng.uniform(-0.2, 0.3, size=n)
+    x[1::2, 1] += rng.uniform(-0.2, 0.2, size=n)
+    dt = 1e-4
+    fint = np.zeros_like(x)
+    mint = np.zeros_like(x)
+    gen = g.state["gen6"]
+    t8 = gen["t8"]
+    snap = {k: np.array(t8[k], copy=True)
+            for k in ("dx_old", "f_old", "k_tan", "e6", "off", "crit",
+                      "critnew", "dead")}
+    snap["theta"] = np.array(gen["theta"], copy=True)
+    snap["eint"] = np.array(gen["eint"], copy=True)
+    snap["force"] = np.array(gen["force"], copy=True)
+    snap["moment"] = np.array(gen["moment"], copy=True)
+    dt_first = spring.forces(g, x, None, None, dt, fint, mint)
+    ref = {k: np.array(t8[k], copy=True)
+           for k in ("dx_old", "f_old", "k_tan", "e6", "off", "crit",
+                     "critnew", "dead")}
+    ref["theta"] = np.array(gen["theta"], copy=True)
+    ref["eint"] = np.array(gen["eint"], copy=True)
+    ref["F"] = np.array(gen["force"], copy=True)
+    ref["M"] = np.array(gen["moment"], copy=True)
+    ref["fint"] = np.array(fint, copy=True)
+    ref["mint"] = np.array(mint, copy=True)
+    fint2 = np.zeros_like(x)
+    mint2 = np.zeros_like(x)
+    assert spring.forces(g, x, None, None, dt, fint2,
+                         mint2).tobytes() == dt_first.tobytes()
+    ref["dt"] = dt_first
+    # restore pre-driver state, gather the mirror inputs
+    for k in snap:
+        if k in t8:
+            t8[k][:] = snap[k]
+        elif k == "theta":
+            gen["theta"][:] = snap[k]
+    conn = gen["conn"]
+    n1, n2 = conn[:, 0], conn[:, 1]
+    d = x[n2] - x[n1]
+    dv = np.zeros_like(d)
+    delta = np.stack([np.einsum("mb,mb->m", d, gen["e1"]) - gen["L0"][:, 0],
+                      np.einsum("mb,mb->m", d, gen["e2"]) - gen["L0"][:, 1],
+                      np.einsum("mb,mb->m", d, gen["e3"]) - gen["L0"][:, 2]],
+                     axis=1)
+    dvl = np.zeros_like(delta)
+    dwl = np.zeros_like(delta)
+    nonlinear = np.zeros((n, 6), dtype=bool)
+    (F, Mx, theta_new, deint, dx_old, f_old, k_tan, e6, off, dead,
+     crit, critnew, L0_out, rerefd_out, dt_elem, fvec, m1,
+     m2) = spring_mir.spring_t8_linear(
+        delta, dvl, snap["theta"], dwl, dt, gen["e1"], gen["e2"],
+        gen["e3"], d, gen["L0"], t8["xk"], t8["xc"], t8["ak"],
+        nonlinear, t8["dmin"], t8["dmax"], t8["ifail"], t8["ifail2"],
+        t8["israte"], t8["fcut"], snap["off"], np.zeros(n, dtype=bool),
+        np.zeros(n, dtype=np.int64), np.zeros(n, dtype=np.int64),
+        np.zeros(n, dtype=np.int64), snap["dx_old"], snap["f_old"],
+        snap["k_tan"], snap["e6"], snap["crit"], snap["critnew"],
+        t8["rerefd"], snap["dead"], gen["mass"], gen["inertia"],
+    )
+    assert L0_out.tobytes() == gen["L0"].tobytes()
+    assert rerefd_out.tobytes() == t8["rerefd"].tobytes()
+    assert F.tobytes() == ref["F"].tobytes()
+    assert Mx.tobytes() == ref["M"].tobytes()
+    assert theta_new.tobytes() == ref["theta"].tobytes()
+    assert dx_old.tobytes() == ref["dx_old"].tobytes()
+    assert f_old.tobytes() == ref["f_old"].tobytes()
+    assert k_tan.tobytes() == ref["k_tan"].tobytes()
+    assert e6.tobytes() == ref["e6"].tobytes()
+    assert off.tobytes() == ref["off"].tobytes()
+    assert dead.tobytes() == ref["dead"].tobytes()
+    assert crit.tobytes() == ref["crit"].tobytes()
+    assert critnew.tobytes() == ref["critnew"].tobytes()
+    assert (snap["eint"] + deint).tobytes() == ref["eint"].tobytes()
+    assert dt_elem.tobytes() == ref["dt"].tobytes()
+    fint_mir = np.zeros_like(x)
+    mint_mir = np.zeros_like(x)
+    np.add.at(fint_mir, n1, fvec)
+    np.add.at(fint_mir, n2, -fvec)
+    np.add.at(mint_mir, n1, m1)
+    np.add.at(mint_mir, n2, m2)
+    assert fint_mir.tobytes() == ref["fint"].tobytes()
+    assert mint_mir.tobytes() == ref["mint"].tobytes()
+
+
+def test_t8_mirror_refuses_nonlinear_dofs_loudly():
+    n = 2
+    z3 = np.zeros((n, 3))
+    z6 = np.zeros((n, 6))
+    o = np.zeros(n)
+    i = np.zeros(n, dtype=np.int64)
+    b = np.zeros(n, dtype=bool)
+    nonlinear = np.zeros((n, 6), dtype=bool)
+    nonlinear[1, 0] = True
+    with pytest.raises(ValueError, match="deck curve"):
+        spring_mir.spring_t8_linear(
+            z3, z3, z3, z3, 1e-4, z3, z3, z3, z3, z3, z6, z6, z6,
+            nonlinear, z6, z6, i, i, i, o, o, b, i, i, i, z6, z6,
+            z6, z6, o, o, b, b, o, o,
+        )
 

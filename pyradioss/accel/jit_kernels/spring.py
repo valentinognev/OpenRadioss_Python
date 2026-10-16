@@ -75,7 +75,7 @@ except ImportError:  # pragma: no cover — NumPy fallback path
 from pyradioss.common.constants import EM20, EP30
 
 
-__all__ = ["spring_linear", "spring_t32_linear"]
+__all__ = ["spring_linear", "spring_t32_linear", "spring_t8_linear"]
 
 
 @njit(cache=True)
@@ -272,3 +272,285 @@ def spring_t32_linear(x1, x2, v1, v2, F_old, stif0, stif1, f1, d1, ilock,
         else:
             dt_elem[e] = EP30
     return F, uvar1, uvar2, uvar3, k_tan, de_incr, dt_elem
+
+
+@njit(cache=True)
+def spring_t8_linear(delta, dvl, theta_in, dwl, dt, e1, e2, e3, dvec,
+                     L0_in, xk, xc, ak, nonlinear, dmin, dmax, ifail,
+                     ifail2, israte, fcut, off_in, fired, usens, isflag,
+                     iequil, dx_old_in, f_old_in, k_tan_in, e6_in, crit_in,
+                     critnew_in, rerefd_in, dead_in, mass, inertia):
+    """Mirror of ``spring_common.type8_forces`` on the closed-form domain.
+
+    Statement-for-statement with the driver for elements whose six DOFs
+    are all closed-form (``nonlinear[e, i]`` False everywhere): the
+    linear ``k dx + c rate`` force, sensor gating (``fired`` pre-resolved
+    by the caller — sensors live on Python objects numba cannot touch),
+    rupture DLIM/CRIT with ISRATE smoothing and latching, theta
+    accumulation, trapezoidal-free linear work booking, the ``fvec`` /
+    moment assembly with the ``iequil`` arm correction, and the exact
+    ``r2len3`` dt close. Any ``nonlinear`` DOF raises ``ValueError`` —
+    curve/plastic channels iterate over deck tables per element and are
+    explicitly not mirrored (plan P4.9). Returns ``(F, M, theta_new,
+    deint, dx_old, f_old, k_tan, e6, off, dead, crit, critnew, L0,
+    rerefd, dt_elem, fvec, mvec1, mvec2)``.
+    """
+    m = delta.shape[0]
+    dt_val = dt if dt > 0.0 else 0.0
+
+    for e in range(m):
+        for i in range(6):
+            if nonlinear[e, i]:
+                raise ValueError(
+                    "spring_t8_linear: a DOF needs a deck curve or "
+                    "hardening channel (no numba mirror by plan P4.9)")
+
+    F = np.empty((m, 3))
+    Mx = np.empty((m, 3))
+    theta_new = np.empty((m, 3))
+    deint = np.empty(m)
+    dx_old = np.empty((m, 6))
+    f_old = np.empty((m, 6))
+    k_tan = np.empty((m, 6))
+    e6 = np.empty((m, 6))
+    off = np.empty(m)
+    dead = np.empty(m, dtype=np.bool_)
+    crit_a = np.empty(m)
+    critnew = np.empty(m)
+    L0 = np.empty((m, 3))
+    rerefd = np.empty(m, dtype=np.bool_)
+    dt_elem = np.empty(m)
+    fvec = np.empty((m, 3))
+    mvec1 = np.empty((m, 3))
+    mvec2 = np.empty((m, 3))
+
+    for e in prange(m):
+        for b in range(3):
+            theta_new[e, b] = theta_in[e, b] + dwl[e, b] * dt_val
+            L0[e, b] = L0_in[e, b]
+        for i in range(6):
+            dx_old[e, i] = dx_old_in[e, i]
+            f_old[e, i] = f_old_in[e, i]
+            k_tan[e, i] = k_tan_in[e, i]
+            e6[e, i] = e6_in[e, i]
+        rerefd[e] = rerefd_in[e]
+        crit_a[e] = crit_in[e]
+        critnew[e] = critnew_in[e]
+        dead[e] = dead_in[e]
+        off[e] = off_in[e]
+
+        if dead_in[e]:
+            # ruptured: the driver ``continue``s — forces stay zero, no
+            # work is booked, every state array keeps its old value
+            # (theta_new above is the one exception: it is updated by
+            # the driver's vectorised pre-loop, outside the dead check)
+            for b in range(3):
+                F[e, b] = 0.0
+                Mx[e, b] = 0.0
+                fvec[e, b] = 0.0
+                mvec1[e, b] = 0.0
+                mvec2[e, b] = 0.0
+            deint[e] = 0.0
+            dt_elem[e] = EP30
+            continue
+
+        # --- sensor gating (r23sens3/r1sens3 flavour, type8_sensor_off)
+        ue = usens[e]
+        if ue == 0:
+            of = 1.0
+            reref = False
+        elif isflag[e] == 2:
+            if fired[e]:
+                of = 1.0
+                reref = True
+            else:
+                of = 0.0
+                reref = False
+        elif ue > 0:
+            if fired[e]:
+                of = 1.0
+                reref = False
+            else:
+                of = 0.0
+                reref = False
+        else:
+            if fired[e]:
+                of = 0.0
+                reref = False
+            else:
+                of = 1.0
+                reref = False
+        prev_off = off_in[e]
+        off[e] = of
+        if reref and prev_off <= 0.0 and not rerefd[e]:
+            for b in range(3):
+                L0[e, b] = L0[e, b] + delta[e, b]
+                theta_new[e, b] = 0.0
+            dx_old[e, 0] = 0.0
+            dx_old[e, 1] = 0.0
+            dx_old[e, 2] = 0.0
+            rerefd[e] = True
+            zeroed = True
+        else:
+            zeroed = False
+
+        ifail2e = ifail2[e]
+        ifaile = ifail[e]
+        crit = 0.0
+        de = 0.0
+        for i in range(6):
+            if zeroed:
+                dx = 0.0
+                dxo = 0.0
+                rate = 0.0
+            elif i < 3:
+                dx = delta[e, i]
+                dxo = dx_old[e, i]
+                rate = dvl[e, i]
+            else:
+                j = i - 3
+                dx = theta_new[e, j]
+                dxo = theta_in[e, j]
+                rate = dwl[e, j]
+            # closed form (the driver ``else`` branch): linear k/c only
+            k_raw = xk[e, i] * ak[e, i]
+            c_raw = xc[e, i]
+            f = (k_raw * dx + c_raw * rate) * of
+            kti = xk[e, i] * ak[e, i]
+            e_incr = f * rate * dt_val
+            if i < 3:
+                F[e, i] = f
+                dx_old[e, i] = dx
+            else:
+                Mx[e, i - 3] = f
+            f_old[e, i] = f
+            k_tan[e, i] = kti
+            e6[e, i] = e6[e, i] + e_incr
+            de = de + e_incr
+            if of == 1.0:
+                # DLIM accumulates on live elements only (r2def3 gate)
+                if ifail2e == 0:
+                    if dx > 0.0 and dmax[e, i] < 1e29:
+                        dlim = dx / dmax[e, i]
+                    elif dx < 0.0 and dmin[e, i] > -1e29:
+                        dlim = dx / dmin[e, i]
+                    else:
+                        dlim = 0.0
+                elif ifail2e == 1:
+                    if f > 0.0 and dmax[e, i] < 1e29:
+                        dlim = f / dmax[e, i]
+                    elif f < 0.0 and dmin[e, i] > -1e29:
+                        dlim = f / dmin[e, i]
+                    else:
+                        dlim = 0.0
+                elif ifail2e == 2:
+                    if dmax[e, i] < 1e29:
+                        pos_e6 = e6[e, i] if e6[e, i] > 0.0 else 0.0
+                        dlim = pos_e6 / dmax[e, i]
+                    else:
+                        dlim = 0.0
+                else:
+                    dlim = 0.0
+                if ifaile == 0:
+                    crit = dlim if dlim > crit else crit
+                else:
+                    crit = crit + dlim * dlim
+        deint[e] = de
+        crit_a[e] = crit
+        # ISRATE smoothing (type8_smooth_crit), latches at 1
+        cn = critnew_in[e]
+        if israte[e] != 0:
+            fc = fcut[e] if fcut[e] != 0.0 else EP30
+            alpha = (2.0 * np.pi * fc * dt_val) / (1.0 + 2.0 * np.pi * fc * dt_val)
+            if cn < 1.0:
+                c = crit if crit < 1.0 + 1e-3 else 1.0 + 1e-3
+                sm = alpha * c + (1.0 - alpha) * cn
+                new = sm if sm < 1.0 else 1.0
+            else:
+                new = 1.0
+        else:
+            if cn < 1.0:
+                new = crit if crit < 1.0 else 1.0
+            else:
+                new = 1.0
+        critnew[e] = new
+        if of == 1.0 and new >= 1.0:
+            dead[e] = True
+            off[e] = 0.0
+        else:
+            dead[e] = False
+
+        # --- assembly to the nodes (forces6 frame + iequil arm)
+        f0 = F[e, 0]
+        f1 = F[e, 1]
+        f2 = F[e, 2]
+        g0 = Mx[e, 0]
+        g1 = Mx[e, 1]
+        g2 = Mx[e, 2]
+        for b in range(3):
+            fvec[e, b] = f0 * e1[e, b] + f1 * e2[e, b] + f2 * e3[e, b]
+            mv = g0 * e1[e, b] + g1 * e2[e, b] + g2 * e3[e, b]
+            mvec1[e, b] = mv
+            mvec2[e, b] = -mv
+        if iequil[e] == 1:
+            # MM = 0.5 * (d x fvec) added to BOTH nodes (r2cum3.F:125-140)
+            a0 = 0.5 * (dvec[e, 1] * fvec[e, 2] - dvec[e, 2] * fvec[e, 1])
+            a1 = 0.5 * (dvec[e, 2] * fvec[e, 0] - dvec[e, 0] * fvec[e, 2])
+            a2 = 0.5 * (dvec[e, 0] * fvec[e, 1] - dvec[e, 1] * fvec[e, 0])
+            mvec1[e, 0] = mvec1[e, 0] + a0
+            mvec1[e, 1] = mvec1[e, 1] + a1
+            mvec1[e, 2] = mvec1[e, 2] + a2
+            mvec2[e, 0] = mvec2[e, 0] + a0
+            mvec2[e, 1] = mvec2[e, 1] + a1
+            mvec2[e, 2] = mvec2[e, 2] + a2
+
+        # --- r2len3 dt close (exact Fortran damping reduction)
+        dt_tr0 = EP30
+        dt_tr1 = EP30
+        dt_tr2 = EP30
+        dt_ro0 = EP30
+        dt_ro1 = EP30
+        dt_ro2 = EP30
+        me = mass[e] if mass[e] > 0.0 else 0.0
+        ine = inertia[e] if inertia[e] > 0.0 else 0.0
+        for i in range(3):
+            kt = xk[e, i] if xk[e, i] > 0.0 else 0.0
+            ct = xc[e, i] if xc[e, i] > 0.0 else 0.0
+            if (me > 0.0) and ((kt > 0.0) or (ct > 0.0)):
+                den = np.sqrt(ct * ct + me * kt) + ct
+                if den < EM20:
+                    den = EM20
+                v = me / den
+                if i == 0:
+                    dt_tr0 = v
+                elif i == 1:
+                    dt_tr1 = v
+                else:
+                    dt_tr2 = v
+            kr = xk[e, i + 3] if xk[e, i + 3] > 0.0 else 0.0
+            cr = xc[e, i + 3] if xc[e, i + 3] > 0.0 else 0.0
+            if (ine > 0.0) and ((kr > 0.0) or (cr > 0.0)):
+                den = np.sqrt(cr * cr + ine * kr) + cr
+                if den < EM20:
+                    den = EM20
+                v = ine / den
+                if i == 0:
+                    dt_ro0 = v
+                elif i == 1:
+                    dt_ro1 = v
+                else:
+                    dt_ro2 = v
+        best = dt_tr0
+        if dt_tr1 < best:
+            best = dt_tr1
+        if dt_tr2 < best:
+            best = dt_tr2
+        if dt_ro0 < best:
+            best = dt_ro0
+        if dt_ro1 < best:
+            best = dt_ro1
+        if dt_ro2 < best:
+            best = dt_ro2
+        dt_elem[e] = best
+    return (F, Mx, theta_new, deint, dx_old, f_old, k_tan, e6, off, dead,
+            crit_a, critnew, L0, rerefd, dt_elem, fvec, mvec1, mvec2)
