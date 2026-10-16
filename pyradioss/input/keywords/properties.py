@@ -2101,6 +2101,13 @@ def read_prop(block: KeywordBlock, model: Model, log: MessageLog) -> None:
                 params[f"c{dof_i}"] = c_val
                 params[f"stiff{dof_i}"] = k_val
                 params[f"damp{dof_i}"] = c_val
+            if c_idx < len(cards) and not cards[c_idx].is_blank:
+                raw = cards[c_idx].raw
+                params["israte"] = _ival(raw[0:10])
+                params["asrate"] = _fval(raw[10:30]) if len(raw) > 10 else 0.0
+            else:
+                params["israte"] = 0
+                params["asrate"] = 0.0
         else:
             t0 = cards[0].tokens()
             params["mass"] = float(t0[0]) if len(t0) > 0 else 0.0
@@ -2158,6 +2165,13 @@ def read_prop(block: KeywordBlock, model: Model, log: MessageLog) -> None:
                 params[f"c{dof_i}"] = c_val
                 params[f"stiff{dof_i}"] = k_val
                 params[f"damp{dof_i}"] = c_val
+            if c_idx < len(cards) and not cards[c_idx].is_blank:
+                tt = cards[c_idx].tokens()
+                params["israte"] = int(float(tt[0])) if len(tt) > 0 else 0
+                params["asrate"] = float(tt[1]) if len(tt) > 1 else 0.0
+            else:
+                params["israte"] = 0
+                params["asrate"] = 0.0
         params["k"] = params.get("k1", 0.0)
         params["c"] = params.get("c1", 0.0)
 

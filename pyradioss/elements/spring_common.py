@@ -358,6 +358,9 @@ def type8_init(m):
         "off": np.ones(m),
         "dead": np.zeros(m, dtype=bool),
         "crit": np.zeros(m),
+        "critnew": np.zeros(m),
+        "israte": np.zeros(m, dtype=np.int64),
+        "fcut": np.zeros(m),
     }
 
 
@@ -382,6 +385,8 @@ def type8_fill(t8, local, p, funcs, log, pid):
         ifail2 = 0
     t8["ifail"][local] = ifail
     t8["ifail2"][local] = ifail2
+    t8["israte"][local] = int(p.get("israte", 0) or 0)
+    t8["fcut"][local] = float(p.get("asrate", 0.0) or 0.0)
     for i in range(TYPE8_NDOF):
         d = i + 1
         fun_a = int(p.get(f"fun_a{d}", 0) or 0)
@@ -469,6 +474,27 @@ def _type8_dlim(x, f, e6, dmin, dmax, ifail2):
     return 0.0
 
 
+def type8_smooth_crit(crit, critnew, israte, fcut, dt):
+    """ISRATE rupture-criterion smoothing (``r2def3.F:714-732``).
+
+    With smoothing on, ``CRITNEW`` trails ``CRIT`` through the ``Fcut``
+    low-pass ``alpha = 2 pi Fcut dt / (1 + 2 pi Fcut dt)``; off, it tracks
+    immediately.  Either way it latches at 1: a ruptured element never
+    heals.  Rupture is decided on the smoothed value, exactly like the
+    Fortran ``CRIT`` overwrite feeding ``CRIT >= ONE``.
+    """
+    if israte != 0:
+        fc = fcut if fcut != 0.0 else EP30
+        alpha = (2.0 * math.pi * fc * dt) / (1.0 + 2.0 * math.pi * fc * dt)
+        if critnew < 1.0:
+            c = min(crit, 1.0 + 1e-3)       # EM3 overshoot allowance
+            return min(alpha * c + (1.0 - alpha) * critnew, 1.0)
+        return 1.0
+    if critnew < 1.0:
+        return min(crit, 1.0)
+    return 1.0
+
+
 def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
     """One ``r2def3``-style update over the six uncoupled DOFs.
 
@@ -551,7 +577,11 @@ def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
                 # multiaxial failure: coupled sum of squares
                 crit += dlim * dlim
         t8["crit"][e] = crit
-        if crit >= 1.0:
+        new = type8_smooth_crit(crit, t8["critnew"][e],
+                                int(t8["israte"][e]), float(t8["fcut"][e]),
+                                dt_val)
+        t8["critnew"][e] = new
+        if new >= 1.0:
             # coupled failure (r2def3:733-739): the element is deleted from
             # the NEXT cycle — this step's forces stand, then go silent
             t8["dead"][e] = True

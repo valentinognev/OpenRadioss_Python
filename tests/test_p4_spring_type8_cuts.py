@@ -169,16 +169,20 @@ def test_type8_rate_smoothing_lags_the_rupture_criterion():
               israte=1, asrate=fcut)
     m, g = _type8_group(kw)
     fint, _ = _forces(g, m, [[0.0, 0.0, 0.0], [0.1, 0.0, 0.0]], dt=dt)
-    # CRIT = 2 would kill the element unsmoothed; smoothed it survives
+    # CRIT = 2 would kill the element unsmoothed; smoothed it survives.
+    # Fortran caps CRIT at 1+EM3 before the low-pass, so critnew trails
+    # alpha * 1.001, not alpha * 2.
     assert g.state["gen6"]["t8"]["off"][0] == pytest.approx(1.0)
-    assert g.state["gen6"]["t8"]["critnew"][0] == pytest.approx(2.0 * alpha)
+    assert g.state["gen6"]["t8"]["critnew"][0] == pytest.approx(1.001 * alpha)
     assert abs(fint).max() > 0.0
 
-    # control: ISRATE=0 dies on the same step
+    # control: ISRATE=0 dies on the same step (force stands that step,
+    # silence from the next, exactly like the rupture test above)
     kw0 = dict(kw, israte=0)
     m0, g0 = _type8_group(kw0)
     fint0, _ = _forces(g0, m0, [[0.0, 0.0, 0.0], [0.1, 0.0, 0.0]], dt=dt)
     assert g0.state["gen6"]["t8"]["off"][0] == pytest.approx(0.0)
+    fint0, _ = _forces(g0, m0, [[0.0, 0.0, 0.0], [0.1, 0.0, 0.0]], dt=dt)
     np.testing.assert_allclose(fint0, 0.0, atol=1e-15)
 
 
