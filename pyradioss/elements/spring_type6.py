@@ -83,7 +83,7 @@ def _refuse_nonlinear(prop) -> None:
         if isinstance(sub_p, dict):
             dicts.append(sub_p)
     for p in dicts:
-        for key in _NONLINEAR_KEYS:
+        for key in sorted(_NONLINEAR_KEYS):
             if key not in p:
                 continue
             try:
