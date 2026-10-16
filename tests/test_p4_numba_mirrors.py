@@ -53,7 +53,9 @@ from pyradioss.model.model import ElementGroup, Model
 
 def test_only_element_branches_have_mirrors():
     """Curve-iterating branches must not gain a mirror (plan P4.9)."""
-    assert list(spring_mir.__all__) == ["spring_linear"]
+    assert list(spring_mir.__all__) == [
+        "spring_linear", "spring_t32_linear",
+    ]
     assert list(beam_mir.__all__) == []
 
 
@@ -146,4 +148,102 @@ def test_1d_mirror_is_bitwise_spring_linear():
         st["t6_eint"][:] = eint_ref
         st["t6_k_tan"][:] = k_tan_ref
         x[1::2, 0] += rng.uniform(-0.1, 0.1, size=n)
+
+
+# ---------------------------------------------------------------------------
+# spring_t32_linear <-> pretensioner ITYP1 (P4.4)
+# ---------------------------------------------------------------------------
+
+def _t32_group(n, rng):
+    from types import SimpleNamespace
+
+    nn = 2 * n
+    x0 = np.zeros((nn, 3))
+    x0[1::2, 0] = rng.uniform(0.8, 1.5, size=n)
+    conn = np.stack([np.arange(0, nn, 2), np.arange(1, nn, 2)], axis=1)
+    group = ElementGroup(
+        ids=np.arange(1, n + 1, dtype=np.int64), conn=conn,
+        part=np.zeros(n, dtype=np.int64), state={},
+    )
+    st = group.state
+    idx = np.arange(n)
+    st["off"] = np.ones(n)
+    st["off"][rng.random(n) < 0.15] = 0.0     # deleted elements included
+    st["force"] = rng.uniform(-5.0, 5.0, size=n)
+    st["eint"] = rng.uniform(0.0, 2.0, size=n)
+    st["k"] = np.zeros(n)
+    st["mass"] = rng.uniform(0.5, 3.0, size=n)
+    st["stif0"] = rng.uniform(100.0, 2000.0, size=n)
+    st["stif1"] = rng.uniform(0.0, 500.0, size=n)
+    st["ityp"] = np.ones(n, dtype=np.int64)
+    st["f1"] = rng.uniform(0.0, 50.0, size=n)
+    st["d1"] = np.zeros(n)
+    st["scale_t"] = np.ones(n)
+    st["scale_d"] = np.ones(n)
+    st["scale_f"] = np.ones(n)
+    st["sens_id"] = np.zeros(n, dtype=np.int64)
+    st["fct_id1"] = np.zeros(n, dtype=np.int64)
+    st["fct_id2"] = np.zeros(n, dtype=np.int64)
+    st["ilock"] = (rng.random(n) < 0.5).astype(np.int64) * 2
+    st["uvar1"] = rng.uniform(-0.05, 0.2, size=n)
+    st["uvar2"] = np.ones(n)                  # already activated
+    st["uvar2"][rng.random(n) < 0.3] = 0.0    # some just-armed
+    st["uvar3"] = np.zeros(n)
+    st["uvar4"] = st["stif0"].copy()
+    st["model"] = SimpleNamespace(t=1.0, sensors_state=None,
+                                  functions={})
+    return group, x0
+
+
+def test_1d_mirror_is_bitwise_spring_t32_linear():
+    from pyradioss.elements import spring_pretensioner
+
+    rng = np.random.default_rng(40904)
+    n = 29
+    group, x0 = _t32_group(n, rng)
+    st = group.state
+    idx = np.arange(n)
+    x = np.array(x0)
+    x[1::2, 0] += rng.uniform(-0.1, 0.2, size=n)
+    v = rng.standard_normal((2 * n, 3)) * 0.2
+    dt = 1e-3
+    fint = np.zeros_like(x)
+    snapshot = {k: np.array(st[k], copy=True)
+                for k in ("force", "eint", "k", "uvar1", "uvar2",
+                          "uvar3", "uvar4")}
+    dt_ref = spring_pretensioner.forces_pretensioner_type32(
+        group, x, v, dt, fint, idx)
+    ref = {k: np.array(st[k], copy=True)
+           for k in ("force", "eint", "k", "uvar1", "uvar2", "uvar3")}
+    # restore, run the mirror (all sensors inactive-armed -> iact True)
+    for k, vals in snapshot.items():
+        st[k][:] = vals
+    iact = np.ones(n, dtype=bool)
+    F, u1, u2, u3, k_tan, de_incr, dt_elem = spring_mir.spring_t32_linear(
+        x[idx * 2], x[idx * 2 + 1], v[idx * 2], v[idx * 2 + 1],
+        snapshot["force"], st["stif0"], st["stif1"], st["f1"], st["d1"],
+        st["ilock"], st["ityp"], iact, snapshot["uvar1"],
+        snapshot["uvar2"], snapshot["uvar3"], dt, st["off"], st["mass"],
+    )
+    assert F.tobytes() == ref["force"].tobytes()
+    assert u1.tobytes() == ref["uvar1"].tobytes()
+    assert u2.tobytes() == ref["uvar2"].tobytes()
+    assert u3.tobytes() == ref["uvar3"].tobytes()
+    assert k_tan.tobytes() == ref["k"].tobytes()
+    assert (snapshot["eint"] + de_incr).tobytes() == ref["eint"].tobytes()
+    assert dt_elem.tobytes() == dt_ref.tobytes()
+
+
+def test_t32_mirror_refuses_curve_ityps_loudly():
+    n = 3
+    z = np.zeros((n, 3))
+    o = np.zeros(n)
+    i1 = np.ones(n, dtype=np.int64)
+    for ityp in (2, 3, 4):
+        with pytest.raises(ValueError, match="ITYP"):
+            spring_mir.spring_t32_linear(
+                z, z, z, z, o, o, o, o, o, i1, np.full(n, ityp),
+                np.ones(n, dtype=bool), o, np.ones(n), o, 1e-3,
+                np.ones(n), np.ones(n),
+            )
 

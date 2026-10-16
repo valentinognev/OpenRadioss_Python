@@ -75,7 +75,7 @@ except ImportError:  # pragma: no cover — NumPy fallback path
 from pyradioss.common.constants import EM20, EP30
 
 
-__all__ = ["spring_linear"]
+__all__ = ["spring_linear", "spring_t32_linear"]
 
 
 @njit(cache=True)
@@ -173,3 +173,102 @@ def spring_linear(x1, x2, L0, dx_old, k, c, ak, ileng, F_old, dt, off,
             dt_c = EP30
         dt_elem[e] = dt_crit if pos_k else dt_c
     return F, a, e_incr, k_tan, dt_elem
+
+
+@njit(cache=True)
+def spring_t32_linear(x1, x2, v1, v2, F_old, stif0, stif1, f1, d1, ilock,
+                      ityp, iact, uvar1_in, uvar2_in, uvar3_in, dt, off,
+                      mass):
+    """Mirror of ``forces_pretensioner_type32`` on the curve-free domain.
+
+    Statement-for-statement with the driver for sensor-inactive elements
+    (``ruser32.F`` lines 162-171) and active ``ITYP == 1`` elements
+    (lines 173-202: stroke accumulation, elastic baseline, linear
+    pretension law, ``ILOCK``). An ACTIVE element with ``ITYP 2/3/4``
+    raises ``ValueError`` — those branches evaluate deck ``/FUNCT``
+    curves per element (curve iteration, explicitly not mirrored by
+    plan P4.9); inactive elements of any ``ITYP`` take the curve-free
+    path exactly like the driver. Returns ``(F, uvar1, uvar2, uvar3,
+    k_tan, de_incr, dt_elem)``; the caller adds ``de_incr`` into
+    ``eint`` and scatters ``F`` along the axis, as the driver does.
+    """
+    m = x1.shape[0]
+    dt_val = dt if dt > 0.0 else 0.0
+
+    # loud refusal first (a partial scatter must never look complete)
+    for e in range(m):
+        if iact[e] and ityp[e] != 1:
+            raise ValueError(
+                "spring_t32_linear: active ITYP 2/3/4 evaluates a deck "
+                "curve (no numba mirror by plan P4.9)")
+
+    F = np.empty(m)
+    uvar1 = np.empty(m)
+    uvar2 = np.empty(m)
+    uvar3 = np.empty(m)
+    k_tan = np.empty(m)
+    de_incr = np.empty(m)
+    dt_elem = np.empty(m)
+
+    for e in prange(m):
+        # --- gather: L, axis, Ldot (same formulas as the driver)
+        d0 = x2[e, 0] - x1[e, 0]
+        d1_ = x2[e, 1] - x1[e, 1]
+        d2 = x2[e, 2] - x1[e, 2]
+        norm = np.sqrt(d0 * d0 + d1_ * d1_ + d2 * d2)
+        degen = norm < EM20
+        L = EM20 if degen else norm
+        if degen:
+            ax0, ax1, ax2 = 1.0, 0.0, 0.0
+        else:
+            ax0, ax1, ax2 = d0 / L, d1_ / L, d2 / L
+        dv0 = v2[e, 0] - v1[e, 0]
+        dv1 = v2[e, 1] - v1[e, 1]
+        dv2 = v2[e, 2] - v1[e, 2]
+        Ldot = dv0 * ax0 + dv1 * ax1 + dv2 * ax2
+
+        f = F_old[e]
+        X = uvar1_in[e]
+        u2 = uvar2_in[e]
+        u3 = uvar3_in[e]
+        if not iact[e]:
+            # Case 1: inactive sensor — STIF0 baseline only
+            u2 = 0.0
+            f = f + stif0[e] * dt_val * Ldot
+            kt = stif0[e]
+        else:
+            # Case 2: first activation cycle re-arms the stroke ...
+            if u2 == 0.0:
+                X = 0.0
+                u2 = 1.0
+            # ... then stroke and elastic baseline accumulate
+            X = X + dt_val * Ldot
+            f = f + stif0[e] * dt_val * Ldot
+            kt = stif0[e]
+            # ITYP 1: linear pretensioner FF = F1 + STIF1 * X
+            FF = f1[e] + stif1[e] * X
+            if (f > FF) and (ilock[e] == 2):
+                u3 = 1.0
+            if (FF > 0.0) and (u3 == 0.0):
+                f = FF if FF > f else f
+
+        alive = off[e] > 0.0
+        F[e] = f if alive else 0.0
+        uvar1[e] = X
+        uvar2[e] = u2
+        uvar3[e] = u3
+        k_tan[e] = kt
+        de_incr[e] = (0.5 * (F_old[e] + f) * Ldot * dt_val
+                      if alive else 0.0)
+
+        # --- critical step (ruser32mat3.F: Kt = uvar4 = stif0 here)
+        mass_e = mass[e] if mass[e] > EM20 else EM20
+        kdt = kt if kt > 0.0 else 0.0
+        pos_k = (kt > 0.0) and (mass[e] > 0.0)
+        s = kdt / mass_e if pos_k else 1.0
+        dt_crit = 2.0 / (2.0 * np.sqrt(s))
+        if alive and pos_k:
+            dt_elem[e] = dt_crit
+        else:
+            dt_elem[e] = EP30
+    return F, uvar1, uvar2, uvar3, k_tan, de_incr, dt_elem
