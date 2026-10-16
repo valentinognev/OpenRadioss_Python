@@ -130,6 +130,28 @@ def test_idrill0_falls_back_to_def_shell_default(tmp_path):
     assert m.properties[1].params["isrot"] == 1
 
 
+def test_fixed_format_flags_card_resolves_isrot(tmp_path):
+    """The fixed-format ``/PROP/SHELL`` branch returns before the shared
+    tail, so it resolves ``isrot`` at its own construction site — a
+    fixed-width flags card carrying ``Idrill = 1`` must surface it
+    (caught during c04 parity: the port ran drill-off on a drill deck)."""
+    flags = "%10d%10d%10d%10d\n" % (12, 0, 0, 1)
+    deck = ("/BEGIN\np35 fixed\n/NODE\n" + NODES +
+            "/SHELL/1\n1 1 2 3 4\n/PART/1\nplate\n1 1\n" + MAT +
+            "/PROP/SHELL/1\nplate prop\n" + flags +
+            "0 0 0 0 0\n3 0 0.1\n/END\n")
+    f = tmp_path / "FX_0000.rad"
+    f.write_text(deck)
+    model = Model()
+    log = MessageLog()
+    with contextlib.redirect_stdout(io.StringIO()):
+        parse_starter_deck(read_deck(str(f)), model, log)
+    assert not log.errors, log.errors
+    params = model.properties[1].params
+    assert params["idrill"] == 1
+    assert params["isrot"] == 1
+
+
 # ---------------------------------------------------------------------------
 # kernel half — QBAT / QEPH resist a node spin, BT ignores it
 # ---------------------------------------------------------------------------

@@ -190,6 +190,44 @@
     "Transcription corrections found by reading (Fortran wins): the isotropic rows are CZFINTN1 at czfintn.F:184-227, not the _OR ELSE at 1228-1248 (which carries DT1 in C1M); the FAC dummy CZFINTN_OR scales by is ZCFAC (czforc3.F:715, init ONE at :387-388), so FACM=FAC1*DT1 on this path by the standing ZCFAC=1 cut; HMOR/HM(5..6) are dead on IORTH=1 (only consumers: the CMH/CFH coupling zeroed at :1191-1196 and the unreachable IORTH>1 block); CZHOUREP_OR is inert for LAW19 because upstream leaves SIGY=EP30 (czforc3.F:386), failing its own SIGY<ZEP9EP30 gate."
    ],
    "conclusion": "LAW19 QEPH shells now run the orthotropic CZFINTN_OR stabilisation (GEPM_LC -> CCTOGLOB -> HM/HF=HM/12 with the asymmetric HM(1)/HM(2) substitution and split HC(1)/HC(2) transverse pair), unit-pinned at every stage including upstream 45-degree shear value 0.200 against the textbook 0.225. No parity number moved and none was tuned: the isotropic QEPH path is bitwise inert by measurement (md5 122ff6b3ceefae2b81cd317577543df0), the LAW19 deck is inert with a stated symmetry reason (md5 b996fafd29d777546b9000ea2bc4ae9f, HE 9.2e-11), and the stored c50/c51 rel-RMS pair (0.6087/0.3657, DEVIATION) is quoted from parity_m41.json. This closes the last of the three measured Phase 3 gaps (VALIDATION.md section 7 item 5)."
+  },
+  "P3.5 drilling stiffness Idrill/Isrot (BT/QBAT/QEPH)": {
+   "task": "P3.5: drilling stiffness across BT, QBAT, QEPH (Idrill, Isrot)",
+   "method": "Manual parity route (both solvers run from scratch dirs; NOT the examples harness): synthetic Idrill=1 clones of the vendored RD-E-1000 decks (c04 QBAT Sf_0.9, c08 QEPH Sf_0.8 -- single flags-field change 0->1, labelled SYNTHETIC), Fortran starter+engine via tools/oracle/oracle_env.sh with th_to_csv, port starter+engine under the pinned interpreter with PYRADIOSS_BACKEND=numpy. rel-RMS = RMS(port - fortran_interp)/max(|fortran|,|port|) over the overlap window. Decks kept outside the worktree (firstmate data dir); no vendored deck uses Idrill>0.",
+   "unit_tests": "tests/test_p3_idrill.py: 13 pass (reader mapping incl. ISROT==2->0 and /DEF_SHELL default, fixed-format regression; QBAT/QEPH node-spin response, linearity, EINT booking, rigid-rotation objectivity; BT inert; idrill=0 gating).",
+   "qbat_c04_idrill1": {
+    "deck": "SYNTHETIC c04 clone (BATOZ Sf_0.9, Ishell=12, Idrill 0->1)",
+    "window_t_le_1000": {
+     "IE": 0.0025,
+     "KE": 0.003,
+     "note": "port tracks Fortran to 0.3%"
+    },
+    "full_run": "PORT BLOWS UP at t~1053 (cycle 64100, guard NUMERICAL ENERGY INJECTION -88.7%); Fortran completes (99082 cycles, NORMAL TERMINATION). KNOWN ISSUE, see below.",
+    "control_idrill0": {
+     "IE": 0.0031,
+     "KE": 0.0072,
+     "note": "port-vs-fortran MATCH; methodology validated"
+    }
+   },
+   "qeph_c08_idrill1": {
+    "deck": "SYNTHETIC c08 clone (QEPH Sf_0.8, Ishell=24, Idrill 0->1)",
+    "full_run": "PORT COMPLETES NORMALLY (107848 cycles vs Fortran 107838)",
+    "window_t_le_500": {
+     "IE": 2.26e-05,
+     "KE": 0.000744
+    },
+    "window_full_1604": {
+     "IE": 0.0618,
+     "KE": 0.1549,
+     "EW": 0.0244,
+     "MOMX": 0.1407,
+     "MOMY": 0.1637,
+     "MOMZ": 0.1674,
+     "class": "DEVIATION (expected: drill-hourglass CZFINTNRZ + warped CZPROJN legs are documented cuts)"
+    }
+   },
+   "bt": "No drilling term exists upstream (cforc3.F/cfint3.F carry no ISROT term; shell_internal_forces.F90:510 reads it unused) -- reader surfaces isrot, kernel ignores it (tested).",
+   "known_issue_qbat_long_horizon": "Port QBAT idrill=1 diverges late on rolling decks (c04 @t~1053/cycle 64100, c02/Sf_0.6 @t~1056/cycle 96400) while Fortran stays clean. Heavily instrumented: drill stress stays ~1e-17 until the t~1000 event, tracks Fortran to 0.3% until t~1000, then shear-mode (VDEF3) energy grows and blows up. Bisected to the _drill_strain path (a strain-off run completes); every formula, sign, scale, unit, equilibrium, objectivity and operator cross-check (QBAT=QEPH/AREA to roundoff) passes. Root cause not isolated; all evidence and scratch drivers preserved outside the worktree. No existing deck affected (all corpus decks run isrot=0, proven identical)."
   }
  }
 }

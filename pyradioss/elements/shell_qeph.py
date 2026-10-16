@@ -78,13 +78,10 @@ Conventions shared with the rest of the port (see shell_bt4):
 * lumped mass rho*t*A/4 and the generous rotational inertia
   m*(t^2+A)/12 (cinmas.F FAC=TWELVE for IHBE >= 11) — identical to BT.
 
-Drilling stiffness ``Isrot`` (P3.5) IS ported on FLAT rows: ``CZDERIRZ``
-+ ``CZDEFRZ`` on the strain side (``RLZ`` = nodal spin about the normal
-over area, ``czcorc.F:518-534``), ``CZFINTCRZ`` on the force side
-(``VSRZ(19)`` drill stress with ``KRZ = 1e-3 * G`` per
-``cncoef3.F:86-91``, nodal drill moments ``VMZ``, in-plane force
-corrections, trapezoidal ``EINT`` work), leaving through ``CZPROJN``'s
-flat leg. Warped rows run WITHOUT drill stiffness (loud init warning).
+Drilling stiffness ``Isrot`` (P3.5) IS ported on FLAT rows (``CZDERIRZ``
++ ``CZDEFRZ`` + ``CZFINTCRZ`` with ``KRZ = 1e-3 * G``; warped rows run
+without it — loud init warning; the drill hourglass ``CZFINTNRZ`` rows
+are cut, ``CZFINTN1`` keeps running).
 
 Deliberate cuts (documented): the drill *hourglass* stabilization
 (``CZFINTNRZ``'s ``VHGZK``/``VHGZE`` rows — the ``CZFINTN1`` stabilization
@@ -108,7 +105,9 @@ from .. import materials
 from . import shell_ortho, shell_qeph_hg, shell_qeph_ortho
 from .shell_bt4 import (_element_deletion, _init_material_state,
                         _layer_extra, _layer_failure)
-from .shell_drill import KRZ_FAC, derirz, group_isrot
+from .shell_drill import group_isrot
+from .shell_qeph_drill import _drill_moments, _drill_strain, warn_warped_drill
+from .shell_qeph_fint import _fint_const
 from .shell_ithick import apply_qeph_thickness, thin_layer_increment
 from ..common.constants import EM20, EP30, SHEAR_FACTOR
 from ..common.fastmath import cross3, norm3, scatter_add3
@@ -730,64 +729,14 @@ def init_group(group, model, log):
     group.state["dt_iner"] = mass / 4.0 * (thick ** 2 + area) / 12.0
     inertia_c = np.repeat(group.state["dt_iner"], 4)
     group._model = model
-    if group_isrot(group) > 0 and log is not None:
-        # P3.5: drill stiffness runs on flat rows only (the CZPROJN
-        # warped VQN leg is unported) — say so once, loudly.
-        warped0 = ~(G["z1"] ** 2 < G["lm"] * _TOL_PLAT)
-        if bool(np.any(warped0)):
-            log.warning(
-                f"QEPH Isrot>0: {int(warped0.sum())} warped row(s) run "
-                "WITHOUT drill stiffness (warped CZPROJN leg unported; "
-                "flat rows carry the full CZDEFRZ/CZFINTCRZ path)",
-                "SHELL INIT")
+    # P3.5: drill stiffness runs on flat rows only (warns from the drill
+    # satellite when a warped row would silently skip it).
+    warn_warped_drill(group, log, G)
     return node_idx, mass_c, inertia_c
 
 
 # ---------------------------------------------------------------------------
 # constant-part internal forces (czfintce.F CZFINTCE)
-# ---------------------------------------------------------------------------
-
-def _fint_const(G, thick, Nres, Mres, qres):
-    """VF (n,3,4) / VM (n,2,4) with slots 0,1 = ANTISYM (node1/node2
-    patterns: f1 = -f3, f2 = -f4) and slots 2,3 = SYM — czfintce.F with
-    GBUF%FOR = N/t and GBUF%MOM = M/t^2 folded into physical resultants
-    (THK*VSTRE -> Nres, THK02*MSTRE -> Mres)."""
-    x13, x24, y13, y24 = G["x13"], G["x24"], G["y13"], G["y24"]
-    mx13, my13 = G["mx13"], G["my13"]
-    n = len(x13)
-    VF = np.zeros((n, 3, 4))
-    VM = np.zeros((n, 2, 4))
-    qx, qy = qres[:, 0], qres[:, 1]          # t*sig_xz, t*sig_yz
-    N1, N2, N3 = Nres[:, 0], Nres[:, 1], Nres[:, 2]
-    M1, M2, M3 = Mres[:, 0], Mres[:, 1], Mres[:, 2]
-
-    s1geo = G["my34"] * G["mx23"] - G["my23"] * G["mx34"]
-
-    VF[:, 0, 0] = y24 * N1 - x24 * N3
-    VF[:, 1, 0] = -x24 * N2 + y24 * N3
-    VF[:, 2, 0] = -x24 * qy + y24 * qx       # VSTRE(4)=yz, VSTRE(5)=xz
-    VM[:, 0, 0] = x24 * M2 - y24 * M3 - my13 * VF[:, 2, 0]
-    VM[:, 1, 0] = y24 * M1 - x24 * M3 + mx13 * VF[:, 2, 0]
-    VM[:, 0, 2] = -s1geo * qy                # -S52S
-    VM[:, 1, 2] = s1geo * qx                 # +S42S
-    VF[:, 0, 1] = -y13 * N1 + x13 * N3
-    VF[:, 1, 1] = x13 * N2 - y13 * N3
-    VF[:, 2, 1] = x13 * qy - y13 * qx
-    VM[:, 0, 1] = -x13 * M2 + y13 * M3 + my13 * VF[:, 2, 1]
-    VM[:, 1, 1] = -y13 * M1 + x13 * M3 - mx13 * VF[:, 2, 1]
-    VM[:, 0, 3] = VM[:, 0, 2]
-    VM[:, 1, 3] = VM[:, 1, 2]
-    # warp coupling of the moments into in-plane forces (czfintce 95-100)
-    c2 = G["z1"] * 4.0 * G["a_i"]
-    VF[:, 0, 0] += c2 * (x13 * M1 + y13 * M3)
-    VF[:, 1, 0] += c2 * (y13 * M2 + x13 * M3)
-    VF[:, 0, 1] -= c2 * (x24 * M1 + y24 * M3)
-    VF[:, 1, 1] -= c2 * (y24 * M2 + x24 * M3)
-    return VF, VM
-
-
-# ---------------------------------------------------------------------------
-# physical stabilization (czfintn.F CZFINTN1) — the QEPH heart
 # ---------------------------------------------------------------------------
 
 def _current_yield(st, sl, mat):
@@ -1117,68 +1066,6 @@ def _pre(x_conn, v_conn, vr_conn, dt, st_npt1, alive):
 # ---------------------------------------------------------------------------
 # Drilling stiffness (P3.5): CZDEFRZ + CZFINTCRZ, flat rows
 # ---------------------------------------------------------------------------
-
-def _drill_strain(G, vdef, vre, thick, dt, alive, plat, st):
-    """CZDEFRZ (``czdef.F:212``) with the ``CZDERIRZ`` operators.
-
-    ``rlz`` is the nodal spin about the element normal over the area
-    (``czcorc.F:518-534``); the membrane augment and ``VRLZ`` use the
-    scaled ``v13s``/``v24s`` set, matching ``_rates``' convention. Also
-    carries the ``CZFINTCRZ`` constant-part update (``VSRZ(19)`` drill
-    stress + trapezoidal ``EINT`` work — needs only ``dt``, no
-    resultants). Stashes ``rlz``/``vrlz``/``bm0rz``/``vmz`` inputs on
-    ``G`` for ``_drill_moments``/``_post``. Flat live rows only.
-    """
-    n = len(G["area"])
-    flat = np.asarray(plat) & np.asarray(alive)
-    rlz = np.zeros((n, 4))
-    vrlz = np.zeros(n)
-    b0 = np.zeros((n, 4, 4))
-    if np.any(flat):
-        rr = np.einsum("njk,nka->nja", vre, G["E"])
-        rlz[flat] = rr[flat][:, :, 2] * G["a_i"][flat, None]
-        b0, _bk, _be = derirz(G["x13"], G["x24"], G["y13"], G["y24"],
-                              G["mx13"], G["mx23"], G["mx34"],
-                              G["my13"], G["my23"], G["my34"],
-                              G["area"])
-        v13s, v24s = G["v13s"], G["v24s"]
-        bxv2 = G["y24"] * v13s[:, 1] - G["y13"] * v24s[:, 1]
-        byv1 = -G["x24"] * v13s[:, 0] + G["x13"] * v24s[:, 0]
-        rl = rlz[flat]
-        vdef[flat, 0] += (b0[flat, 0] * rl).sum(axis=1)
-        vdef[flat, 1] += (b0[flat, 1] * rl).sum(axis=1)
-        vdef[flat, 2] += (b0[flat, 2] * rl).sum(axis=1)
-        vrlz[flat] = 0.5 * ((bxv2 - byv1)[flat]
-                            + (b0[flat, 3] * rl).sum(axis=1))
-        vol = G["area"][flat] * thick[flat]
-        erz = vrlz[flat] * dt
-        off01 = alive[flat].astype(float)
-        off05 = 0.5 * off01 * vol
-        vs = st["vsrz"]
-        krz = KRZ_FAC * st["gmod"][flat]      # cncoef3.F: KRZ = KFAC * G
-        st["eint"][flat] += vs[flat] * erz * off05
-        vs[flat] = vs[flat] + krz * erz * off01
-        st["eint"][flat] += vs[flat] * erz * off05
-    G["rlz"], G["vrlz"], G["bm0rz"] = rlz, vrlz, b0
-
-
-def _drill_moments(G, Nres, thick, alive, plat, st):
-    """Nodal drill moments ``VMZ`` (``CZFINTCRZ`` force part)."""
-    n = len(G["area"])
-    vmz = np.zeros((n, 4))
-    flat = np.asarray(plat) & np.asarray(alive)
-    if np.any(flat):
-        b0 = G["bm0rz"]
-        vs = np.where(np.asarray(alive), st["vsrz"], 0.0)
-        c2 = thick * vs * 0.5
-        n1, n2, n3 = Nres[:, 0], Nres[:, 1], Nres[:, 2]
-        for j in range(4):
-            vmz[flat, j] = (b0[flat, 0, j] * n1[flat]
-                            + b0[flat, 1, j] * n2[flat]
-                            + b0[flat, 2, j] * n3[flat]) * thick[flat] \
-                + b0[flat, 3, j] * c2[flat]
-    return vmz
-
 
 def _post(G, thick, Nres, Mres, qres, st, vhg, dt, alive, plat, vqn, di, db):
     VF, VM = _fint_const(G, thick, Nres, Mres, qres)

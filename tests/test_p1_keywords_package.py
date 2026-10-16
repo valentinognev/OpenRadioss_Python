@@ -18,8 +18,11 @@ import importlib
 import warnings
 
 # The keyword family modules the split introduces. Importing a submodule binds
-# it as an attribute of its parent package, so these twelve names are the whole
+# it as an attribute of its parent package, so these names are the whole
 # of the permitted difference between the old module's dir() and the package's.
+# ``prop_type51`` joined under the P1.7 module-size rule (P3.5): the TYPE51
+# reader plus the shared ``resolve_isrot`` helper moved out of the over-budget
+# ``properties.py``; no reader was added, dropped or renamed.
 SUBMODULES = frozenset({
     "conditions",
     "constraints",
@@ -32,6 +35,7 @@ SUBMODULES = frozenset({
     "materials",
     "misc",
     "output",
+    "prop_type51",
     "properties",
 })
 
