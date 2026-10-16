@@ -6962,101 +6962,14 @@ def read_prop_type14(block: KeywordBlock, model: Model, log: MessageLog) -> None
 
 
 def read_prop_type8(block: KeywordBlock, model: Model, log: MessageLog) -> None:
-    """``/PROP/TYPE8`` or ``/PROP/SPR_GENE`` (M189): Generalized 6-DOF nonlinear spring property."""
-    from ...model.entities import PropType8, Property
-    prop_id = block.user_id or 0
-    title, cards = _fixed_data(block) if block.fixed else _title_and_data(block)
-    valid_cards = [c for c in cards if not c.is_blank and not c.raw.strip().startswith("#")]
-    if not valid_cards:
-        log.error(f"/PROP/TYPE8/{prop_id}: missing data card", block.source)
-        return
+    """/PROP/TYPE8 or /PROP/SPR_GENE: delegates to the live path.
 
-    mass, inertia = 0.0, 0.0
-    skew_id, sensor_id, isflag, ifail, iequil = 0, 0, 0, 0, 0
-    dofs = {}
-    dof_names = ["tx", "ty", "tz", "rx", "ry", "rz"]
-
-    if block.fixed:
-        if len(valid_cards) > 0:
-            c0 = valid_cards[0].cut("PROP_TYPE8_1")
-            mass = _safe_float(c0[0]) if len(c0) > 0 else 0.0
-            inertia = _safe_float(c0[1]) if len(c0) > 1 else 0.0
-            skew_id = _safe_int(c0[2]) if len(c0) > 2 else 0
-            sensor_id = _safe_int(c0[3]) if len(c0) > 3 else 0
-            isflag = _safe_int(c0[4]) if len(c0) > 4 else 0
-            ifail = _safe_int(c0[5]) if len(c0) > 5 else 0
-            iequil = _safe_int(c0[6]) if len(c0) > 6 else 0
-        idx = 1
-        for name in dof_names:
-            if idx >= len(valid_cards):
-                break
-            ca = valid_cards[idx].cut("PROP_TYPE8_A")
-            idx += 1
-            cb = valid_cards[idx].cut("PROP_TYPE8_B") if idx < len(valid_cards) else []
-            idx += 1
-            stiff = _safe_float(ca[0]) if len(ca) > 0 else 0.0
-            damp = _safe_float(ca[1]) if len(ca) > 1 else 0.0
-            a_coef = _safe_float(ca[2]) if len(ca) > 2 else 0.0
-            b_coef = _safe_float(ca[3]) if len(ca) > 3 else 0.0
-            d_coef = _safe_float(ca[4]) if len(ca) > 4 else 0.0
-            fun_a = _safe_int(cb[0]) if len(cb) > 0 else 0
-            hflag = _safe_int(cb[1]) if len(cb) > 1 else 0
-            fun_b = _safe_int(cb[2]) if len(cb) > 2 else 0
-            fun_c = _safe_int(cb[3]) if len(cb) > 3 else 0
-            min_rup = _safe_float(cb[4]) if len(cb) > 4 else 0.0
-            max_rup = _safe_float(cb[5]) if len(cb) > 5 else 0.0
-            dofs[name] = {
-                "stiff": stiff, "damp": damp, "a": a_coef, "b": b_coef, "d": d_coef,
-                "fun_a": fun_a, "hflag": hflag, "fun_b": fun_b, "fun_c": fun_c,
-                "min_rup": min_rup, "max_rup": max_rup
-            }
-    else:
-        if len(valid_cards) > 0:
-            t0 = valid_cards[0].tokens()
-            mass = _safe_float(t0[0]) if len(t0) > 0 else 0.0
-            inertia = _safe_float(t0[1]) if len(t0) > 1 else 0.0
-            skew_id = _safe_int(t0[2]) if len(t0) > 2 else 0
-            sensor_id = _safe_int(t0[3]) if len(t0) > 3 else 0
-            isflag = _safe_int(t0[4]) if len(t0) > 4 else 0
-            ifail = _safe_int(t0[5]) if len(t0) > 5 else 0
-            iequil = _safe_int(t0[6]) if len(t0) > 6 else 0
-        idx = 1
-        for name in dof_names:
-            if idx >= len(valid_cards):
-                break
-            ta = valid_cards[idx].tokens()
-            idx += 1
-            tb = valid_cards[idx].tokens() if idx < len(valid_cards) else []
-            idx += 1
-            stiff = _safe_float(ta[0]) if len(ta) > 0 else 0.0
-            damp = _safe_float(ta[1]) if len(ta) > 1 else 0.0
-            a_coef = _safe_float(ta[2]) if len(ta) > 2 else 0.0
-            b_coef = _safe_float(ta[3]) if len(ta) > 3 else 0.0
-            d_coef = _safe_float(ta[4]) if len(ta) > 4 else 0.0
-            fun_a = _safe_int(tb[0]) if len(tb) > 0 else 0
-            hflag = _safe_int(tb[1]) if len(tb) > 1 else 0
-            fun_b = _safe_int(tb[2]) if len(tb) > 2 else 0
-            fun_c = _safe_int(tb[3]) if len(tb) > 3 else 0
-            min_rup = _safe_float(tb[4]) if len(tb) > 4 else 0.0
-            max_rup = _safe_float(tb[5]) if len(tb) > 5 else 0.0
-            dofs[name] = {
-                "stiff": stiff, "damp": damp, "a": a_coef, "b": b_coef, "d": d_coef,
-                "fun_a": fun_a, "hflag": hflag, "fun_b": fun_b, "fun_c": fun_c,
-                "min_rup": min_rup, "max_rup": max_rup
-            }
-
-    p8 = PropType8(
-        id=prop_id, mass=mass, inertia=inertia, skew_id=skew_id, sensor_id=sensor_id,
-        isflag=isflag, ifail=ifail, iequil=iequil, dofs=dofs, title=title
-    )
-    model.prop_type8s[prop_id] = p8
-    model.properties[prop_id] = Property(
-        id=prop_id, type=8, title=title,
-        params={
-            "mass": mass, "inertia": inertia, "skew_id": skew_id, "sensor_id": sensor_id,
-            "isflag": isflag, "ifail": ifail, "iequil": iequil, "dofs": dofs
-        }
-    )
+    The M189 hand reader this replaces duplicated the generic read_prop
+    TYPE8 branch with a narrower schema (no fun_d, no trailing ISRATE card,
+    a dofs-dict the engine never reads) and had no production callers
+    (dispatch maps every TYPE8 spelling to read_prop). One schema now.
+    """
+    read_prop(block, model, log)
 
 
 
