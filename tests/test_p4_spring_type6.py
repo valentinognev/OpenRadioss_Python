@@ -154,5 +154,12 @@ def test_type6_nonlinear_property_is_refused_not_linearised():
         part=np.array([0]),
         state={"slices": [(slice(0, 1), None, prop)]},
     )
-    with pytest.raises(NotImplementedError, match="fun_a"):
+    with pytest.raises(NotImplementedError) as excinfo:
         spring_type6.init_group(group, model, None)
+    # Seed-independent: the property carries two live nonlinear keys
+    # (fun_a=7, hflag=1) and _refuse_nonlinear iterates a frozenset, so
+    # either may be named first depending on PYTHONHASHSEED.  Either names
+    # a live nonlinear key on the loud-refusal path.
+    msg = str(excinfo.value)
+    assert "needs the nonlinear" in msg
+    assert "'fun_a'" in msg or "'hflag'" in msg
