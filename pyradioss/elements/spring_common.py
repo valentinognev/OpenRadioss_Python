@@ -361,6 +361,8 @@ def type8_init(m):
         "critnew": np.zeros(m),
         "israte": np.zeros(m, dtype=np.int64),
         "fcut": np.zeros(m),
+        "sens": np.zeros(m, dtype=np.int64),
+        "isflag": np.zeros(m, dtype=np.int64),
     }
 
 
@@ -387,6 +389,15 @@ def type8_fill(t8, local, p, funcs, log, pid):
     t8["ifail2"][local] = ifail2
     t8["israte"][local] = int(p.get("israte", 0) or 0)
     t8["fcut"][local] = float(p.get("asrate", 0.0) or 0.0)
+    sens_raw = int(p.get("sens_id", p.get("isensor", 0)) or 0)
+    isflag = int(p.get("isflag", 0) or 0)
+    # hm_read_prop08: IFL == 1 negates ISENS at read time (deactivation)
+    usens = -sens_raw if isflag == 1 else sens_raw
+    t8["sens"][local] = usens
+    t8["isflag"][local] = isflag
+    if usens != 0 and isflag != 1:
+        # activation modes start inactive (Fortran OFF = -10)
+        t8["off"][local] = 0.0
     for i in range(TYPE8_NDOF):
         d = i + 1
         fun_a = int(p.get(f"fun_a{d}", 0) or 0)
@@ -495,7 +506,25 @@ def type8_smooth_crit(crit, critnew, israte, fcut, dt):
     return 1.0
 
 
-def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
+def type8_sensor_off(usens, isflag, fired):
+    """Sensor OFF target for one element (``r23sens3.F``/``r1sens3.F``).
+
+    ``usens`` is the signed sensor id (``hm_read_prop08`` negates it when
+    ``IFL == 1``); ``fired`` latches like ``TT > TSTART``.  Returns
+    ``(off, reref)``: ``off`` is 1/0, and ``reref`` asks the caller to
+    re-reference the deformed length on this activation (the ``IFL == 2``
+    both-mode ``X0 += DX``).  ``usens == 0`` is always active.
+    """
+    if usens == 0:
+        return 1.0, False
+    if isflag == 2:
+        return (1.0, True) if fired else (0.0, False)
+    if usens > 0:
+        return (1.0, False) if fired else (0.0, False)
+    return (0.0, False) if fired else (1.0, False)
+
+
+def type8_forces(delta, dvl, theta, dwl, dt_val, t8, L0, sensors):
     """One ``r2def3``-style update over the six uncoupled DOFs.
 
     ``delta``/``dvl`` are the (m, 3) translation displacements/rates,
@@ -514,11 +543,31 @@ def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
     for e in range(m):
         if t8["dead"][e]:
             continue                    # ruptured: forces stay zero
+        usens = int(t8["sens"][e])
+        sid = abs(usens)
+        fired = False
+        if sensors is not None and sid != 0:
+            fired = bool(sensors.active(sid)) or \
+                sid in getattr(sensors, "fire_time", {})
+        off, reref = type8_sensor_off(usens, int(t8["isflag"][e]), fired)
+        prev_off = float(t8["off"][e])
+        t8["off"][e] = off
+        if reref and prev_off <= 0.0:
+            # IFL==2 activation re-references the deformed length (r2sens3:
+            # X0 += DX, totals zeroed); this step restarts from zero force
+            L0[e] += delta[e]
+            theta_new[e] = 0.0
+            t8["dx_old"][e, :3] = 0.0
+            zeroed = True
+        else:
+            zeroed = False
         ifail2e = int(t8["ifail2"][e])
         ifaile = int(t8["ifail"][e])
         crit = 0.0
         for i in range(TYPE8_NDOF):
-            if i < 3:
+            if zeroed:
+                dx, dxo, rate = 0.0, 0.0, 0.0
+            elif i < 3:
                 dx, rate = delta[e, i], dvl[e, i]
                 dxo = float(t8["dx_old"][e, i])
             else:
@@ -539,7 +588,7 @@ def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
                     fnv=t8["cv_b"][e, i], fnd=t8["cv_d"][e, i],
                     dpx=float(t8["dpx"][e, i]), dpx2=float(t8["dpx2"][e, i]),
                     f_ep=float(t8["f_ep"][e, i]),
-                    f_old=float(t8["f_old"][e, i]), dt=dt_val, off=1.0)
+                    f_old=float(t8["f_old"][e, i]), dt=dt_val, off=off)
                 t8["dpx"][e, i], t8["dpx2"][e, i], t8["f_ep"][e, i] = \
                     ndpx, ndpx2, nf_ep
             elif fun_a != 0 and cv is not None and hflag == 0:
@@ -551,12 +600,12 @@ def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
                     lscale=float(t8["ls"][e, i]), xl0=1.0,
                     iecrou=0, ifunc=fun_a,
                     ifv=int(t8["funb"][e, i]), ifunc3=int(t8["fund"][e, i]),
-                    f_old=float(t8["f_old"][e, i]), dt=dt_val, off=1.0,
+                    f_old=float(t8["f_old"][e, i]), dt=dt_val, off=off,
                     fn1=cv, fnv=t8["cv_b"][e, i], fnd=t8["cv_d"][e, i])
             else:
                 k_raw = float(t8["xk"][e, i]) * float(t8["ak"][e, i])
                 c_raw = float(t8["xc"][e, i])
-                f = k_raw * dx + c_raw * rate
+                f = (k_raw * dx + c_raw * rate) * off
                 kti = float(t8["xk"][e, i]) * float(t8["ak"][e, i])
                 e_incr = f * rate * dt_val
             if i < 3:
@@ -568,20 +617,23 @@ def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
             t8["k_tan"][e, i] = kti
             t8["e6"][e, i] += e_incr
             deint[e] += e_incr
-            dlim = _type8_dlim(dx, f, t8["e6"][e, i], t8["dmin"][e, i],
-                               t8["dmax"][e, i], ifail2e)
-            if ifaile == 0:
-                # uniaxial failure: worst DOF wins (r2def3: MAX over DLIM)
-                crit = max(crit, dlim)
-            else:
-                # multiaxial failure: coupled sum of squares
-                crit += dlim * dlim
+            if off == 1.0:
+                # DLIM accumulates only on live elements (r2def3 gates every
+                # DLIM block on OFF == ONE); smoothing still runs below
+                dlim = _type8_dlim(dx, f, t8["e6"][e, i], t8["dmin"][e, i],
+                                   t8["dmax"][e, i], ifail2e)
+                if ifaile == 0:
+                    # uniaxial failure: worst DOF wins (r2def3: MAX over DLIM)
+                    crit = max(crit, dlim)
+                else:
+                    # multiaxial failure: coupled sum of squares
+                    crit += dlim * dlim
         t8["crit"][e] = crit
         new = type8_smooth_crit(crit, t8["critnew"][e],
                                 int(t8["israte"][e]), float(t8["fcut"][e]),
                                 dt_val)
         t8["critnew"][e] = new
-        if new >= 1.0:
+        if off == 1.0 and new >= 1.0:
             # coupled failure (r2def3:733-739): the element is deleted from
             # the NEXT cycle — this step's forces stand, then go silent
             t8["dead"][e] = True

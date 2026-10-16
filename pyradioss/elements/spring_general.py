@@ -209,8 +209,9 @@ def forces6(group, x, v, vr, dt, fint, mint, idx6):
     dwl = np.stack([np.einsum("mb,mb->m", dw, e1),
                     np.einsum("mb,mb->m", dw, e2),
                     np.einsum("mb,mb->m", dw, e3)], axis=1)
+    sensors = getattr(group.state.get("model"), "sensors_state", None)
     F, M, theta_new, deint = spring_common.type8_forces(
-        delta, dvl, g["theta"], dwl, dt_val, g["t8"])
+        delta, dvl, g["theta"], dwl, dt_val, g["t8"], g["L0"], sensors)
     g["force"] = F
     g["moment"] = M
     g["theta"] = theta_new

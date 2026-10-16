@@ -262,6 +262,22 @@ def test_type8_sensor_gates_activation_and_deactivation():
     fint1, _ = _forces(g1, m1, x)
     np.testing.assert_allclose(fint1, 0.0, atol=1e-15)
 
+    # isflag=2 reactivates by re-referencing the deformed length (r2sens3:
+    # X0 += DX, totals zeroed): the activation step carries no force,
+    # afterwards the spring works about the new reference
+    kw2 = dict(kw, isflag=2)
+    m2, g2 = _type8_group(kw2)
+    fint2, _ = _forces(g2, m2, x)
+    np.testing.assert_allclose(fint2, 0.0, atol=1e-15)
+    m2.sensors_state = Sensors(m2, MessageLog())
+    m2.sensors_state.status[5] = True
+    fint2, _ = _forces(g2, m2, x)
+    np.testing.assert_allclose(fint2, 0.0, atol=1e-12)
+    np.testing.assert_allclose(g2.state["gen6"]["L0"][0], [0.1, 0.0, 0.0],
+                               rtol=1e-12)
+    fint2, _ = _forces(g2, m2, [[0.0, 0.0, 0.0], [0.15, 0.0, 0.0]])
+    assert fint2[0, 0] == pytest.approx(50.0, rel=1e-9)
+
 
 # ---------------------------------------------------------------------------
 # cut 6 — skew frame (wired by M39; this test locks the deck path)
