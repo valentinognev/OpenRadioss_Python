@@ -142,10 +142,8 @@ def redef3_channel(
         # Rate/damping close (redef3.F90:1141-1146): dfac is the logarithmic
         # rate factor plus the F-V curve term; gf3 weights the additional
         # damping curve.  Without curves gx = gx2 = 0 (:1131-1135).
-        dvv = max(1.0, abs(dvx / d) if d != 0.0 else 1.0)
-        dfac = ak + b * math.log(dvv) + ee * gx
-        f = (dfac * f + xc * dvx + gf3 * gx2) * off
-        k_tan = dfac * k_tan
+        f, k_tan = _rate_close(f, k_tan, dvx, ak=ak, b=b, d=d, ee=ee,
+                               xc=xc, gf3=gf3, gx=gx, gx2=gx2, off=off)
     else:
         # Rate-independent close (redef3.F90:1147-1151): fx * ak * off.
         f = f * ak * off
@@ -153,6 +151,117 @@ def redef3_channel(
 
     e_incr = (dxn - dxo) * (f + f_old) * 0.5 * xl
     return float(f), float(e_incr), float(k_tan)
+
+
+def _rate_close(f, k_tan, dvx, *, ak, b, d, ee, xc, gf3, gx, gx2, off):
+    """Shared damping close (``redef3.F90:1141-1146``).
+
+    ``dvv = max(1, |dvx/d|)``; ``dfac = ak + b ln(dvv) + ee gx``;
+    ``f = (dfac f + xc dvx + gf3 gx2) off``.  Used by the elastic channel
+    and every hardening channel alike — one transcription, not one copy
+    per branch.
+    """
+    dvv = max(1.0, abs(dvx / d) if d != 0.0 else 1.0)
+    dfac = ak + b * math.log(dvv) + ee * gx
+    return (dfac * f + xc * dvx + gf3 * gx2) * off, dfac * k_tan
+
+
+def redef3_plastic(
+    dx: float,
+    dx_old: float,
+    *,
+    xk: float,
+    xc: float = 0.0,
+    ak: float = 1.0,
+    b: float = 0.0,
+    d: float = 1.0,
+    ee: float = 0.0,
+    ff: float = 1.0,
+    gf3: float = 0.0,
+    lscale: float = 1.0,
+    xl0: float = 1.0,
+    iecrou: int,
+    fn1: tuple[np.ndarray, np.ndarray],
+    ifv: int = 0,
+    ifunc3: int = 0,
+    fnv: tuple[np.ndarray, np.ndarray] | None = None,
+    fnd: tuple[np.ndarray, np.ndarray] | None = None,
+    dpx: float = 0.0,
+    dpx2: float = 0.0,
+    f_ep: float = 0.0,
+    f_old: float = 0.0,
+    dt: float = 0.0,
+    off: float = 1.0,
+) -> tuple[float, float, float, float, float, float]:
+    """Elasto-plastic channel update (``redef3.F90`` hardening branches).
+
+    Returns ``(force, energy_incr, k_tan, dpx, dpx2, f_ep)``.  Only
+    ``IECROU = 1`` (isotropic, :763-776: trial ``fxep + xk ddx`` capped at
+    the loading curve, ``dpx`` takes the overstress) and ``IECROU = 2``
+    (decoupled tension/compression, :780-798: independent ``dpx``/``dpx2``
+    memories, zero force in the gap) are factored; every other flag keeps
+    the loud refusal of :func:`redef3_channel`.  The damping close and the
+    trapezoidal work booking are shared with the elastic channel.
+    """
+    xl = xl0 if abs(xl0) >= EM20 else math.copysign(EM20, xl0 if xl0 != 0.0 else 1.0)
+    dxn = dx / xl
+    dxo = dx_old / xl
+    dt11 = dt if dt != 0.0 else EP30
+    dvx = (dxn - dxo) / dt11
+
+    if iecrou == 1:
+        f_trial = f_ep + xk * (dxn - dxo)
+        if f_trial >= 0.0:
+            xx = dpx + f_trial / xk
+        else:
+            xx = -dpx + f_trial / xk
+        yy, tg = interp_curve(fn1[0], fn1[1], xx * lscale)
+        if f_trial >= 0.0 and f_trial > yy:
+            dpx = dpx + (f_trial - yy) / xk
+            f, capped = yy, True
+        elif f_trial < 0.0 and f_trial < yy:
+            dpx = dpx + (yy - f_trial) / xk
+            f, capped = yy, True
+        else:
+            f, capped = f_trial, False
+        f_ep = f
+        k_tan = tg * lscale if capped else xk
+    elif iecrou == 2:
+        yy, tg = interp_curve(fn1[0], fn1[1], dxn * lscale)
+        if dxn > dpx:
+            f_trial = xk * (dxn - dpx)
+            if f_trial > yy:
+                f, capped = yy, True
+            else:
+                f, capped = f_trial, False
+            dpx = dxn - f / xk
+        elif dxn < dpx2:
+            f_trial = xk * (dxn - dpx2)
+            if f_trial < yy:
+                f, capped = yy, True
+            else:
+                f, capped = f_trial, False
+            dpx2 = dxn - f / xk
+        else:
+            f, capped = 0.0, False
+        k_tan = tg * lscale if capped else (xk if f != 0.0 else 0.0)
+    else:
+        raise NotImplementedError(
+            f"redef3 IECROU={iecrou} is not factored here yet "
+            f"(redef3.F90:{_iecrou_line(iecrou)}); refusing loudly"
+        )
+
+    gx = interp_curve(fnv[0], fnv[1], dvx * ff)[0] if (ifv != 0 and fnv is not None) else 0.0
+    gx2 = interp_curve(fnd[0], fnd[1], dvx * ff)[0] if (ifunc3 != 0 and fnd is not None) else 0.0
+    if ifv != 0 or b != 0.0 or ee != 0.0 or xc != 0.0 or gf3 != 0.0:
+        f, k_tan = _rate_close(f, k_tan, dvx, ak=ak, b=b, d=d, ee=ee,
+                               xc=xc, gf3=gf3, gx=gx, gx2=gx2, off=off)
+    else:
+        f = f * ak * off
+        k_tan = k_tan * ak
+
+    e_incr = (dxn - dxo) * (f + f_old) * 0.5 * xl
+    return float(f), float(e_incr), float(k_tan), float(dpx), float(dpx2), float(f_ep)
 
 
 def _iecrou_line(iecrou: int) -> str:
@@ -235,6 +344,10 @@ def type8_init(m):
         "cv_a": np.full((m, 6), None, dtype=object),
         "cv_b": np.full((m, 6), None, dtype=object),
         "cv_d": np.full((m, 6), None, dtype=object),
+        "dpx": np.zeros((m, 6)),
+        "dpx2": np.zeros((m, 6)),
+        "f_ep": np.zeros((m, 6)),
+        "dx_old": np.zeros((m, 6)),
         "f_old": np.zeros((m, 6)),
         "k_tan": np.zeros((m, 6)),
     }
@@ -297,7 +410,7 @@ def type8_fill(t8, local, p, funcs, log, pid):
                             "PROP CHECK")
             for e in local:
                 t8[store][e, i] = cv
-        if hflag != 0 and log is not None:
+        if hflag not in (0, 1, 2) and log is not None:
             log.warning(f"/PROP/TYPE8/{pid}: DOF{d} IECROU={hflag} not "
                         f"ported yet (redef3.F90:{_iecrou_line(hflag)}) — "
                         f"elastic response kept", "PROP CHECK")
@@ -310,10 +423,12 @@ def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
     """One ``r2def3``-style update over the six uncoupled DOFs.
 
     ``delta``/``dvl`` are the (m, 3) translation displacements/rates,
-    ``theta``/``dwl`` the accumulated/rate rotations.  Each DOF runs the
-    shared :func:`redef3_channel` (linear or ``FUN_A`` elastic curve plus
-    the damping close); returns ``(F, M, theta_new, deint)`` with the
-    trapezoidal work booked per channel exactly like ``redef3``.
+    ``theta``/``dwl`` the accumulated/rate rotations.  Linear DOFs keep the
+    historical closed form ``k dx + c rate`` bit-for-bit (the suite pins
+    ``C`` against the nodal velocity with no displacement); nonlinear DOFs
+    run the shared :func:`redef3_channel`/:func:`redef3_plastic` with true
+    previous-displacement state (``r2def3`` DXOLD) and displacement-derived
+    rates, booking trapezoidal work.  Returns ``(F, M, theta_new, deint)``.
     """
     m = delta.shape[0]
     F = np.zeros((m, 3))
@@ -323,28 +438,49 @@ def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
     for e in range(m):
         for i in range(TYPE8_NDOF):
             if i < 3:
-                dx, dxo = delta[e, i], delta[e, i] - dvl[e, i] * dt_val
+                dx, rate = delta[e, i], dvl[e, i]
+                dxo = float(t8["dx_old"][e, i])
             else:
                 j = i - 3
-                dx, dxo = theta_new[e, j], theta[e, j]
+                dx, dxo, rate = theta_new[e, j], theta[e, j], dwl[e, j]
             fun_a = int(t8["fun"][e, i])
             cv = t8["cv_a"][e, i]
-            if fun_a != 0 and cv is not None and int(t8["iecrou"][e, i]) == 0:
-                ifunc, fn1 = fun_a, cv
+            hflag = int(t8["iecrou"][e, i])
+            if fun_a != 0 and cv is not None and hflag in (1, 2):
+                f, e_incr, kti, ndpx, ndpx2, nf_ep = redef3_plastic(
+                    dx, dxo, iecrou=hflag, fn1=cv,
+                    xk=float(t8["xk"][e, i]), xc=float(t8["xc"][e, i]),
+                    ak=float(t8["ak"][e, i]), b=float(t8["bk"][e, i]),
+                    d=float(t8["dk"][e, i]), ee=float(t8["ee"][e, i]),
+                    ff=float(t8["ff"][e, i]), gf3=float(t8["gf3"][e, i]),
+                    lscale=float(t8["ls"][e, i]), xl0=1.0,
+                    ifv=int(t8["funb"][e, i]), ifunc3=int(t8["fund"][e, i]),
+                    fnv=t8["cv_b"][e, i], fnd=t8["cv_d"][e, i],
+                    dpx=float(t8["dpx"][e, i]), dpx2=float(t8["dpx2"][e, i]),
+                    f_ep=float(t8["f_ep"][e, i]),
+                    f_old=float(t8["f_old"][e, i]), dt=dt_val, off=1.0)
+                t8["dpx"][e, i], t8["dpx2"][e, i], t8["f_ep"][e, i] = \
+                    ndpx, ndpx2, nf_ep
+            elif fun_a != 0 and cv is not None and hflag == 0:
+                f, e_incr, kti = redef3_channel(
+                    dx, dxo, xk=float(t8["xk"][e, i]), xc=float(t8["xc"][e, i]),
+                    ak=float(t8["ak"][e, i]), b=float(t8["bk"][e, i]),
+                    d=float(t8["dk"][e, i]), ee=float(t8["ee"][e, i]),
+                    ff=float(t8["ff"][e, i]), gf3=float(t8["gf3"][e, i]),
+                    lscale=float(t8["ls"][e, i]), xl0=1.0,
+                    iecrou=0, ifunc=fun_a,
+                    ifv=int(t8["funb"][e, i]), ifunc3=int(t8["fund"][e, i]),
+                    f_old=float(t8["f_old"][e, i]), dt=dt_val, off=1.0,
+                    fn1=cv, fnv=t8["cv_b"][e, i], fnd=t8["cv_d"][e, i])
             else:
-                ifunc, fn1 = 0, None
-            f, e_incr, kti = redef3_channel(
-                dx, dxo, xk=float(t8["xk"][e, i]), xc=float(t8["xc"][e, i]),
-                ak=float(t8["ak"][e, i]), b=float(t8["bk"][e, i]),
-                d=float(t8["dk"][e, i]), ee=float(t8["ee"][e, i]),
-                ff=float(t8["ff"][e, i]), gf3=float(t8["gf3"][e, i]),
-                lscale=float(t8["ls"][e, i]), xl0=1.0,
-                iecrou=0, ifunc=ifunc,
-                ifv=int(t8["funb"][e, i]), ifunc3=int(t8["fund"][e, i]),
-                f_old=float(t8["f_old"][e, i]), dt=dt_val, off=1.0,
-                fn1=fn1, fnv=t8["cv_b"][e, i], fnd=t8["cv_d"][e, i])
+                k_raw = float(t8["xk"][e, i]) * float(t8["ak"][e, i])
+                c_raw = float(t8["xc"][e, i])
+                f = k_raw * dx + c_raw * rate
+                kti = float(t8["xk"][e, i]) * float(t8["ak"][e, i])
+                e_incr = f * rate * dt_val
             if i < 3:
                 F[e, i] = f
+                t8["dx_old"][e, i] = dx
             else:
                 M[e, i - 3] = f
             t8["f_old"][e, i] = f

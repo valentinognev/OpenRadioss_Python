@@ -122,6 +122,19 @@ def test_type8_isotropic_hardening_caps_at_the_curve():
     fint, _ = _forces(g, m, [[0.0, 0.0, 0.0], [0.45, 0.0, 0.0]])
     assert fint[0, 0] == pytest.approx(100.0 - 10000.0 * 0.05, rel=1e-9)
 
+    # decoupled tension/compression (IECROU=2): cap each side, zero gap
+    kw2 = dict(mass=2.0, inertia=1.0, skew_id=0, k1=10000.0,
+               fun_a1=7, hflag1=2)
+    m2, g2 = _type8_group(kw2)
+    m2.functions[7] = FunctTable(7, [0.0, 0.1, 1.0], [0.0, 100.0, 100.0])
+    spring.init_group(g2, m2, MessageLog())
+    fint, _ = _forces(g2, m2, [[0.0, 0.0, 0.0], [0.5, 0.0, 0.0]])
+    assert fint[0, 0] == pytest.approx(100.0, rel=1e-9)
+    fint, _ = _forces(g2, m2, [[0.0, 0.0, 0.0], [0.2, 0.0, 0.0]])
+    assert fint[0, 0] == pytest.approx(0.0, abs=1e-12)
+    fint, _ = _forces(g2, m2, [[0.0, 0.0, 0.0], [-0.1, 0.0, 0.0]])
+    assert fint[0, 0] == pytest.approx(-100.0, rel=1e-9)
+
 
 # ---------------------------------------------------------------------------
 # cut 3 — rupture (DeltaMin/DeltaMax)
