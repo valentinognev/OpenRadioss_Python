@@ -76,6 +76,18 @@ _MASS_REQUIRED_SPRING_TYPES = frozenset({4, 12, 28})
 #: /PROP spelling per TYPE for the mass message (the card the user wrote)
 _SPRING_PROP_SPELLING = {4: "SPRING", 12: "SPR_PUL", 19: "SPR_TORS", 25: "SPR_AXI", 26: "SPR_TAB", 27: "SPR_BDAMP", 28: "NSTRAND", 32: "SPR_PRE", 35: "STITCH", 36: "PREDIT", 44: "SPR_CRUS", 46: "SPR_MUSCLE"}
 
+#: IGTYP -> owning kernel per rforc3.F ELSEIF branch, in ladder order (:243 4, :321 26,
+#: :387 27, :452 8, :558 12, :626 13, :749 25, :862 29-31, :1061 32, :1160 33/45,
+#: :1185 35/36, :1293 44, :1391 46; 23 via forint.F:1451; 33/45 live in engine.kjoint).
+IGTYP_GROUPS: dict[int, str] = {
+    4: "spring", 26: "spring_advanced", 27: "spring_advanced",
+    8: "spring_general", 12: "spring_advanced", 13: "spring_beam",
+    25: "spring_advanced", 29: "spring_user", 30: "spring_user",
+    31: "spring_user", 32: "spring_pretensioner", 33: "kjoint",
+    45: "kjoint", 35: "spring_advanced", 36: "spring_advanced",
+    44: "spring_advanced", 46: "spring_advanced", 23: "spring_mat",
+}
+
 
 def _safe_param(params: dict, key: str, default: float = 0.0) -> float:
     """Safely extract float parameter from prop.params with fallback."""
@@ -334,21 +346,9 @@ def forces(group, x, v, vr, dt, fint, mint):
     idx44 = st.get("idx44")
     idx46 = st.get("idx46")
     idx_kj = st.get("idx_kj")
-    if ((idx6 is None or len(idx6) == 0) and
-        (idx12 is None or len(idx12) == 0) and
-        (idx13 is None or len(idx13) == 0) and
-        (idx23 is None or len(idx23) == 0) and
-        (idx32 is None or len(idx32) == 0) and
-        (idx19 is None or len(idx19) == 0) and
-        (idx25 is None or len(idx25) == 0) and
-        (idx26 is None or len(idx26) == 0) and
-        (idx27 is None or len(idx27) == 0) and
-        (idx28 is None or len(idx28) == 0) and
-        (idx35 is None or len(idx35) == 0) and
-        (idx36 is None or len(idx36) == 0) and
-        (idx44 is None or len(idx44) == 0) and
-        (idx46 is None or len(idx46) == 0) and
-        (idx_kj is None or len(idx_kj) == 0)):
+    _branch_idx = (idx6, idx12, idx13, idx23, idx32, idx19, idx25, idx26,
+                   idx27, idx28, idx35, idx36, idx44, idx46, idx_kj)
+    if not any(idx is not None and len(idx) for idx in _branch_idx):
         # pure axial TYPE4 group
         dtc = _forces_axial(group, x, v, dt, fint, slice(None))
         if "force" in st:

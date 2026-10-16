@@ -33,7 +33,8 @@ import numpy as np
 from ..common.constants import EM20, EP30
 from ..common.fastmath import norm3
 
-#: Advanced spring property type numbers
+#: Advanced spring property types by rforc3.F ladder branch (:558 12, :749 25,
+#: :321 26, :387 27, :1185 35/36, :1293 44, :1391 46); 19/28 have no branch.
 ADVANCED_SPRING_PROP_TYPES = frozenset({12, 19, 25, 26, 27, 28, 35, 36, 44, 46})
 
 
@@ -3081,21 +3082,8 @@ def forces_muscle_type46(group, x, v, dt, fint, idx46):
 # Combined Dispatch for spring.py and Standalone Element Kernel
 # ============================================================================
 
-def init_advanced(group, model, log, *pos_args, idx12=None, idx19=None, idx25=None, idx26=None, idx27=None, idx35=None, idx36=None, idx44=None, idx46=None, massn=None, inertn=None, **kwargs):
+def init_advanced(group, model, log, idx12=None, idx19=None, idx25=None, idx26=None, idx27=None, idx35=None, idx36=None, idx44=None, idx46=None, massn=None, inertn=None, **kwargs):
     """Dispatcher called by spring.py init_group for advanced spring types."""
-    if len(pos_args) == 5:
-        idx19, idx44, idx46, massn, inertn = pos_args
-    elif len(pos_args) == 6:
-        idx19, idx25, idx44, idx46, massn, inertn = pos_args
-    elif len(pos_args) == 7:
-        idx19, idx25, idx26, idx44, idx46, massn, inertn = pos_args
-    elif len(pos_args) == 8:
-        idx19, idx25, idx26, idx27, idx44, idx46, massn, inertn = pos_args
-    elif len(pos_args) == 9:
-        idx19, idx25, idx26, idx27, idx35, idx44, idx46, massn, inertn = pos_args
-    elif len(pos_args) == 10:
-        idx19, idx25, idx26, idx27, idx35, idx36, idx44, idx46, massn, inertn = pos_args
-
     if idx36 is None:
         idx36 = kwargs.get("idx36") or group.state.get("idx36")
 

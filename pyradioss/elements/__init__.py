@@ -33,6 +33,7 @@ from . import (beam_fiber, beam_type3, iga3d, shell_basis, shell_bt4, shell_dkt1
                solid_tetra4_sfem, solid_tria3, solid_tshell8, spring, spring_advanced, spring_mat,
                thickshell_composite, thickshell_wedge6, truss, nstrand, xfem_shell, xfem_crack)
 from .shell_basis import force_equilibrium  # noqa: F401  (fequilibre.F -- re-exported for the Engine)
+from .spring import IGTYP_GROUPS  # noqa: F401  (P4.8: the rforc3.F IGTYP ladder transcription)
 
 KERNELS = {
     # Isogeometric Analysis 3D Solids (NURBS)
@@ -80,8 +81,7 @@ KERNELS = {
     # 1D Elements (beams, trusses, springs, multi-strand cables)
     "trusses": truss,
     "springs": spring,
-    "spring_advanced": spring_advanced,
-    "springs_advanced": spring_advanced,
+    "spring_advanced": spring_advanced, "springs_advanced": spring_advanced,
     "spring_mat": spring_mat,
     "springs_mat": spring_mat,
     "nstrand": nstrand,
