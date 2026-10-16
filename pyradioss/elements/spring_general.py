@@ -214,6 +214,7 @@ def forces6(group, x, v, vr, dt, fint, mint, idx6):
     g["force"] = F
     g["moment"] = M
     g["theta"] = theta_new
+    group.state["off"][idx6] = g["t8"]["off"]
 
     # assemble to the nodes: global force / moment vectors
     fvec = F[:, 0:1] * e1 + F[:, 1:2] * e2 + F[:, 2:3] * e3

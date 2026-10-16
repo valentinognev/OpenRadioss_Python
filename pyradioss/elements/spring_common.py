@@ -350,6 +350,14 @@ def type8_init(m):
         "dx_old": np.zeros((m, 6)),
         "f_old": np.zeros((m, 6)),
         "k_tan": np.zeros((m, 6)),
+        "e6": np.zeros((m, 6)),
+        "dmin": np.full((m, 6), -1e30),
+        "dmax": np.full((m, 6), 1e30),
+        "ifail": np.zeros(m, dtype=np.int64),
+        "ifail2": np.zeros(m, dtype=np.int64),
+        "off": np.ones(m),
+        "dead": np.zeros(m, dtype=bool),
+        "crit": np.zeros(m),
     }
 
 
@@ -360,11 +368,20 @@ def type8_fill(t8, local, p, funcs, log, pid):
     ``A = 1, B = E = 0`` when ``FUN_A = 0``) and resolves the ``FUN_A/B/D``
     deck curves, warning once per property when a referenced curve is
     absent (closed form kept) or the hardening flag is not yet ported
-    (elastic fallback).  Later cuts add rupture/sensor/rate keys here.
+    (elastic fallback), plus the rupture limits and failure modes.
+    Sensor and rate keys arrive with their cuts.
     """
     local = np.asarray(local, dtype=np.int64)
     if len(local) == 0:
         return
+    # header-level failure modes (hm_read_prop08: IFAIL2 outside {0,1,2}
+    # is clamped to displacement at read time, :153)
+    ifail = int(p.get("ifail", 0) or 0)
+    ifail2 = int(p.get("ifail2", 0) or 0)
+    if ifail2 not in (0, 1, 2):
+        ifail2 = 0
+    t8["ifail"][local] = ifail
+    t8["ifail2"][local] = ifail2
     for i in range(TYPE8_NDOF):
         d = i + 1
         fun_a = int(p.get(f"fun_a{d}", 0) or 0)
@@ -399,6 +416,15 @@ def type8_fill(t8, local, p, funcs, log, pid):
         t8["gf3"][local, i] = h_raw if h_raw != 0.0 else 1.0
         t8["ls"][local, i] = 1.0 / s_raw if s_raw != 0.0 else 1.0
         t8["ff"][local, i] = 1.0 / v_raw if v_raw != 0.0 else 1.0
+        dn_raw = float(p.get(f"min_rup{i + 1}", 0.0) or 0.0)
+        dx_raw = float(p.get(f"max_rup{i + 1}", 0.0) or 0.0)
+        if ifail2 == 0:
+            # hm_read_prop08: rupture displacements ride the LSCALE factor
+            s_eff = s_raw if s_raw != 0.0 else 1.0
+            dn_raw *= s_eff
+            dx_raw *= s_eff
+        t8["dmin"][local, i] = dn_raw if dn_raw != 0.0 else -1e30
+        t8["dmax"][local, i] = dx_raw if dx_raw != 0.0 else 1e30
         for slot, fid, store in (("A", fun_a, "cv_a"), ("B", fun_b, "cv_b"),
                                  ("D", fun_d, "cv_d")):
             if fid == 0:
@@ -419,6 +445,30 @@ def type8_fill(t8, local, p, funcs, log, pid):
                         f"IECROU 4/5/7 (not ported) — ignored", "PROP CHECK")
 
 
+def _type8_dlim(x, f, e6, dmin, dmax, ifail2):
+    """One-DOF rupture ratio (``r2def3.F`` DLIM blocks).
+
+    ``IFAIL2 = 0``: displacement (``x`` over the limit with its sign);
+    ``1``: force; ``2``: accumulated work.  Any other mode contributes
+    nothing, exactly like the Fortran ``IF/ELSEIF`` chain falling through.
+    Unset limits (``+-1e30``) are skipped, mirroring the deck default.
+    """
+    if ifail2 == 0:
+        if x > 0.0 and dmax < 1e29:
+            return x / dmax
+        if x < 0.0 and dmin > -1e29:
+            return x / dmin
+    elif ifail2 == 1:
+        if f > 0.0 and dmax < 1e29:
+            return f / dmax
+        if f < 0.0 and dmin > -1e29:
+            return f / dmin
+    elif ifail2 == 2:
+        if dmax < 1e29:
+            return max(0.0, e6) / dmax
+    return 0.0
+
+
 def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
     """One ``r2def3``-style update over the six uncoupled DOFs.
 
@@ -436,6 +486,11 @@ def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
     deint = np.zeros(m)
     theta_new = theta + dwl * dt_val
     for e in range(m):
+        if t8["dead"][e]:
+            continue                    # ruptured: forces stay zero
+        ifail2e = int(t8["ifail2"][e])
+        ifaile = int(t8["ifail"][e])
+        crit = 0.0
         for i in range(TYPE8_NDOF):
             if i < 3:
                 dx, rate = delta[e, i], dvl[e, i]
@@ -485,5 +540,20 @@ def type8_forces(delta, dvl, theta, dwl, dt_val, t8):
                 M[e, i - 3] = f
             t8["f_old"][e, i] = f
             t8["k_tan"][e, i] = kti
+            t8["e6"][e, i] += e_incr
             deint[e] += e_incr
+            dlim = _type8_dlim(dx, f, t8["e6"][e, i], t8["dmin"][e, i],
+                               t8["dmax"][e, i], ifail2e)
+            if ifaile == 0:
+                # uniaxial failure: worst DOF wins (r2def3: MAX over DLIM)
+                crit = max(crit, dlim)
+            else:
+                # multiaxial failure: coupled sum of squares
+                crit += dlim * dlim
+        t8["crit"][e] = crit
+        if crit >= 1.0:
+            # coupled failure (r2def3:733-739): the element is deleted from
+            # the NEXT cycle — this step's forces stand, then go silent
+            t8["dead"][e] = True
+            t8["off"][e] = 0.0
     return F, M, theta_new, deint

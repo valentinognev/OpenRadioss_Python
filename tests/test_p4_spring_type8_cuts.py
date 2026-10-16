@@ -140,14 +140,16 @@ def test_type8_isotropic_hardening_caps_at_the_curve():
 # cut 3 — rupture (DeltaMin/DeltaMax)
 # ---------------------------------------------------------------------------
 def test_type8_rupture_deletes_the_element_beyond_its_limits():
-    """IFAIL2=0 displacement limits: CRIT>=1 zeroes the element for good."""
+    """IFAIL2=0 displacement limits: CRIT>=1 deletes from the next cycle."""
     kw = dict(mass=2.0, inertia=1.0, skew_id=0, k1=1000.0,
               ifail=0, ifail2=0, min_rup1=-0.05, max_rup1=0.05)
     m, g = _type8_group(kw)
 
+    # the exceedance step still carries its force (r2def3 computes first,
+    # deletes after); the element flags dead
     fint, _ = _forces(g, m, [[0.0, 0.0, 0.0], [0.1, 0.0, 0.0]])
+    assert fint[0, 0] == pytest.approx(100.0, rel=1e-12)
     assert g.state["gen6"]["t8"]["off"][0] == pytest.approx(0.0)
-    np.testing.assert_allclose(fint, 0.0, atol=1e-15)
 
     # stays dead even back inside the limits
     fint, _ = _forces(g, m, [[0.0, 0.0, 0.0], [0.01, 0.0, 0.0]])
