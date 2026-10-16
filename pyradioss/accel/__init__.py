@@ -10,41 +10,21 @@ Backend architecture
 --------------------
 The element kernels and the TYPE7 contact keep their NumPy code inline —
 that code IS the reference implementation and the readable narrative of
-the port. During the M7 profiling pass each hot kernel was split into
-"pre" and "post" blocks around its Python-level material/failure loop
-(which stays pure Python — material laws dispatch on law objects; the one
-M39 exception is a handful of LAW70 tabulated-foam numeric LEAVES, whose
-mirrors are BITWISE-identical, see below):
+the port. Each hot kernel is split into "pre"/"post" blocks around its
+Python-level material/failure loop (which stays pure Python — laws
+dispatch on law objects; the one M39 exception is a handful of LAW70
+tabulated-foam numeric LEAVES, whose mirrors are BITWISE-identical):
 
-    solid_hexa8.forces:  _pre  (geometry, velocity gradient, Jaumann
-                                rotation, characteristic length)
-                         [material laws / EOS / failure — plain Python]
-                         _post (bulk viscosity, internal + hourglass
-                                forces, energy increments, scatter,
-                                critical dt)
-                         hexa_hgphys (M38 LAW70 physical/stiffness
-                                hourglass — LAW70 brick groups only, M39)
-    shell_bt4.forces:    _pre  (corotational frame, local geometry,
-                                membrane/curvature/shear rates)
-                         [layer loop: material laws / failure — Python]
-                         _post (resultant forces, BLT84 hourglass,
-                                back-transform, scatter)
-    inter_type7:         _narrow (exact node-triangle closest points)
-    law70_tabfoam.solid_update:  the (strain, rate) table lookup and the
-                         Voigt norms / elastic map (M39 — bitwise leaves)
+    solid_hexa8: hexa_pre / hexa_post (+ hexa_hgphys for LAW70 bricks)
+    shell_bt4:   shell_pre / shell_post
+    tetra10:     tetra10_pre / tetra10_post
+    inter_type7: t7_narrow (+ the t24_narrow alias)
+    law70:       law70_tab2d / enorm / snorm / elastic_stress (bitwise)
 
 Each block is a plain function of arrays. ``accel.get(name)`` returns
-the active backend's implementation of a block, or ``None`` meaning
-"use the inline NumPy code". The kernels are therefore written as
-
-    jit = accel.get("hexa_pre")
-    if jit is not None:
-        dndx, vol, ... = jit(...)          # numba mirror
-    else:
-        ...inline NumPy (the reference)...
-
-so a reader can ignore the accelerated path entirely, and the NumPy
-path never pays more than one dict lookup per block.
+the active backend's implementation, or ``None`` meaning "use the inline
+NumPy code" — a reader can ignore the accelerated path entirely, and
+the NumPy path never pays more than one dict lookup per block.
 
 Selecting a backend
 -------------------
@@ -54,7 +34,11 @@ engine calls it once, after the restart is read and BEFORE the first
 kernel call — picks numba when (a) numba imports cleanly and (b) the model
 is big enough to amortise the JIT warm-up (>= ``_AUTO_MIN_ELEMENTS`` total
 elements; see that constant for the derivation from the M39 A/B sweep).
-Small models where warm-up dominates stay on NumPy.  Either way the engine
+Small models where warm-up dominates stay on NumPy.  P3.13 outcome (b):
+even on a numba model, ``get`` withholds the QBAT/QEPH blocks listed in
+``_AUTO_EXCLUDED_KERNELS`` — their mirrors are faster but not yet
+bitwise-identical, so those groups run the NumPy reference until real
+mirrors land.  Either way the engine
 listing carries a ``COMPUTE BACKEND`` line naming the choice and the reason.
 
 A user can still PIN a backend, which the auto path then leaves untouched:
@@ -153,6 +137,19 @@ _state = {"name": None, "mod": None, "forced": False}
 #: for the JIT kernels (bricks/tetras/shells/contact all scale with it).
 #: Override with PYRADIOSS_BACKEND_AUTO_MIN_ELEMENTS (int) for tuning/tests.
 _AUTO_MIN_ELEMENTS = 32
+
+
+#: P3.13 outcome (b) — kernel blocks the ``auto`` rule must NOT serve, even
+#: on a model big enough for numba. The QBAT/QEPH mirrors in
+#: ``jit_kernels/shells_qbat.py`` / ``shells_qeph.py`` are faster than NumPy
+#: at the kernel level but are NOT bitwise-identical to the reference
+#: (measured: wrong condensed length, a different flat/warped classifier,
+#: end-to-end forces off at rel ~1 — formula drift, not reduction noise),
+#: so ``get`` withholds them on the auto path and those groups run NumPy.
+#: A user PIN (forced) still serves them. Delete this set when outcome (a)
+#: — mirrors that are BOTH bitwise-identical and faster — lands.
+_AUTO_EXCLUDED_KERNELS = frozenset(
+    {"qbat_pre", "qbat_post", "qeph_pre", "qeph_post"})
 
 
 def _load_numba_module():
@@ -332,9 +329,12 @@ def get(kernel: str):
     """The active backend's implementation of a kernel block, or None
     meaning 'use the inline NumPy reference code'. This is the single
     dispatch point the element kernels call (one dict lookup + getattr
-    per block per cycle — negligible)."""
+    per block per cycle — negligible). On the auto path (not user-pinned),
+    the P3.13-excluded QBAT/QEPH blocks always resolve to None."""
     if _state["name"] is None:
         select_backend()
+    if kernel in _AUTO_EXCLUDED_KERNELS and not _state["forced"]:
+        return None
     mod = _state["mod"]
     return getattr(mod, kernel, None) if mod is not None else None
 
