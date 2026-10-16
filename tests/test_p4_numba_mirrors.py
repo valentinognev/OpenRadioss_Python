@@ -56,7 +56,7 @@ def test_only_element_branches_have_mirrors():
     assert list(spring_mir.__all__) == [
         "spring_linear", "spring_t32_linear", "spring_t8_linear",
     ]
-    assert list(beam_mir.__all__) == []
+    assert list(beam_mir.__all__) == ["beam_type3_elastic"]
 
 
 # ---------------------------------------------------------------------------
@@ -382,3 +382,129 @@ def test_t8_mirror_refuses_nonlinear_dofs_loudly():
             z6, z6, o, o, b, b, o, o,
         )
 
+
+# ---------------------------------------------------------------------------
+# beam_type3_elastic <-> beam_type3._forces_core LAW1 path
+# ---------------------------------------------------------------------------
+
+def _beam_group(n, rng):
+    """N-element LAW1 beam group (axis +X, orientation +Y)."""
+    from types import SimpleNamespace
+
+    nn = 3 * n
+    x0 = np.zeros((nn, 3))
+    for e in range(n):
+        x0[3 * e] = [10.0 * e, 0.0, 0.0]
+        x0[3 * e + 1] = [10.0 * e + rng.uniform(4.0, 12.0), 0.0, 0.0]
+        x0[3 * e + 2] = [10.0 * e, 1.0, 0.0]
+    model = Model()
+    model.node_ids = np.arange(1, nn + 1, dtype=np.int64)
+    model._id2idx = {int(v): int(j) for j, v in enumerate(model.node_ids)}
+    model.x0 = np.array(x0, dtype=float)
+    model.x = np.array(x0, dtype=float)
+    conn = np.stack([np.arange(0, nn, 3), np.arange(1, nn, 3),
+                     np.arange(2, nn, 3)], axis=1)
+    area = rng.uniform(10.0, 40.0, size=n)
+    iyy = rng.uniform(20.0, 80.0, size=n)
+    izz = rng.uniform(20.0, 80.0, size=n)
+    ixx = iyy + izz
+    mat = SimpleNamespace(law=1, E=210.0, G=80.0, rho0=7.8e-6,
+                          params={})
+    prop = SimpleNamespace(area=0.0, iyy=0.0, izz=0.0, ixx=0.0, params={
+        "area": 0.0, "iyy": 0.0, "izz": 0.0, "ixx": 0.0})
+    group = ElementGroup(
+        ids=np.arange(1, n + 1, dtype=np.int64), conn=conn,
+        part=np.zeros(n, dtype=np.int64),
+        state={"slices": [(slice(0, n), mat, prop)]},
+    )
+    # per-element properties live on the slice params in the real reader;
+    # emulate with one slice per element
+    group.state["slices"] = [
+        (slice(e, e + 1), mat, SimpleNamespace(
+            area=0.0, iyy=0.0, izz=0.0, ixx=0.0, params={
+                "area": float(area[e]), "iyy": float(iyy[e]),
+                "izz": float(izz[e]), "ixx": float(ixx[e])}))
+        for e in range(n)
+    ]
+    log = MessageLog()
+    beam_type3.init_group(group, model, log)
+    assert not log.errors
+    group.state["_area"] = area
+    group.state["_ixx"] = ixx
+    group.state["_iyy"] = iyy
+    group.state["_izz"] = izz
+    group.state["_E"] = np.full(n, 210.0)
+    group.state["_G"] = np.full(n, 80.0)
+    return group, model
+
+
+def test_1d_mirror_is_bitwise_beam_type3():
+    rng = np.random.default_rng(40902)
+    n = 19
+    group, model = _beam_group(n, rng)
+    st = group.state
+    x = np.array(model.x0, dtype=float)
+    x[1::3] += rng.uniform(-0.3, 0.5, size=(n, 3))   # deformed geometry
+    v = rng.standard_normal((3 * n, 3)) * 0.1
+    vr = rng.standard_normal((3 * n, 3)) * 0.01
+    dt = 1e-4
+    fint = np.zeros_like(x)
+    mint = np.zeros_like(x)
+    for _ in range(2):                              # stateful resultants
+        fres_old = st["fres"].copy()
+        mres_old = st["mres"].copy()
+        eint_old = st["eint"].copy()
+        fint[:] = 0.0
+        mint[:] = 0.0
+        dt_ref = beam_type3.forces(group, x, v, vr, dt, fint, mint)
+        fres_ref = st["fres"].copy()
+        mres_ref = st["mres"].copy()
+        eint_ref = st["eint"].copy()
+        fint_ref = fint.copy()
+        mint_ref = mint.copy()
+        st["fres"][:] = fres_old
+        st["mres"][:] = mres_old
+        st["eint"][:] = eint_old
+        fint[:] = 0.0
+        mint[:] = 0.0
+        conn = group.conn
+        (fg1, fg2, mg1, mg2, fres_new, mres_new, deint,
+         dt_elem) = beam_mir.beam_type3_elastic(
+            x[conn[:, 0]], x[conn[:, 1]], x[conn[:, 2]],
+            v[conn[:, 0]], v[conn[:, 1]],
+            vr[conn[:, 0]], vr[conn[:, 1]],
+            st["_area"], st["_ixx"], st["_iyy"], st["_izz"],
+            st["_E"], st["_G"], fres_old, mres_old, st["L0"],
+            st["dt0"], st["off"], dt, np.zeros(n, dtype=bool),
+        )
+        assert fres_new.tobytes() == fres_ref.tobytes()
+        assert mres_new.tobytes() == mres_ref.tobytes()
+        assert (eint_old + deint).tobytes() == eint_ref.tobytes()
+        assert dt_elem.tobytes() == dt_ref.tobytes()
+        fint_mir = np.zeros_like(x)
+        mint_mir = np.zeros_like(x)
+        np.add.at(fint_mir, conn[:, 0], fg1)
+        np.add.at(fint_mir, conn[:, 1], fg2)
+        np.add.at(mint_mir, conn[:, 0], mg1)
+        np.add.at(mint_mir, conn[:, 1], mg2)
+        # The global back-transform (E @ local) is contracted by NumPy's
+        # einsum with SIMD unrolling — measured (t0+t2)+t1 association,
+        # i.e. NOT reproducible by any portable scalar order — so it gets
+        # the M7 kernel tolerance (rtol=1e-12; measured <= 5e-16 here),
+        # not tobytes. Everything element-local above IS bitwise.
+        assert np.allclose(fint_mir, fint_ref, rtol=1e-12, atol=0.0)
+        assert np.allclose(mint_mir, mint_ref, rtol=1e-12, atol=0.0)
+        st["fres"][:] = fres_ref
+        st["mres"][:] = mres_ref
+        st["eint"][:] = eint_ref
+
+
+def test_beam_mirror_refuses_plastic_law_loudly():
+    n = 2
+    z3 = np.zeros((n, 3))
+    o = np.zeros(n)
+    with pytest.raises(ValueError, match="LAW2"):
+        beam_mir.beam_type3_elastic(
+            z3, z3, z3, z3, z3, z3, z3, o, o, o, o, o, o, z3, z3,
+            o, o, o, 1e-4, np.ones(n, dtype=bool),
+        )

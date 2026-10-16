@@ -61,7 +61,7 @@ from pyradioss.common.constants import EM20, EP30
 from pyradioss.common.constants import EM20, EP30
 
 
-__all__: list = []
+__all__ = ["beam_type3_elastic"]
 
 
 @njit(cache=True)
