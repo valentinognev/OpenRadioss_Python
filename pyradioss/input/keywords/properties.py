@@ -2552,27 +2552,7 @@ def read_prop(block: KeywordBlock, model: Model, log: MessageLog) -> None:
         params["c"] = params.get("damp_tens", 0.0)
 
     elif ptype == 32:  # SPR_PRE
-        from .. import prop_reader
-        prop = prop_reader.parse_spr_pre(block, log)
-        if prop is not None:
-            model.properties[block.user_id] = prop
-            from ...model.entities import PropType32
-            model.prop_type32s[block.user_id] = PropType32(
-                id=block.user_id, mass=float(prop.params.get("mass", 0.0)),
-                sensor_id=int(prop.params.get("sensor_id", prop.params.get("sens_id", 0))),
-                ilock=int(prop.params.get("ilock", 0)),
-                stiff0=float(prop.params.get("stif0", prop.params.get("stiff0", 0.0))),
-                f1=float(prop.params.get("f1", 0.0)),
-                d1=float(prop.params.get("d1", 0.0)),
-                e1=float(prop.params.get("e1", 0.0)),
-                stiff1=float(prop.params.get("stif1", prop.params.get("stiff1", 0.0))),
-                fun_a1=int(prop.params.get("fct_id1", prop.params.get("fun_a1", 0))),
-                fun_b1=int(prop.params.get("fct_id2", prop.params.get("fun_b1", 0))),
-                scale_t=float(prop.params.get("tscal", prop.params.get("scale_t", 1.0))),
-                scale_d=float(prop.params.get("dscal", prop.params.get("scale_d", 1.0))),
-                scale_f=float(prop.params.get("fscal", prop.params.get("scale_f", 1.0))),
-                title=title,
-            )
+        read_prop_type32(block, model, log)
         return
 
     if ptype in (51, 17, 34, 12, 15, 23):
@@ -7109,80 +7089,38 @@ def read_prop_type25(block: KeywordBlock, model: Model, log: MessageLog) -> None
 
 
 def read_prop_type32(block: KeywordBlock, model: Model, log: MessageLog) -> None:
-    """``/PROP/TYPE32`` or ``/PROP/SPR_PRE`` (M189): Preloaded spring property."""
-    from ...model.entities import PropType32, Property
-    prop_id = block.user_id or 0
-    title, cards = _fixed_data(block) if block.fixed else _title_and_data(block)
-    valid_cards = [c for c in cards if not c.is_blank and not c.raw.strip().startswith("#")]
-    if not valid_cards:
-        log.error(f"/PROP/TYPE32/{prop_id}: missing data card", block.source)
+    """``/PROP/TYPE32`` or ``/PROP/SPR_PRE``: preloaded spring property.
+
+    Single live reader for the pretensioner card. The card arithmetic itself
+    (``hm_read_prop32.F``: ITYP derivation from the function IDs,
+    ``D1 = -|D1|``, the ``F1/D1/E1/STIF1`` consistency solve, inverted
+    ``Scale_t``/``Scale_d``, ``k = STIF0 + STIF1``) lives in
+    ``prop_reader.parse_spr_pre``; this registers both the engine-facing
+    ``Property`` and the ``PropType32`` card image. The ``ptype == 32``
+    branch of ``read_prop`` routes here.
+    """
+    from .. import prop_reader
+    from ...model.entities import PropType32
+    title = (_fixed_data(block) if block.fixed else _title_and_data(block))[0]
+    prop = prop_reader.parse_spr_pre(block, log)
+    if prop is None:
         return
-
-    mass = 0.0
-    sensor_id, ilock = 0, 0
-    stiff0, f1, d1, e1, stiff1 = 0.0, 0.0, 0.0, 0.0, 0.0
-    fun_a1, fun_b1 = 0, 0
-    scale_t, scale_d, scale_f = 1.0, 1.0, 1.0
-
-    if block.fixed:
-        if len(valid_cards) > 0:
-            c0 = valid_cards[0].cut("PROP_TYPE32_1")
-            mass = _safe_float(c0[0]) if len(c0) > 0 else 0.0
-            sensor_id = _safe_int(c0[2]) if len(c0) > 2 else (_safe_int(c0[1]) if len(c0) > 1 else 0)
-            ilock = _safe_int(c0[3]) if len(c0) > 3 else (_safe_int(c0[2]) if len(c0) > 2 else 0)
-        if len(valid_cards) > 1:
-            c1 = valid_cards[1].cut("PROP_TYPE32_2")
-            stiff0 = _safe_float(c1[0]) if len(c1) > 0 else 0.0
-            f1 = _safe_float(c1[1]) if len(c1) > 1 else 0.0
-            d1 = _safe_float(c1[2]) if len(c1) > 2 else 0.0
-            e1 = _safe_float(c1[3]) if len(c1) > 3 else 0.0
-            stiff1 = _safe_float(c1[4]) if len(c1) > 4 else 0.0
-        if len(valid_cards) > 2:
-            c2 = valid_cards[2].cut("PROP_TYPE32_3")
-            fun_a1 = _safe_int(c2[0]) if len(c2) > 0 else 0
-            fun_b1 = _safe_int(c2[1]) if len(c2) > 1 else 0
-            scale_t = _safe_float(c2[2], 1.0) if len(c2) > 2 and c2[2].strip() else 1.0
-            scale_d = _safe_float(c2[3], 1.0) if len(c2) > 3 and c2[3].strip() else 1.0
-            scale_f = _safe_float(c2[4], 1.0) if len(c2) > 4 and c2[4].strip() else 1.0
-    else:
-        if len(valid_cards) > 0:
-            t0 = valid_cards[0].tokens()
-            mass = _safe_float(t0[0]) if len(t0) > 0 else 0.0
-            sensor_id = _safe_int(t0[1]) if len(t0) > 1 else 0
-            ilock = _safe_int(t0[2]) if len(t0) > 2 else 0
-        if len(valid_cards) > 1:
-            t1 = valid_cards[1].tokens()
-            stiff0 = _safe_float(t1[0]) if len(t1) > 0 else 0.0
-            f1 = _safe_float(t1[1]) if len(t1) > 1 else 0.0
-            d1 = _safe_float(t1[2]) if len(t1) > 2 else 0.0
-            e1 = _safe_float(t1[3]) if len(t1) > 3 else 0.0
-            stiff1 = _safe_float(t1[4]) if len(t1) > 4 else 0.0
-        if len(valid_cards) > 2:
-            t2 = valid_cards[2].tokens()
-            fun_a1 = _safe_int(t2[0]) if len(t2) > 0 else 0
-            fun_b1 = _safe_int(t2[1]) if len(t2) > 1 else 0
-            scale_t = _safe_float(t2[2], 1.0) if len(t2) > 2 else 1.0
-            scale_d = _safe_float(t2[3], 1.0) if len(t2) > 3 else 1.0
-            scale_f = _safe_float(t2[4], 1.0) if len(t2) > 4 else 1.0
-
-    p32 = PropType32(
-        id=prop_id, mass=mass, sensor_id=sensor_id, ilock=ilock,
-        stiff0=stiff0, f1=f1, d1=d1, e1=e1, stiff1=stiff1,
-        fun_a1=fun_a1, fun_b1=fun_b1,
-        scale_t=scale_t, scale_d=scale_d, scale_f=scale_f,
-        title=title
-    )
-    model.prop_type32s[prop_id] = p32
-    model.properties[prop_id] = Property(
-        id=prop_id, type=32, title=title,
-        params={
-            "mass": mass, "sensor_id": sensor_id, "sens_id": sensor_id, "ilock": ilock,
-            "stiff0": stiff0, "stif0": stiff0, "f1": f1, "d1": d1, "e1": e1,
-            "stiff1": stiff1, "stif1": stiff1,
-            "fun_a1": fun_a1, "fun_b1": fun_b1, "fct_id1": fun_a1, "fct_id2": fun_b1,
-            "scale_t": scale_t, "scale_d": scale_d, "scale_f": scale_f,
-            "tscal": scale_t, "dscal": scale_d, "fscal": scale_f
-        }
+    model.properties[block.user_id] = prop
+    model.prop_type32s[block.user_id] = PropType32(
+        id=block.user_id, mass=float(prop.params.get("mass", 0.0)),
+        sensor_id=int(prop.params.get("sensor_id", prop.params.get("sens_id", 0))),
+        ilock=int(prop.params.get("ilock", 0)),
+        stiff0=float(prop.params.get("stif0", prop.params.get("stiff0", 0.0))),
+        f1=float(prop.params.get("f1", 0.0)),
+        d1=float(prop.params.get("d1", 0.0)),
+        e1=float(prop.params.get("e1", 0.0)),
+        stiff1=float(prop.params.get("stif1", prop.params.get("stiff1", 0.0))),
+        fun_a1=int(prop.params.get("fct_id1", prop.params.get("fun_a1", 0))),
+        fun_b1=int(prop.params.get("fct_id2", prop.params.get("fun_b1", 0))),
+        scale_t=float(prop.params.get("tscal", prop.params.get("scale_t", 1.0))),
+        scale_d=float(prop.params.get("dscal", prop.params.get("scale_d", 1.0))),
+        scale_f=float(prop.params.get("fscal", prop.params.get("scale_f", 1.0))),
+        title=title,
     )
 
 
