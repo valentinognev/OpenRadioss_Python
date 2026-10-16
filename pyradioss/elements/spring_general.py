@@ -37,6 +37,7 @@ from __future__ import annotations
 import numpy as np
 
 from ..common.constants import EM20, EP30
+from . import spring_common
 
 #: property TYPE numbers handled by this module (TYPE8 general springs;
 #: 13 stays a member because spring.init_group consults it for the mass
@@ -96,6 +97,8 @@ def init6(group, model, log, idx6, massn, inertn):
     pos = {int(e): j for j, e in enumerate(idx6)}
     skews = getattr(model, "skews", None)
     skew_row = np.zeros(m6, dtype=np.int64)     # 0 = global / element frame
+    t8 = spring_common.type8_init(m6)
+    funcs = getattr(model, "functions", None) or {}
     for sl, mat, prop in st["slices"]:
         if getattr(prop, "type", 4) not in SPRING_PROP_TYPES:
             continue
@@ -115,6 +118,8 @@ def init6(group, model, log, idx6, massn, inertn):
         mass[local] = float(p.get("mass", 0.0))
         inertia[local] = float(p.get("inertia", 0.0))
         iequil[local] = int(p.get("iequil", 0) or 0)
+        spring_common.type8_fill(t8, local, p, funcs, log,
+                                 getattr(prop, "id", 0))
 
     L0 = np.stack([
         np.einsum("mb,mb->m", xe[:, 1] - xe[:, 0], e1),
@@ -138,7 +143,7 @@ def init6(group, model, log, idx6, massn, inertn):
         iequil=iequil,
         L0=L0, theta=np.zeros((m6, 3)),
         force=np.zeros((m6, 3)), moment=np.zeros((m6, 3)),
-        eint=np.zeros(m6),
+        eint=np.zeros(m6), t8=t8,
         skews=skews, skew_row=skew_row, skew_mov=mov,
     )
     # half/half lumped mass + inertia into the caller's per-(elem,node)
@@ -199,17 +204,16 @@ def forces6(group, x, v, vr, dt, fint, mint, idx6):
     dvl = np.stack([np.einsum("mb,mb->m", dv, e1),
                     np.einsum("mb,mb->m", dv, e2),
                     np.einsum("mb,mb->m", dv, e3)], axis=1)
-    F = g["k6"][:, :3] * delta + g["c6"][:, :3] * dvl
-    g["force"] = F
-
     # relative rotation (rate-integrated) and its rate, per local axis
     dw = vr[n2] - vr[n1]
     dwl = np.stack([np.einsum("mb,mb->m", dw, e1),
                     np.einsum("mb,mb->m", dw, e2),
                     np.einsum("mb,mb->m", dw, e3)], axis=1)
-    g["theta"] += dwl * dt_val
-    M = g["k6"][:, 3:] * g["theta"] + g["c6"][:, 3:] * dwl
+    F, M, theta_new, deint = spring_common.type8_forces(
+        delta, dvl, g["theta"], dwl, dt_val, g["t8"])
+    g["force"] = F
     g["moment"] = M
+    g["theta"] = theta_new
 
     # assemble to the nodes: global force / moment vectors
     fvec = F[:, 0:1] * e1 + F[:, 1:2] * e2 + F[:, 2:3] * e3
@@ -239,8 +243,8 @@ def forces6(group, x, v, vr, dt, fint, mint, idx6):
             np.add.at(mint, n1, mvec)
             np.add.at(mint, n2, -mvec)
 
-    # internal energy (elastic + damping work, like the axial spring)
-    g["eint"] += (np.einsum("mi,mi->m", F, dvl) + np.einsum("mi,mi->m", M, dwl)) * dt_val
+    # internal energy: trapezoidal channel work from type8_forces
+    g["eint"] += deint
 
     # critical time step with exact Fortran r2len3.F:182-185 damping reduction:
     # dt_tr  = mass / (sqrt(C^2 + mass * K) + C)
