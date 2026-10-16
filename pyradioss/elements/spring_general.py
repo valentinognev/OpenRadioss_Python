@@ -1,15 +1,15 @@
 """
-General 6-DOF springs — /PROP/TYPE8 SPR_GENE and /PROP/TYPE13 SPR_BEAM.
+General 6-DOF springs — /PROP/TYPE8 SPR_GENE (``spring_beam`` owns TYPE13).
 
 Fortran origin
 --------------
 * engine : ``engine/source/elements/spring/rforc3.F`` dispatches IGTYP==8
   through ``r2coor3`` (frame) + ``r2def3.F`` (the 6 uncoupled DOF force
-  laws) and IGTYP==13 through the r13* kernels; both accumulate a force
-  per DOF ``F_i = K_i d_i (+ C_i d_i_dot)`` from the relative motion of
-  the two nodes resolved in a local skew frame (``EXX = SKEW(1,ISK)`` …).
-* starter: ``starter/source/properties/spring/hm_read_prop08.F`` /
-  ``hm_read_prop13.F`` (the K_i/C_i and the per-DOF function slots).
+  laws); each DOF accumulates ``F_i = K_i d_i (+ C_i d_i_dot)`` from the
+  relative motion of the two nodes resolved in a local skew frame
+  (``EXX = SKEW(1,ISK)`` …).
+* starter: ``starter/source/properties/spring/hm_read_prop08.F``
+  (the K_i/C_i and the per-DOF function slots).
 
 Ported physics (the LINEAR stiffness/damping core)
 --------------------------------------------------
@@ -21,35 +21,15 @@ Six uncoupled degrees of freedom in a local orthonormal frame
     F_i = K_i delta_i + C_i (v2 - v1) . e_i
     M_i = K_i theta_i + C_i (wr2 - wr1) . e_i
 
-assembled to the nodes with no moment arm (a zero-/short-length discrete
-spring): ``f2 = -sum F_i e_i``, ``f1 = +...`` and likewise the moments —
-the same relative-block structure as the axial TYPE4 spring, one per DOF.
-Translations use the TOTAL form (from the node positions); rotations are
-RATE-integrated (the port carries no accumulated nodal-rotation vector),
-exactly as r2def3 accumulates ``RX = RXOLD + …``.
+Translations use the TOTAL form; rotations are RATE-integrated (the port
+carries no accumulated nodal-rotation vector), exactly as r2def3
+accumulates ``RX = RXOLD + …``. The nonlinear per-DOF channels (force
+functions, hardening, rupture, rate smoothing, sensor gating) live in
+:mod:`spring_common` and plug into ``forces6`` through the ``t8`` state.
 
-Local frame
------------
-* TYPE8 (SPR_GENE): the skew frame ``SKEW(:,skew_ID)`` (M39) — e1/e2/e3
-  ARE the skew's X'/Y'/Z' axes, read verbatim from the resolved /SKEW as
-  ``r2def3.F`` reads ``EXX = SKEW(1,ISK) ... EZZ = SKEW(9,ISK)``.
-  ``skew_ID = 0`` uses the GLOBAL frame (the reference's skew 0); a
-  /SKEW/MOV frame is RELOADED every cycle, so the spring's six DOFs turn
-  with the skew's nodes.
-* TYPE13 (SPR_BEAM): the element frame — e1 along N1->N2 when the nodes
-  are distinct (a default in-plane e2/e3 completes it), else the global
-  frame.  It is FROZEN at init: the co-rotational beam frame update
-  (r13's per-cycle reorientation) and the moment-arm coupling of a long
-  spring-beam are NOT ported (documented cut) — correct for the small
-  relative rotations the corpus decks exercise.
-
-Documented cuts (per DOF, beyond the linear K/C core): the force
-FUNCTIONS (fct_ID1i…), the hardening flags (A/B/D coeffs, Hi/IECROU), the
-DeltaMin/DeltaMax rupture limits, the strain-rate smoothing (ISRATE/Fcut),
-sensor activation, TYPE13's Ileng length normalisation and its extra
-viscous cards.  Parsed and stored on the property, not acted on here; a
-spring whose only nonzero data is K_i/C_i (the common corpus case) is
-reproduced exactly.
+Local frame: the skew frame ``SKEW(:,skew_ID)`` — e1/e2/e3 ARE the skew's
+X'/Y'/Z' axes, read verbatim as ``r2def3.F`` reads them. ``skew_ID = 0``
+uses the GLOBAL frame; a /SKEW/MOV frame is RELOADED every cycle.
 """
 
 from __future__ import annotations
@@ -57,9 +37,10 @@ from __future__ import annotations
 import numpy as np
 
 from ..common.constants import EM20, EP30
-from ..common.fastmath import norm3
 
-#: property TYPE numbers handled by this module (6-DOF springs)
+#: property TYPE numbers handled by this module (TYPE8 general springs;
+#: 13 stays a member because spring.init_group consults it for the mass
+#: skip, but TYPE13 elements are built by spring_beam, never here)
 SPRING_PROP_TYPES = frozenset({8, 13})
 
 
@@ -74,10 +55,8 @@ def _slice_frame(prop, xe, log, skews=None):
     m = len(xe)
     if m == 0:
         return (np.zeros((0, 3)), np.zeros((0, 3)), np.zeros((0, 3)))
-    ptype = getattr(prop, "type", 8)
-    skew_id = int(prop.params.get("skew_id", 0) or 0)
     skew_row = int(prop.params.get("skew_row", 0) or 0)
-    if ptype == 8 and skew_row and skews is not None:
+    if skew_row and skews is not None:
         if hasattr(skews, "axes") and 0 <= skew_row < len(skews.axes):
             a = skews.axes[skew_row]                 # rows = X', Y', Z'
             return (np.tile(a[0], (m, 1)), np.tile(a[1], (m, 1)),
@@ -86,31 +65,6 @@ def _slice_frame(prop, xe, log, skews=None):
             log.warning(f"/PROP/TYPE8/{getattr(prop, 'id', '?')}: "
                         f"skew_row={skew_row} out of bounds for skews (total {len(getattr(skews, 'axes', []))})",
                         "SPRING INIT")
-    if ptype == 13 and skew_id == 0:
-        # element frame: e1 along the element, default perpendicular e2/e3
-        d = xe[:, 1] - xe[:, 0]
-        L = norm3(d)
-        e1 = np.tile(np.array([1.0, 0.0, 0.0]), (m, 1))
-        good = L > EM20
-        if np.any(good):
-            e1[good] = d[good] / L[good, None]
-        # e2 = e1 x (least-aligned global axis), e3 = e1 x e2
-        ax = np.tile(np.array([0.0, 0.0, 1.0]), (m, 1))
-        near_z = np.abs(e1[:, 2]) > 0.9
-        ax[near_z] = np.array([1.0, 0.0, 0.0])
-        e2 = np.cross(ax, e1)
-        e2 /= np.maximum(norm3(e2), EM20)[:, None]
-        e3 = np.cross(e1, e2)
-        e3 /= np.maximum(norm3(e3), EM20)[:, None]
-        return e1, e2, e3
-    if skew_id != 0 and ptype == 13 and log is not None:
-        # TYPE13's skew is the INITIAL frame of a co-rotational beam, not a
-        # fixed one — the port's TYPE13 frame is the element frame and no
-        # corpus deck puts a skew on a TYPE13 (warned once at Starter
-        # resolve time too; see starter/initialization.py:resolve_skews)
-        log.warning(f"/PROP/TYPE13/{getattr(prop, 'id', '?')}: "
-                    f"skew_ID={skew_id} not ported — the local frame falls "
-                    f"back to the element frame", "SPRING INIT")
     # global frame (TYPE8 skew 0, or the fallback)
     e1 = np.tile(np.array([1.0, 0.0, 0.0]), (m, 1))
     e2 = np.tile(np.array([0.0, 1.0, 0.0]), (m, 1))
