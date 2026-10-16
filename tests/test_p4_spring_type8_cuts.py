@@ -397,7 +397,9 @@ def test_type8_implicit_tangent_matches_the_analytic_blocks():
                                rtol=1e-15)
     np.testing.assert_allclose(ke[0, :6, 6:], -ke[0, :6, :6], rtol=0, atol=0)
     np.testing.assert_allclose(ke[0, 6:, 6:], ke[0, :6, :6], rtol=0, atol=0)
-    np.testing.assert_allclose(ke[0, :3, 3:], 0.0, atol=0)
+    np.testing.assert_allclose(ke[0, :3, 3:6], 0.0, atol=0)
+    np.testing.assert_allclose(ke[0, 3:6, :3], 0.0, atol=0)
+    np.testing.assert_allclose(ke[0, :3, 9:12], 0.0, atol=0)
 
     # a 90-degree frame moves local-X stiffness onto global Y
     rot = (np.array([[0.0, 1.0, 0.0]]),

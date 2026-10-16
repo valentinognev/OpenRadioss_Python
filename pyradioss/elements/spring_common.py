@@ -639,3 +639,36 @@ def type8_forces(delta, dvl, theta, dwl, dt_val, t8, L0, sensors):
             t8["dead"][e] = True
             t8["off"][e] = 0.0
     return F, M, theta_new, deint
+
+
+def type8_tangent(k_tan, e1, e2, e3, off):
+    """TYPE8 implicit tangent assembly (``r8sumg3.F``, called by ``r8ke3``).
+
+    ``k_tan`` is (m, 6) per-DOF tangent moduli (translations then rotations),
+    ``e1/e2/e3`` the (m, 3) local frames, ``off`` the (m,) element activity.
+    Returns ``ke`` (m, 12, 12): ``KE11 = Q diag(K) Q'`` per translation and
+    rotation block, ``KE12 = -KE11``, ``KE22 = KE11``, zero elsewhere —
+    the same relative-block structure as the explicit scatter.  Ruptured
+    elements contribute nothing.  Wiring into the implicit assembler is
+    Task P4.8's (``spring.tangent`` stays TYPE4-only until then).
+    """
+    k_tan = np.asarray(k_tan, dtype=float)
+    m = k_tan.shape[0]
+    q = np.stack([np.asarray(e1, dtype=float), np.asarray(e2, dtype=float),
+                  np.asarray(e3, dtype=float)], axis=1)          # (m,3,3)
+    kt = np.asarray(k_tan[:, :3])
+    kr = np.asarray(k_tan[:, 3:])
+    ke11t = np.einsum("mki,mkj,mk->mij", q, q, kt)
+    ke11r = np.einsum("mki,mkj,mk->mij", q, q, kr)
+    ke = np.zeros((m, 12, 12))
+    ke[:, :3, :3] = ke11t
+    ke[:, 3:6, 3:6] = ke11r
+    ke[:, 6:9, 6:9] = ke11t
+    ke[:, 9:12, 9:12] = ke11r
+    ke[:, :3, 6:9] = -ke11t
+    ke[:, 3:6, 9:12] = -ke11r
+    ke[:, 6:9, :3] = -ke11t
+    ke[:, 9:12, 3:6] = -ke11r
+    alive = (np.asarray(off, dtype=float) > 0.0).astype(float)
+    ke *= alive[:, None, None]
+    return ke
