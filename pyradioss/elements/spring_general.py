@@ -96,7 +96,7 @@ def init6(group, model, log, idx6, massn, inertn):
     # position of each idx6 element within group order -> its slice params
     pos = {int(e): j for j, e in enumerate(idx6)}
     skews = getattr(model, "skews", None)
-    skew_row = np.zeros(m6, dtype=np.int64)     # 0 = global / element frame
+    skew_row = np.zeros(m6, dtype=np.int64)     # 0 = global frame
     t8 = spring_common.type8_init(m6)
     funcs = getattr(model, "functions", None) or {}
     for sl, mat, prop in st["slices"]:

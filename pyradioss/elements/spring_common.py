@@ -208,19 +208,22 @@ def redef3_plastic(
     dxo = dx_old / xl
     dt11 = dt if dt != 0.0 else EP30
     dvx = (dxn - dxo) / dt11
+    # Exact-zero stiffness would divide by zero below; Fortran degrades
+    # through IEEE arithmetic instead of trapping, so floor the divisors.
+    xks = EM20 if xk == 0.0 else xk
 
     if iecrou == 1:
         f_trial = f_ep + xk * (dxn - dxo)
         if f_trial >= 0.0:
-            xx = dpx + f_trial / xk
+            xx = dpx + f_trial / xks
         else:
-            xx = -dpx + f_trial / xk
+            xx = -dpx + f_trial / xks
         yy, tg = interp_curve(fn1[0], fn1[1], xx * lscale)
         if f_trial >= 0.0 and f_trial > yy:
-            dpx = dpx + (f_trial - yy) / xk
+            dpx = dpx + (f_trial - yy) / xks
             f, capped = yy, True
         elif f_trial < 0.0 and f_trial < yy:
-            dpx = dpx + (yy - f_trial) / xk
+            dpx = dpx + (yy - f_trial) / xks
             f, capped = yy, True
         else:
             f, capped = f_trial, False
@@ -234,14 +237,14 @@ def redef3_plastic(
                 f, capped = yy, True
             else:
                 f, capped = f_trial, False
-            dpx = dxn - f / xk
+            dpx = dxn - f / xks
         elif dxn < dpx2:
             f_trial = xk * (dxn - dpx2)
             if f_trial < yy:
                 f, capped = yy, True
             else:
                 f, capped = f_trial, False
-            dpx2 = dxn - f / xk
+            dpx2 = dxn - f / xks
         else:
             f, capped = 0.0, False
         k_tan = tg * lscale if capped else (xk if f != 0.0 else 0.0)
@@ -363,6 +366,7 @@ def type8_init(m):
         "fcut": np.zeros(m),
         "sens": np.zeros(m, dtype=np.int64),
         "isflag": np.zeros(m, dtype=np.int64),
+        "rerefd": np.zeros(m, dtype=bool),
     }
 
 
@@ -373,8 +377,8 @@ def type8_fill(t8, local, p, funcs, log, pid):
     ``A = 1, B = E = 0`` when ``FUN_A = 0``) and resolves the ``FUN_A/B/D``
     deck curves, warning once per property when a referenced curve is
     absent (closed form kept) or the hardening flag is not yet ported
-    (elastic fallback), plus the rupture limits and failure modes.
-    Sensor and rate keys arrive with their cuts.
+    (elastic fallback), plus the rupture limits, failure modes, sensor
+    ids, and rate-smoothing keys.
     """
     local = np.asarray(local, dtype=np.int64)
     if len(local) == 0:
@@ -457,8 +461,9 @@ def type8_fill(t8, local, p, funcs, log, pid):
                         f"ported yet (redef3.F90:{_iecrou_line(hflag)}) — "
                         f"elastic response kept", "PROP CHECK")
         if fun_c != 0 and log is not None:
-            log.warning(f"/PROP/TYPE8/{pid}: DOF{d} FUN_C={fun_c} needs "
-                        f"IECROU 4/5/7 (not ported) — ignored", "PROP CHECK")
+            log.warning(f"/PROP/TYPE8/{pid}: DOF{d} FUN_C={fun_c} is an "
+                        f"unloading curve (needs an unported IECROU branch) "
+                        f"— ignored", "PROP CHECK")
 
 
 def _type8_dlim(x, f, e6, dmin, dmax, ifail2):
@@ -552,12 +557,14 @@ def type8_forces(delta, dvl, theta, dwl, dt_val, t8, L0, sensors):
         off, reref = type8_sensor_off(usens, int(t8["isflag"][e]), fired)
         prev_off = float(t8["off"][e])
         t8["off"][e] = off
-        if reref and prev_off <= 0.0:
+        if reref and prev_off <= 0.0 and not t8["rerefd"][e]:
             # IFL==2 activation re-references the deformed length (r2sens3:
-            # X0 += DX, totals zeroed); this step restarts from zero force
+            # X0 += DX, totals zeroed); this step restarts from zero force.
+            # Once per element, like the monotonic TT > TSTART edge.
             L0[e] += delta[e]
             theta_new[e] = 0.0
             t8["dx_old"][e, :3] = 0.0
+            t8["rerefd"][e] = True
             zeroed = True
         else:
             zeroed = False
