@@ -2,19 +2,18 @@
 Two-node Rivet connector element (/RIVET + /PROP/RIVET, /PROP/TYPE5).
 
 Fortran origin:
-  ``engine/source/elements/rivet/rivet1.F``   — engine step kernel
-  ``starter/source/elements/reader/hm_read_rivet.F``  — starter reader
-  ``starter/source/properties/rivet/hm_read_prop05.F`` — property reader
+  ``engine/source/elements/rivet/rivet1.F`` - engine step kernel (RIVET1).
 
 The rivet element connects two nodes with a rigid-body-like constraint that
 degrades and fails when the combined normal/tangential force exceeds a limit.
 
-GEO array layout (from hm_read_prop05.F lines 110-114):
-    GEO(1) = FN**2   — squared normal failure force
-    GEO(2) = FT**2   — squared tangential failure force
-    GEO(3) = DX**2   — squared maximum separation distance
-    GEO(4) = IROT+0.1 — rotation constraint flag (0=trans only, 1=trans+rot)
-    GEO(5) = IMOD+0.1 — formulation (1=rigid body, 2=old rigid link)
+Element buffer consumed by the kernel - the GEO array read by RIVET1
+(rivet1.F lines 99-100, 138-141, 352-354):
+    GEO(1) = FN**2 - squared normal failure force
+    GEO(2) = FT**2 - squared tangential failure force
+    GEO(3) = DX**2 - squared maximum separation distance
+    GEO(4) = IROT - rotation flag (0 = translation only, 1 = translation+rotation)
+    GEO(5) = IMOD - formulation (1 = rigid body, 2 = old rigid link)
 
 Engine loop (rivet1.F lines 93-415):
     1. Check separation; decrement OFF by 0.1 each step if DX2 > DMX2
@@ -41,7 +40,7 @@ logger = logging.getLogger(__name__)
 # Small-number guard (rivet1.F: EM15 ≈ 1e-15, EM01 = 0.1)
 _EM15 = 1.0e-15
 _EM01 = 0.1  # damage decrement per step (rivet1.F line 105: OFF=OFF-EM01)
-_EP15 = 1.0e15  # default for FN/FT when not specified (hm_read_prop05.F line 101)
+_EP15 = 1.0e15  # default for FN/FT/DX when the card field is blank or zero (unbounded)
 
 
 # ---------------------------------------------------------------------------
@@ -51,9 +50,9 @@ _EP15 = 1.0e15  # default for FN/FT when not specified (hm_read_prop05.F line 10
 
 @dataclass
 class RivetProp:
-    """/PROP/RIVET or /PROP/TYPE5 property parameters.
+    """Kernel-side view of the /PROP/RIVET (TYPE5) parameters.
 
-    Mirrors the GEO array set by hm_read_prop05.F:
+    Fields mirror the GEO array consumed by RIVET1 (rivet1.F lines 138-141):
         GEO(1) = fn_max**2
         GEO(2) = ft_max**2
         GEO(3) = d_max**2

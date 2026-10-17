@@ -5926,7 +5926,20 @@ def read_prop_pcompp(block: KeywordBlock, model: Model, log: MessageLog) -> None
 
 
 def read_prop_type5(block: KeywordBlock, model: Model, log: MessageLog) -> None:
-    """``/PROP/TYPE5`` or ``/PROP/RIVET`` (M188): Rivet connection property."""
+    """``/PROP/TYPE5`` or ``/PROP/RIVET`` (M188): Rivet connection property.
+
+    Fortran origin: ``starter/source/properties/rivet/hm_read_prop05.F``
+    (``HM_GET_INTV`` WFLAG/Imod, ``HM_GET_FLOATV`` NFORCE/TFORCE/LENGTH;
+    a zero IMOD defaults to 1 and a zero NFORCE/TFORCE/LENGTH to EP15).
+    The reader stores the GEO array consumed by
+    ``engine/source/elements/rivet/rivet1.F``:
+
+        GEO(1) = NFORCE**2  (squared normal failure force)
+        GEO(2) = TFORCE**2  (squared tangential failure force)
+        GEO(3) = LENGTH**2  (squared max separation before damage starts)
+        GEO(4) = IROT + 0.1 (from WFLAG: 0 = translation only, 1 = +rotation)
+        GEO(5) = IMOD + 0.1 (1 = rigid body, 2 = old rigid link)
+    """
     from ...model.entities import PropType5, Property
     prop_id = block.user_id or 0
     title, cards = _fixed_data(block) if block.fixed else _title_and_data(block)
