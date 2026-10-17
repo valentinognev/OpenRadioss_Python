@@ -4984,126 +4984,195 @@ def read_prop_type28(block: KeywordBlock, model: Model, log: MessageLog) -> None
 
 
 def read_prop_type33(block: KeywordBlock, model: Model, log: MessageLog) -> None:
-    """``/PROP/TYPE33`` or ``/PROP/KJOINT`` / ``/PROP/KINEMATIC_JOINT`` (M186): 6-DOF kinematic joint property."""
-    from ...model.entities import PropType33, Property
+    """``/PROP/TYPE33`` or ``/PROP/KJOINT`` / ``/PROP/KINEMATIC_JOINT`` (M186): 6-DOF kinematic joint property.
+
+    Thin dispatcher mirroring ``hm_read_prop33.F``: card 1 carries the joint
+    type (``type`` 1..9) and ``SkewFlag``; the type selects one of the nine
+    ``hm_read_prop33_*_jnt`` readers below. Anything else is refused like the
+    ``ELSE`` branch (``ANCMSG`` 409).
+    """
     prop_id = block.user_id or 0
     title, cards = _fixed_data(block) if block.fixed else _title_and_data(block)
     valid_cards = [c for c in cards if not c.is_blank and not c.raw.strip().startswith("#")]
     if not valid_cards:
         log.error(f"/PROP/TYPE33/{prop_id}: missing data card", block.source)
         return
-
-    joint_type, skew_flag = 1, 0
-    id_sk1, id_sk2 = 0, 0
-    xk, cr, kn = 0.0, 0.0, 0.0
-    krx, kry, krz, ktx, kty, ktz = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    xr_fun, yr_fun, zr_fun, xt_fun, yt_fun, zt_fun = 0, 0, 0, 0, 0, 0
-    crx, cry, crz, ctx, cty, ctz = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    crx_fun, cry_fun, crz_fun, ctx_fun, cty_fun, ctz_fun = 0, 0, 0, 0, 0, 0
-
-    idx = 0
     if block.fixed:
-        if idx < len(valid_cards):
-            c0 = valid_cards[idx].cut("PROP_KJOINT_1")
-            joint_type = _safe_int(c0[0]) if len(c0) > 0 else 1
-            skew_flag = _safe_int(c0[1]) if len(c0) > 1 else 0
-            idx += 1
-        if idx < len(valid_cards):
-            c1 = valid_cards[idx].cut("PROP_KJOINT_2")
-            id_sk1 = _safe_int(c1[0]) if len(c1) > 0 else 0
-            id_sk2 = _safe_int(c1[1]) if len(c1) > 1 else 0
-            xk = _safe_float(c1[2]) if len(c1) > 2 else 0.0
-            cr = _safe_float(c1[3]) if len(c1) > 3 else 0.0
-            idx += 1
-        if idx < len(valid_cards):
-            c2 = valid_cards[idx].cut("PROP_KJOINT_3")
-            kn = _safe_float(c2[0]) if len(c2) > 0 else 0.0
-            krx = _safe_float(c2[1]) if len(c2) > 1 else 0.0
-            kry = _safe_float(c2[2]) if len(c2) > 2 else 0.0
-            krz = _safe_float(c2[3]) if len(c2) > 3 else 0.0
-            idx += 1
-        if idx < len(valid_cards):
-            c3 = valid_cards[idx].cut("PROP_KJOINT_4")
-            xr_fun = _safe_int(c3[0]) if len(c3) > 0 else 0
-            yr_fun = _safe_int(c3[1]) if len(c3) > 1 else 0
-            zr_fun = _safe_int(c3[2]) if len(c3) > 2 else 0
-            idx += 1
-        if idx < len(valid_cards):
-            c4 = valid_cards[idx].cut("PROP_KJOINT_5")
-            crx = _safe_float(c4[0]) if len(c4) > 0 else 0.0
-            cry = _safe_float(c4[1]) if len(c4) > 1 else 0.0
-            crz = _safe_float(c4[2]) if len(c4) > 2 else 0.0
-            idx += 1
-        if idx < len(valid_cards):
-            c5 = valid_cards[idx].cut("PROP_KJOINT_6")
-            crx_fun = _safe_int(c5[0]) if len(c5) > 0 else 0
-            cry_fun = _safe_int(c5[1]) if len(c5) > 1 else 0
-            crz_fun = _safe_int(c5[2]) if len(c5) > 2 else 0
-            idx += 1
+        c0 = valid_cards[0].cut("PROP_KJOINT_1")
+        joint_type = _safe_int(c0[0]) if len(c0) > 0 else 1
+        skew_flag = _safe_int(c0[1]) if len(c0) > 1 else 0
     else:
-        if idx < len(valid_cards):
-            t0 = valid_cards[idx].tokens()
-            joint_type = _safe_int(t0[0]) if len(t0) > 0 else 1
-            skew_flag = _safe_int(t0[1]) if len(t0) > 1 else 0
-            idx += 1
-        if idx < len(valid_cards):
-            t1 = valid_cards[idx].tokens()
-            id_sk1 = _safe_int(t1[0]) if len(t1) > 0 else 0
-            id_sk2 = _safe_int(t1[1]) if len(t1) > 1 else 0
-            xk = _safe_float(t1[2]) if len(t1) > 2 else 0.0
-            cr = _safe_float(t1[3]) if len(t1) > 3 else 0.0
-            idx += 1
-        if idx < len(valid_cards):
-            t2 = valid_cards[idx].tokens()
-            kn = _safe_float(t2[0]) if len(t2) > 0 else 0.0
-            krx = _safe_float(t2[1]) if len(t2) > 1 else 0.0
-            kry = _safe_float(t2[2]) if len(t2) > 2 else 0.0
-            krz = _safe_float(t2[3]) if len(t2) > 3 else 0.0
-            idx += 1
-        if idx < len(valid_cards):
-            t3 = valid_cards[idx].tokens()
-            xr_fun = _safe_int(t3[0]) if len(t3) > 0 else 0
-            yr_fun = _safe_int(t3[1]) if len(t3) > 1 else 0
-            zr_fun = _safe_int(t3[2]) if len(t3) > 2 else 0
-            idx += 1
-        if idx < len(valid_cards):
-            t4 = valid_cards[idx].tokens()
-            crx = _safe_float(t4[0]) if len(t4) > 0 else 0.0
-            cry = _safe_float(t4[1]) if len(t4) > 1 else 0.0
-            crz = _safe_float(t4[2]) if len(t4) > 2 else 0.0
-            idx += 1
-        if idx < len(valid_cards):
-            t5 = valid_cards[idx].tokens()
-            crx_fun = _safe_int(t5[0]) if len(t5) > 0 else 0
-            cry_fun = _safe_int(t5[1]) if len(t5) > 1 else 0
-            crz_fun = _safe_int(t5[2]) if len(t5) > 2 else 0
-            idx += 1
+        t0 = valid_cards[0].tokens()
+        joint_type = _safe_int(t0[0]) if len(t0) > 0 else 1
+        skew_flag = _safe_int(t0[1]) if len(t0) > 1 else 0
+    data = valid_cards[1:]
+    readers = {1: hm_read_prop33_sph_jnt, 2: hm_read_prop33_rev_jnt,
+               3: hm_read_prop33_cyl_jnt, 4: hm_read_prop33_plan_jnt,
+               5: hm_read_prop33_univ_jnt, 6: hm_read_prop33_trans_jnt,
+               7: hm_read_prop33_old_jnt, 8: hm_read_prop33_fix_jnt,
+               9: hm_read_prop33_free_jnt}
+    reader = readers.get(joint_type)
+    if reader is None:
+        log.error(f"/PROP/TYPE33/{prop_id}: wrong joint type {joint_type}"
+                  " (hm_read_prop33.F accepts ITYP 1..9, ANCMSG 409)", block.source)
+        return
+    reader(prop_id, title, joint_type, skew_flag, data, block.fixed, model, log, block.source)
 
-    p33 = PropType33(
-        id=prop_id, joint_type=joint_type, skew_flag=skew_flag,
-        id_sk1=id_sk1, id_sk2=id_sk2, xk=xk, cr=cr, kn=kn,
-        krx=krx, kry=kry, krz=krz, ktx=ktx, kty=kty, ktz=ktz,
-        xr_fun=xr_fun, yr_fun=yr_fun, zr_fun=zr_fun,
-        xt_fun=xt_fun, yt_fun=yt_fun, zt_fun=zt_fun,
-        crx=crx, cry=cry, crz=crz, ctx=ctx, cty=cty, ctz=ctz,
-        crx_fun=crx_fun, cry_fun=cry_fun, crz_fun=crz_fun,
-        ctx_fun=ctx_fun, cty_fun=cty_fun, ctz_fun=ctz_fun,
-        title=title,
-    )
+
+#: Per-DOF attribute stems on ``PropType33``/``Property.params``.
+_JNT_STEMS = {"tx": ("ktx", "xt_fun", "ctx", "ctx_fun"),
+              "ty": ("kty", "yt_fun", "cty", "cty_fun"),
+              "tz": ("ktz", "zt_fun", "ctz", "ctz_fun"),
+              "rx": ("krx", "xr_fun", "crx", "crx_fun"),
+              "ry": ("kry", "yr_fun", "cry", "cry_fun"),
+              "rz": ("krz", "zr_fun", "crz", "crz_fun")}
+
+
+def _joint_cards(cards, fixed, free):
+    """Split the data cards of one joint reader into raw field strings.
+
+    Card image (echo order of every ``hm_read_prop33_*_jnt.F``): d0 =
+    ``(Idsk1, Idsk2, Xk, Cr)``, d1 = ``(Kn, K<free..>)``, d2 =
+    ``(Ifun<free..>)``, optional d3 = ``(C<free..>)``, optional d4 =
+    ``(IfunC<free..>)``. Missing trailing cards are the old-format deck
+    (``OFLAG`` echo) — every field defaults.
+    """
+    n = len(free)
+    vals = [""] * (4 + (1 + n) + n + n + n)
+    seq = [cards[i] if i < len(cards) else None for i in range(5)]
+    if seq[0] is not None:
+        f = seq[0].cut("PROP_KJOINT_2") if fixed else seq[0].tokens()
+        vals[0:4] = [f[i] if i < len(f) else "" for i in range(4)]
+    for slot, width in ((1, 20), (2, 10), (3, 20), (4, 10)):
+        need = (1 + n) if slot == 1 else n
+        if need and seq[slot] is not None:
+            f = seq[slot].cut([width] * need) if fixed else seq[slot].tokens()
+            base = 4 + (0 if slot == 1 else (1 + n) + (slot - 2) * n)
+            vals[base:base + need] = [f[i] if i < len(f) else "" for i in range(need)]
+    return vals
+
+
+def _register_prop33(prop_id, title, joint_type, skew_flag, vals, free, has_kn,
+                     model, log, source, src):
+    """Validate (ANCMSG 386/387/388) and register one joint property.
+
+    ``vals`` is the raw field list from :func:`_joint_cards`. Unit-free rules
+    transcribed from every ``hm_read_prop33_*_jnt.F``: ``CR == 0 → FIVEEM2``,
+    ``K/C == 0`` with a function id given → ``ONE``. The ``FAC_*`` unit
+    scalings are not applied — like every other Starter reader in this
+    module, the port stores raw deck values.
+    """
+    from ...model.entities import PropType33, Property
+    n = len(free)
+    id_sk1 = _safe_int(vals[0]) if len(vals) > 0 else 0
+    id_sk2 = _safe_int(vals[1]) if len(vals) > 1 else 0
+    xk = _safe_float(vals[2]) if len(vals) > 2 else 0.0
+    cr = _safe_float(vals[3]) if len(vals) > 3 else 0.0
+    kn = _safe_float(vals[4]) if has_kn and len(vals) > 4 else 0.0
+    if id_sk1 <= 0 or id_sk2 <= 0:
+        log.error(f"/PROP/TYPE33/{prop_id}: skew frame ids must be positive"
+                  f" ({src}, ANCMSG 386)", source)
+    if has_kn and kn == 0.0:
+        log.error(f"/PROP/TYPE33/{prop_id}: blocking stiffness Kn must be"
+                  f" nonzero ({src}, ANCMSG 387)", source)
+    if cr < 0.0 or cr > 1.0:
+        log.error(f"/PROP/TYPE33/{prop_id}: Cr must be in [0, 1]"
+                  f" ({src}, ANCMSG 388)", source)
+    if cr == 0.0:
+        cr = 0.05
+    k = {d: _safe_float(vals[5 + i]) for i, d in enumerate(free)}
+    fn = {d: _safe_int(vals[5 + n + i]) for i, d in enumerate(free)}
+    c = {d: _safe_float(vals[5 + 2 * n + i]) for i, d in enumerate(free)}
+    cf = {d: _safe_int(vals[5 + 3 * n + i]) for i, d in enumerate(free)}
+    for d in free:
+        if k[d] == 0.0 and fn[d] != 0:
+            k[d] = 1.0
+        if c[d] == 0.0 and cf[d] != 0:
+            c[d] = 1.0
+    attrs: dict = dict(joint_type=joint_type, skew_flag=skew_flag,
+                       id_sk1=id_sk1, id_sk2=id_sk2, xk=xk, cr=cr, kn=kn)
+    for d in free:
+        ks, fs, cs, cfs = _JNT_STEMS[d]
+        attrs[ks], attrs[fs], attrs[cs], attrs[cfs] = k[d], fn[d], c[d], cf[d]
+    p33 = PropType33(id=prop_id, title=title, **attrs)
     model.prop_type33s[prop_id] = p33
-    model.properties[prop_id] = Property(
-        id=prop_id, type=33, title=title,
-        params={
-            "joint_type": joint_type, "type": joint_type, "skew_flag": skew_flag,
-            "id_sk1": id_sk1, "id_sk2": id_sk2, "xk": xk, "cr": cr, "kn": kn,
-            "krx": krx, "kry": kry, "krz": krz, "ktx": ktx, "kty": kty, "ktz": ktz,
-            "xr_fun": xr_fun, "yr_fun": yr_fun, "zr_fun": zr_fun,
-            "xt_fun": xt_fun, "yt_fun": yt_fun, "zt_fun": zt_fun,
-            "crx": crx, "cry": cry, "crz": crz, "ctx": ctx, "cty": cty, "ctz": ctz,
-            "crx_fun": crx_fun, "cry_fun": cry_fun, "crz_fun": crz_fun,
-            "ctx_fun": ctx_fun, "cty_fun": cty_fun, "ctz_fun": ctz_fun,
-        }
-    )
+    params = {"type": joint_type, "id_sk1": id_sk1, "id_sk2": id_sk2,
+              "xk": xk, "cr": cr, "kn": kn, "skew_flag": skew_flag}
+    for ks, fs, cs, cfs in _JNT_STEMS.values():
+        params[ks] = attrs.get(ks, 0.0)
+        params[fs] = attrs.get(fs, 0)
+        params[cs] = attrs.get(cs, 0.0)
+        params[cfs] = attrs.get(cfs, 0)
+    params["joint_type"] = joint_type
+    model.properties[prop_id] = Property(id=prop_id, type=33, title=title, params=params)
+
+
+def hm_read_prop33_sph_jnt(prop_id, title, joint_type, skew_flag, cards, fixed, model, log, source):
+    """Spherical joint, ITYP 1 (``hm_read_prop33_sph_jnt.F``): Rx, Ry, Rz free."""
+    _register_prop33(prop_id, title, joint_type, skew_flag,
+                     _joint_cards(cards, fixed, ("rx", "ry", "rz")),
+                     ("rx", "ry", "rz"), True, model, log, source, "hm_read_prop33_sph_jnt.F")
+
+
+def hm_read_prop33_rev_jnt(prop_id, title, joint_type, skew_flag, cards, fixed, model, log, source):
+    """Revolute joint, ITYP 2 (``hm_read_prop33_rev_jnt.F``): Rx free."""
+    _register_prop33(prop_id, title, joint_type, skew_flag,
+                     _joint_cards(cards, fixed, ("rx",)),
+                     ("rx",), True, model, log, source, "hm_read_prop33_rev_jnt.F")
+
+
+def hm_read_prop33_cyl_jnt(prop_id, title, joint_type, skew_flag, cards, fixed, model, log, source):
+    """Cylindrical joint, ITYP 3 (``hm_read_prop33_cyl_jnt.F``): Tx, Rx free."""
+    _register_prop33(prop_id, title, joint_type, skew_flag,
+                     _joint_cards(cards, fixed, ("tx", "rx")),
+                     ("tx", "rx"), True, model, log, source, "hm_read_prop33_cyl_jnt.F")
+
+
+def hm_read_prop33_plan_jnt(prop_id, title, joint_type, skew_flag, cards, fixed, model, log, source):
+    """Planar joint, ITYP 4 (``hm_read_prop33_plan_jnt.F``): Ty, Tz, Rx free."""
+    _register_prop33(prop_id, title, joint_type, skew_flag,
+                     _joint_cards(cards, fixed, ("ty", "tz", "rx")),
+                     ("ty", "tz", "rx"), True, model, log, source, "hm_read_prop33_plan_jnt.F")
+
+
+def hm_read_prop33_univ_jnt(prop_id, title, joint_type, skew_flag, cards, fixed, model, log, source):
+    """Universal joint, ITYP 5 (``hm_read_prop33_univ_jnt.F``): Ry, Rz free."""
+    _register_prop33(prop_id, title, joint_type, skew_flag,
+                     _joint_cards(cards, fixed, ("ry", "rz")),
+                     ("ry", "rz"), True, model, log, source, "hm_read_prop33_univ_jnt.F")
+
+
+def hm_read_prop33_trans_jnt(prop_id, title, joint_type, skew_flag, cards, fixed, model, log, source):
+    """Translational joint, ITYP 6 (``hm_read_prop33_trans_jnt.F``): Tx free."""
+    _register_prop33(prop_id, title, joint_type, skew_flag,
+                     _joint_cards(cards, fixed, ("tx",)),
+                     ("tx",), True, model, log, source, "hm_read_prop33_trans_jnt.F")
+
+
+def hm_read_prop33_old_jnt(prop_id, title, joint_type, skew_flag, cards, fixed, model, log, source):
+    """Oldham joint, ITYP 7 (``hm_read_prop33_old_jnt.F``): Ty, Tz free."""
+    _register_prop33(prop_id, title, joint_type, skew_flag,
+                     _joint_cards(cards, fixed, ("ty", "tz")),
+                     ("ty", "tz"), True, model, log, source, "hm_read_prop33_old_jnt.F")
+
+
+def hm_read_prop33_fix_jnt(prop_id, title, joint_type, skew_flag, cards, fixed, model, log, source):
+    """Fixed joint, ITYP 8 (``hm_read_prop33_fix_jnt.F``): nothing free.
+
+    Upstream checks ``IDSK1<=0.OR.IDSK1<=0`` (the second operand repeats
+    IDSK1); the port checks both skew ids, which is the evident intent.
+    """
+    _register_prop33(prop_id, title, joint_type, skew_flag,
+                     _joint_cards(cards, fixed, ()),
+                     (), True, model, log, source, "hm_read_prop33_fix_jnt.F")
+
+
+def hm_read_prop33_free_jnt(prop_id, title, joint_type, skew_flag, cards, fixed, model, log, source):
+    """Free joint, ITYP 9 (``hm_read_prop33_free_jnt.F``): all six DOFs free, no Kn."""
+    _register_prop33(prop_id, title, joint_type, skew_flag,
+                     _joint_cards(cards, fixed, ("tx", "ty", "tz", "rx", "ry", "rz")),
+                     ("tx", "ty", "tz", "rx", "ry", "rz"), False, model, log, source,
+                     "hm_read_prop33_free_jnt.F")
 
 
 
