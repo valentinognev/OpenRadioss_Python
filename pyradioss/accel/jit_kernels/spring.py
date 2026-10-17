@@ -258,8 +258,9 @@ def spring_t32_linear(x1, x2, v1, v2, F_old, stif0, stif1, f1, d1, ilock,
         uvar2[e] = u2
         uvar3[e] = u3
         k_tan[e] = kt
-        de_incr[e] = (0.5 * (F_old[e] + f) * Ldot * dt_val
-                      if alive else 0.0)
+        # r5def3.F left rule: work with the PRE-update force (the driver
+        # re-reads st["force"] before writing the new F back)
+        de_incr[e] = (F_old[e] * Ldot * dt_val if alive else 0.0)
 
         # --- critical step (ruser32mat3.F: Kt = uvar4 = stif0 here)
         mass_e = mass[e] if mass[e] > EM20 else EM20
